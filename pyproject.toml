@@ -1,0 +1,52 @@
+[project]
+name = "akshare-value-investment"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "yapex", email = "yapex.yin@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "akshare>=1.17.83",
+    "dependency-injector>=4.48.2",
+    "pandas>=2.3.3",
+    "plotly>=6.4.0",
+    "pyyaml>=6.0.3",
+    "streamlit>=1.51.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=6.0.0",
+    "pytest-asyncio>=0.25.0",
+    "pytest-mock>=3.14.0",
+]
+
+[project.scripts]
+akshare-value-investment = "akshare_value_investment:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--verbose",
+    "--cov=src/akshare_value_investment",
+    "--cov-report=term-missing",
+    "--cov-report=html:htmlcov",
+    "--cov-fail-under=90",
+    "--tb=short",
+]
+markers = [
+    "unit: 单元测试",
+    "integration: 集成测试",
+    "e2e: 端到端测试",
+    "slow: 慢速测试",
+]

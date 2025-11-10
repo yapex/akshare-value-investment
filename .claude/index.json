@@ -1,0 +1,87 @@
+{
+  "timestamp": "2025-11-10T16:12:35",
+  "project_info": {
+    "name": "akshare-value-investment",
+    "type": "Python Package",
+    "description": "基于 akshare 的价值投资分析系统",
+    "total_files": 4,
+    "python_version": ">=3.13"
+  },
+  "scan_coverage": {
+    "total_files_found": 4,
+    "files_scanned": 4,
+    "coverage_percentage": 100.0,
+    "truncated": false
+  },
+  "modules": [
+    {
+      "path": "src/akshare_value_investment",
+      "language": "Python",
+      "entry_file": "src/akshare_value_investment/__init__.py",
+      "main_function": "main()",
+      "test_directory": null,
+      "config_files": [],
+      "documentation": "CLAUDE.md",
+      "coverage": {
+        "entry": true,
+        "interfaces": false,
+        "dependencies": false,
+        "data_models": false,
+        "tests": false
+      }
+    }
+  ],
+  "file_inventory": {
+    "python_files": [
+      "src/akshare_value_investment/__init__.py"
+    ],
+    "config_files": [
+      "pyproject.toml",
+      ".gitignore"
+    ],
+    "documentation_files": [
+      "README.md",
+      "CLAUDE.md",
+      "src/akshare_value_investment/CLAUDE.md"
+    ],
+    "generated_files": [
+      ".claude/index.json"
+    ]
+  },
+  "gaps_analysis": {
+    "missing_dependencies": ["akshare", "pandas", "numpy", "matplotlib"],
+    "missing_features": [
+      "股票数据获取功能",
+      "财务数据分析算法",
+      "估值计算模型",
+      "投资建议系统",
+      "数据可视化组件"
+    ],
+    "missing_testing": [
+      "测试框架配置",
+      "单元测试用例",
+      "集成测试用例"
+    ],
+    "missing_quality_tools": [
+      "代码格式化工具",
+      "代码检查工具",
+      "pre-commit 配置"
+    ]
+  },
+  "next_steps": [
+    "添加 akshare 和其他必要依赖到 pyproject.toml",
+    "实现基础的股票数据获取功能",
+    "创建数据处理和分析模块",
+    "添加测试框架和基础测试用例",
+    "配置代码质量工具"
+  ],
+  "ignore_patterns_used": [
+    "__pycache__/",
+    "*.py[oc]",
+    "build/",
+    "dist/",
+    "wheels/",
+    "*.egg-info",
+    ".venv"
+  ]
+}
