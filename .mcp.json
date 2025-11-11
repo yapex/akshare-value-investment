@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "akshare-value-investment": {
+      "type": "stdio",
+      "command": "uv",
+      "args": [
+        "run",
+        "python",
+        "-m",
+        "akshare_value_investment.mcp_server"
+      ],
+      "env": {}
+    }
+  }
+}

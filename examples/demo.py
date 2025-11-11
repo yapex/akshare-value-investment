@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 # 导入简化版本组件
 from akshare_value_investment.container import create_production_service
-from akshare_value_investment.models import MarketType
+from akshare_value_investment.core.models import MarketType
 
 
 def analyze_raw_data_result(result, stock_name, symbol):

@@ -5,14 +5,15 @@
 简化版本：直接返回原始数据，不进行字段映射。
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from datetime import datetime
 from decimal import Decimal
 
 import akshare as ak
 
-from .interfaces import IMarketAdapter
-from .models import MarketType, FinancialIndicator, PeriodType
+from ..core.interfaces import IMarketAdapter, IQueryService
+from ..core.models import MarketType, FinancialIndicator, PeriodType, QueryResult
+from ..core.stock_identifier import StockIdentifier
 
 
 class AStockAdapter(IMarketAdapter):
@@ -24,19 +25,27 @@ class AStockAdapter(IMarketAdapter):
         """
         self.market = MarketType.A_STOCK
 
-    def get_financial_data(self, symbol: str) -> List[FinancialIndicator]:
+    def get_financial_data(self, symbol: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[FinancialIndicator]:
         """
         获取A股财务数据
 
         Args:
             symbol: 股票代码
+            start_date: 开始日期 (YYYY-MM-DD)
+            end_date: 结束日期 (YYYY-MM-DD)
 
         Returns:
             财务指标列表（包含原始数据）
         """
         try:
             raw_data_list = self._get_a_stock_financial_data(symbol)
-            return self._convert_to_financial_indicators(symbol, raw_data_list)
+            indicators = self._convert_to_financial_indicators(symbol, raw_data_list)
+
+            # 应用时间范围过滤
+            if start_date or end_date:
+                indicators = self._filter_by_date_range(indicators, start_date, end_date)
+
+            return indicators
         except Exception as e:
             raise RuntimeError(f"获取A股 {symbol} 财务数据失败: {str(e)}")
 
@@ -117,6 +126,53 @@ class AStockAdapter(IMarketAdapter):
                 continue
 
         return indicators
+
+    def _filter_by_date_range(self, indicators: List[FinancialIndicator], start_date: Optional[str], end_date: Optional[str]) -> List[FinancialIndicator]:
+        """
+        根据时间范围过滤财务指标
+
+        Args:
+            indicators: 财务指标列表
+            start_date: 开始日期 (YYYY-MM-DD)
+            end_date: 结束日期 (YYYY-MM-DD)
+
+        Returns:
+            过滤后的财务指标列表
+        """
+        if not start_date and not end_date:
+            return indicators
+
+        filtered_indicators = []
+
+        # 转换日期字符串为datetime对象
+        start_datetime = None
+        end_datetime = None
+
+        if start_date:
+            try:
+                start_datetime = datetime.strptime(start_date, '%Y-%m-%d')
+            except ValueError:
+                print(f"⚠️ 开始日期格式无效: {start_date}")
+                start_datetime = None
+
+        if end_date:
+            try:
+                end_datetime = datetime.strptime(end_date, '%Y-%m-%d')
+                # 包含结束日期，所以设置为23:59:59
+                end_datetime = end_datetime.replace(hour=23, minute=59, second=59)
+            except ValueError:
+                print(f"⚠️ 结束日期格式无效: {end_date}")
+                end_datetime = None
+
+        # 过滤指标
+        for indicator in indicators:
+            if start_datetime and indicator.report_date < start_datetime:
+                continue
+            if end_datetime and indicator.report_date > end_datetime:
+                continue
+            filtered_indicators.append(indicator)
+
+        return filtered_indicators
 
     def _get_a_stock_financial_data(self, symbol: str) -> List[Dict[str, Any]]:
         """
@@ -257,7 +313,7 @@ class HKStockAdapter(IMarketAdapter):
         """
         self.market = MarketType.HK_STOCK
 
-    def get_financial_data(self, symbol: str) -> List[FinancialIndicator]:
+    def get_financial_data(self, symbol: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[FinancialIndicator]:
         """
         获取港股财务数据
 
@@ -392,7 +448,7 @@ class USStockAdapter(IMarketAdapter):
         """
         self.market = MarketType.US_STOCK
 
-    def get_financial_data(self, symbol: str) -> List[FinancialIndicator]:
+    def get_financial_data(self, symbol: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[FinancialIndicator]:
         """
         获取美股财务数据
 
@@ -559,8 +615,8 @@ class USStockAdapter(IMarketAdapter):
         return company_names.get(symbol, f"美股{symbol}")
 
 
-class AdapterManager:
-    """适配器管理器 - 简化版本"""
+class AdapterManager(IQueryService):
+    """适配器管理器 - 简化版本，实现IQueryService接口"""
 
     def __init__(self):
         """
@@ -572,6 +628,9 @@ class AdapterManager:
             MarketType.HK_STOCK: HKStockAdapter(),
             MarketType.US_STOCK: USStockAdapter(),
         }
+
+        # 股票识别器
+        self.stock_identifier = StockIdentifier()
 
     def get_adapter(self, market: MarketType) -> IMarketAdapter:
         """
@@ -599,3 +658,53 @@ class AdapterManager:
             支持的市场类型列表
         """
         return list(self.adapters.keys())
+
+    # IQueryService接口实现
+    def query(self, symbol: str, **kwargs) -> QueryResult:
+        """
+        实现IQueryService接口的查询方法
+
+        Args:
+            symbol: 股票代码
+            **kwargs: 其他查询参数 (start_date, end_date等)
+
+        Returns:
+            查询结果
+        """
+        try:
+            # 识别市场类型
+            market, _ = self.stock_identifier.identify(symbol)
+            adapter = self.get_adapter(market)
+
+            # 获取财务数据（传递时间参数）
+            start_date = kwargs.get('start_date')
+            end_date = kwargs.get('end_date')
+            data = adapter.get_financial_data(symbol, start_date=start_date, end_date=end_date)
+
+            # 构建查询结果
+            return QueryResult(
+                success=True,
+                data=data,
+                message=f"成功获取{symbol}的财务数据",
+                total_records=len(data)
+            )
+        except Exception as e:
+            return QueryResult(
+                success=False,
+                data=[],
+                message=f"查询失败: {str(e)}",
+                total_records=0
+            )
+
+    def get_available_fields(self, market: MarketType = None):
+        """
+        实现IQueryService接口的获取可用字段方法
+
+        Args:
+            market: 市场类型
+
+        Returns:
+            空列表，简化版本通过raw_data访问原始字段
+        """
+        # 简化版本：用户通过FinancialIndicator.raw_data访问所有原始字段
+        return []

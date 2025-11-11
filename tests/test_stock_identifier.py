@@ -9,8 +9,8 @@ Test Case 3-3: 边界情况处理
 import pytest
 
 try:
-    from akshare_value_investment.models import MarketType
-    from akshare_value_investment.stock_identifier import StockIdentifier
+    from akshare_value_investment.core.models import MarketType
+    from akshare_value_investment.core.stock_identifier import StockIdentifier
 except ImportError:
     pytest.skip("Stock identifier not implemented yet", allow_module_level=True)
 
@@ -126,6 +126,59 @@ class TestStockIdentifier:
             actual_market, actual_clean_symbol = self.identifier.identify(symbol)
             assert actual_market == expected_market, f"Failed whitespace test for {symbol}"
             assert actual_clean_symbol == expected_clean_symbol, f"Failed whitespace cleaning for {symbol}"
+
+    def test_edge_cases_identification(self):
+        """测试边缘情况识别"""
+        # 测试空字符串和默认市场
+        market, symbol = self.identifier.identify("")
+        assert market == MarketType.US_STOCK
+        assert symbol == ""
+
+        # 测试指定默认市场
+        market, symbol = self.identifier.identify("", default_market=MarketType.HK_STOCK)
+        assert market == MarketType.HK_STOCK
+        assert symbol == ""
+
+        # 测试后缀模式匹配
+        test_cases = [
+            ("600519.SS", MarketType.A_STOCK, "600519"),
+            ("AAPL.O", MarketType.US_STOCK, "AAPL"),
+            ("00700.HK", MarketType.HK_STOCK, "00700"),
+            ("TSLA.NASDAQ", MarketType.US_STOCK, "TSLA"),
+        ]
+
+        for symbol_with_suffix, expected_market, expected_clean_symbol in test_cases:
+            market, clean_symbol = self.identifier.identify(symbol_with_suffix)
+            assert market == expected_market
+            assert clean_symbol == expected_clean_symbol
+
+        # 测试无法识别的代码使用默认市场
+        market, symbol = self.identifier.identify("INVALID_CODE", default_market=MarketType.HK_STOCK)
+        assert market == MarketType.HK_STOCK
+        assert symbol == "INVALID_CODE"
+
+        # 测试无法识别的代码默认为美股
+        market, symbol = self.identifier.identify("INVALID_CODE")
+        assert market == MarketType.US_STOCK
+        assert symbol == "INVALID_CODE"
+
+    def test_validate_symbol_edge_cases(self):
+        """测试validate_symbol的边缘情况"""
+        # 测试空字符串
+        assert self.identifier.validate_symbol("", MarketType.A_STOCK) is False
+        assert self.identifier.validate_symbol("", MarketType.HK_STOCK) is False
+        assert self.identifier.validate_symbol("", MarketType.US_STOCK) is False
+
+        # 测试不匹配市场的格式
+        assert self.identifier.validate_symbol("600519", MarketType.HK_STOCK) is False  # A股格式
+        assert self.identifier.validate_symbol("00700", MarketType.A_STOCK) is False  # 港股格式
+        assert self.identifier.validate_symbol("TSLA", MarketType.HK_STOCK) is False   # 美股格式
+
+        # 测试无效的股票代码格式
+        assert self.identifier.validate_symbol("12345", MarketType.A_STOCK) is False  # 5位数字不是A股
+        assert self.identifier.validate_symbol("1234567", MarketType.HK_STOCK) is False  # 7位数字不是港股
+        assert self.identifier.validate_symbol("123456", MarketType.US_STOCK) is False   # 数字不是美股
+        assert self.identifier.validate_symbol("TOOLONG", MarketType.US_STOCK) is False  # 超过5个字母
 
     def test_supported_markets(self):
         """测试支持的市场类型"""

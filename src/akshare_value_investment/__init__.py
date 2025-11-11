@@ -9,7 +9,7 @@ __version__ = "0.1.0"
 __author__ = "akshare-value-investment team"
 
 # 导出主要接口 - 简化版本
-from .models import MarketType, FinancialIndicator, QueryResult, PeriodType
+from .core.models import MarketType, FinancialIndicator, QueryResult, PeriodType
 from .container import create_production_service
 
 __all__ = [

@@ -16,6 +16,7 @@ dependencies = [
     "streamlit>=1.51.0",
     "mcp>=1.0.0",
     "poethepoet>=0.37.0",
+    "pytest-asyncio>=1.2.0",
 ]
 
 [dependency-groups]
@@ -53,6 +54,7 @@ markers = [
     "e2e: 端到端测试",
     "slow: 慢速测试",
 ]
+asyncio_mode = "auto"
 
 [tool.poe.tasks]
 # MCP服务器任务
