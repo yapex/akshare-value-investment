@@ -17,7 +17,7 @@ from mcp.types import (
 )
 
 from .services import (
-    FinancialQueryService,
+    FinancialIndicatorQueryService,
     FieldDiscoveryService
 )
 
@@ -26,13 +26,13 @@ class AkshareMCPServerV2:
     """重构后的akshare财务数据MCP服务器"""
 
     def __init__(self,
-                 financial_service: FinancialQueryService,
+                 financial_service: FinancialIndicatorQueryService,
                  field_discovery_service: FieldDiscoveryService):
         """
         初始化MCP服务器
 
         Args:
-            financial_service: 财务查询服务
+            financial_service: 财务指标查询服务
             field_discovery_service: 字段发现服务
         """
         self.server = Server("akshare-value-investment")
@@ -48,7 +48,7 @@ class AkshareMCPServerV2:
             """列出可用工具"""
             return [
                 Tool(
-                    name="query_financial_data",
+                    name="query_financial_indicators",
                     description="🔍 智能查询股票财务指标，支持自然语言查询跨市场数据（A股、港股、美股）",
                     inputSchema={
                         "type": "object",
@@ -117,8 +117,8 @@ class AkshareMCPServerV2:
         async def handle_call_tool(name: str, arguments: Dict[str, Any]):
             """处理工具调用 - 委托给相应服务"""
             try:
-                if name == "query_financial_data":
-                    return await self._handle_query_financial_data(arguments)
+                if name == "query_financial_indicators":
+                    return await self._handle_query_financial_indicators(arguments)
                 elif name == "search_financial_fields":
                     return await self._handle_search_financial_fields(arguments)
                 elif name == "get_field_details":
@@ -129,7 +129,7 @@ class AkshareMCPServerV2:
             except Exception as e:
                 return self._format_error_response(f"处理请求时发生错误: {str(e)}")
 
-    async def _handle_query_financial_data(self, arguments: Dict[str, Any]) -> CallToolResult:
+    async def _handle_query_financial_indicators(self, arguments: Dict[str, Any]) -> CallToolResult:
         """处理智能财务数据查询请求"""
         try:
             # 验证必要参数
@@ -147,7 +147,7 @@ class AkshareMCPServerV2:
             end_date = arguments.get("end_date")
 
             # 使用简化查询方法避免异步问题
-            result = self._query_financial_data_sync(
+            result = self._query_financial_indicators_sync(
                 symbol=symbol,
                 field_query=query,
                 prefer_annual=prefer_annual,
@@ -362,7 +362,7 @@ class AkshareMCPServerV2:
         except Exception as e:
             return self._format_error_response(f"获取字段详情失败: {str(e)}")
 
-    def _query_financial_data_sync(self, symbol: str, field_query: str, **kwargs) -> Dict[str, Any]:
+    def _query_financial_indicators_sync(self, symbol: str, field_query: str, **kwargs) -> Dict[str, Any]:
         """
         同步财务数据查询方法，避免异步调用问题
 

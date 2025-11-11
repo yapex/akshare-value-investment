@@ -16,7 +16,7 @@ from .business.processing.time_range_processor import TimeRangeProcessor
 from .business.processing.data_processor import DataStructureProcessor
 
 # 导入服务层组件
-from .services.financial_query_service import FinancialQueryService
+from .services.financial_query_service import FinancialIndicatorQueryService
 from .services.field_discovery_service import FieldDiscoveryService
 
 # 导入智能字段映射系统
@@ -43,9 +43,9 @@ class ProductionContainer(containers.DeclarativeContainer):
         query_service=adapter_manager  # 使用适配器管理器作为查询服务
     )
 
-    # 核心财务查询服务 - 新架构
+    # 核心财务指标查询服务 - 新架构
     financial_query_service = providers.Singleton(
-        FinancialQueryService,
+        FinancialIndicatorQueryService,
         query_service=adapter_manager,  # 适配器管理器实现IQueryService接口
         field_mapper=field_mapper,
         formatter=response_formatter,
@@ -57,7 +57,7 @@ class ProductionContainer(containers.DeclarativeContainer):
     query_service = financial_query_service
 
 
-def create_production_service() -> FinancialQueryService:
+def create_production_service() -> FinancialIndicatorQueryService:
     """
     创建生产环境的查询服务实例 - 重构版本
 

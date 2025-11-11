@@ -14,8 +14,8 @@ from .interfaces import (
 from ..business.mapping.field_mapper import IFieldMapper
 
 
-class FinancialQueryService:
-    """财务查询服务 - 纯业务逻辑"""
+class FinancialIndicatorQueryService:
+    """财务指标查询服务 - 纯业务逻辑"""
 
     def __init__(self,
                  query_service: IQueryService,
