@@ -42,26 +42,63 @@ class AStockAdapter(IMarketAdapter):
 
     def _convert_to_financial_indicators(self, symbol: str, raw_data_list: List[Dict[str, Any]]) -> List[FinancialIndicator]:
         """
-        将原始数据转换为财务指标 - 简化版本，保留原始数据
+        将原始数据转换为财务指标 - 重新设计以支持多年份数据
+
+        处理 akshare stock_financial_abstract 返回的宽表数据：
+        - 每行是一个财务指标
+        - 每列是一个报告期（日期）
+        - 需要转换为按报告期组织的财务指标对象
 
         Args:
             symbol: 股票代码
             raw_data_list: 原始数据列表
 
         Returns:
-            财务指标列表
+            财务指标列表，每个代表一个报告期的所有财务数据
         """
+        if not raw_data_list:
+            return []
+
+        # 收集所有日期列（排除非日期列）
+        date_columns = []
+        for key in raw_data_list[0].keys():
+            if key not in ['选项', '指标'] and len(key) == 8 and key.isdigit():
+                date_columns.append(key)
+
+        # 按日期排序，最新的在前
+        date_columns.sort(reverse=True)
+
         indicators = []
 
-        for raw_data in raw_data_list:
+        for date_col in date_columns:
             try:
                 # 解析报告日期
-                report_date = self._parse_report_date(raw_data)
+                report_date = datetime.strptime(date_col, "%Y%m%d")
 
-                # 解析报告期类型
-                period_type = self._parse_period_type(raw_data.get("报告期", ""))
+                # 解析报告期类型（根据日期判断）
+                period_type = self._determine_period_type(date_col)
 
-                # 创建财务指标对象 - 简化版本，indicators为空，raw_data包含所有原始字段
+                # 收集该期的所有财务指标数据
+                period_data = {}
+                raw_data_processed = {}
+
+                for raw_data in raw_data_list:
+                    indicator_name = raw_data.get('指标', '')
+                    indicator_value = raw_data.get(date_col)
+
+                    if indicator_name and indicator_value is not None:
+                        period_data[indicator_name] = indicator_value
+                        raw_data_processed[indicator_name] = indicator_value
+
+                # 添加元数据
+                raw_data_processed.update({
+                    'symbol': symbol,
+                    'market': self.market.value,
+                    'report_date': date_col,
+                    'period_type': period_type.value if period_type else 'annual'
+                })
+
+                # 创建财务指标对象
                 indicator = FinancialIndicator(
                     symbol=symbol,
                     market=self.market,
@@ -69,15 +106,14 @@ class AStockAdapter(IMarketAdapter):
                     report_date=report_date,
                     period_type=period_type,
                     currency="CNY",
-                    indicators={},  # 简化版本不进行字段映射
-                    raw_data=raw_data  # 保留所有原始数据
+                    indicators=period_data,  # 使用解析后的指标数据
+                    raw_data=raw_data_processed  # 保留完整的原始数据
                 )
 
                 indicators.append(indicator)
 
             except Exception as e:
-                # 跳过无法解析的记录，继续处理其他记录
-                print(f"警告: 跳过无效记录 {symbol}: {str(e)}")
+                # 跳过无法解析的日期记录
                 continue
 
         return indicators
@@ -93,15 +129,27 @@ class AStockAdapter(IMarketAdapter):
             原始数据列表
         """
         try:
-            # 使用 akshare 获取A股财务数据
-            data = ak.stock_financial_analysis_indicator(symbol=symbol)
+            # 使用 akshare 获取A股财务数据 - 使用 stock_financial_abstract
+            data = ak.stock_financial_abstract(symbol=symbol)
 
             # 处理不同的返回类型
             if hasattr(data, 'empty') and data.empty:
                 return []
             elif hasattr(data, 'to_dict'):
-                # DataFrame 类型
-                return data.to_dict('records')
+                # DataFrame 类型 - 转置数据以适应我们的格式
+                records = []
+                for _, row in data.iterrows():
+                    # 将每行转换为我们的数据格式
+                    record = {
+                        '指标': row.get('指标', ''),
+                        '选项': row.get('选项', ''),
+                    }
+                    # 添加所有日期列
+                    for col in data.columns:
+                        if col not in ['选项', '指标']:
+                            record[col] = row.get(col)
+                    records.append(record)
+                return records
             elif isinstance(data, list):
                 # 已经是列表类型
                 return data
@@ -123,23 +171,28 @@ class AStockAdapter(IMarketAdapter):
         Returns:
             报告日期
         """
-        # 尝试多种可能的日期字段
-        date_fields = ["日期", "报告日期", "report_date"]
+        # 对于stock_financial_abstract数据，日期存储在不同的列中
+        # 我们需要获取最新的日期列作为报告日期
 
-        for field in date_fields:
-            if field in raw_data and raw_data[field] is not None:
-                date_str = str(raw_data[field])
-                try:
-                    # 尝试多种日期格式
-                    for fmt in ["%Y-%m-%d", "%Y/%m/%d", "%Y%m%d"]:
-                        try:
-                            return datetime.strptime(date_str, fmt)
-                        except ValueError:
-                            continue
-                except Exception:
-                    continue
+        latest_date = None
+        latest_date_str = ""
 
-        # 默认返回当前日期
+        for key, value in raw_data.items():
+            if key not in ['选项', '指标'] and value is not None:
+                # 尝试解析日期字段 YYYYMMDD
+                if isinstance(key, str) and len(key) == 8 and key.isdigit():
+                    try:
+                        date_obj = datetime.strptime(key, '%Y%m%d')
+                        if latest_date is None or date_obj > latest_date:
+                            latest_date = date_obj
+                            latest_date_str = key
+                    except ValueError:
+                        continue
+
+        if latest_date:
+            return latest_date
+
+        # 如果没有找到日期，使用默认日期
         return datetime.now()
 
     def _parse_period_type(self, period_str: str) -> PeriodType:
@@ -158,25 +211,41 @@ class AStockAdapter(IMarketAdapter):
         else:
             return PeriodType.QUARTERLY
 
+    def _determine_period_type(self, date_str: str) -> PeriodType:
+        """
+        根据日期字符串确定报告期类型
+
+        Args:
+            date_str: 日期字符串 (YYYYMMDD格式)
+
+        Returns:
+            报告期类型
+        """
+        if len(date_str) != 8 or not date_str.isdigit():
+            return PeriodType.QUARTERLY
+
+        # 解析月日部分
+        month_day = date_str[4:]  # MMDD
+
+        # 1231是年报，其他是季报
+        if month_day == "1231":
+            return PeriodType.ANNUAL
+        else:
+            return PeriodType.QUARTERLY
+
     def _get_company_name(self, symbol: str) -> str:
         """
-        获取公司名称
+        获取公司名称 - 简化版本，由大语言模型处理
 
         Args:
             symbol: 股票代码
 
         Returns:
-            公司名称
+            股票代码（由大语言模型进行公司名称识别）
         """
-        # 简化版本，返回股票代码作为公司名称
-        # 实际实现中可以调用 akshare 的股票基本信息接口
-        company_names = {
-            "600036": "招商银行",
-            "600519": "贵州茅台",
-            "000001": "平安银行",
-            "000002": "万科A",
-        }
-        return company_names.get(symbol, f"股票{symbol}")
+        # 简化版本：直接返回股票代码
+        # 公司名称的识别和展示交给上层应用或大语言模型处理
+        return f"股票{symbol}"
 
 
 class HKStockAdapter(IMarketAdapter):
@@ -240,7 +309,6 @@ class HKStockAdapter(IMarketAdapter):
                 indicators.append(indicator)
 
             except Exception as e:
-                print(f"警告: 跳过无效记录 {symbol}: {str(e)}")
                 continue
 
         return indicators
@@ -276,13 +344,17 @@ class HKStockAdapter(IMarketAdapter):
 
     def _parse_report_date(self, raw_data: Dict[str, Any]) -> datetime:
         """解析报告日期"""
-        date_fields = ["日期", "报告日期", "report_date", "DATE"]
+        date_fields = ["REPORT_DATE", "日期", "报告日期", "report_date", "DATE"]
 
         for field in date_fields:
             if field in raw_data and raw_data[field] is not None:
                 date_str = str(raw_data[field])
                 try:
-                    for fmt in ["%Y-%m-%d", "%Y/%m/%d", "%Y%m%d"]:
+                    # 处理pandas时间戳格式
+                    if hasattr(date_str, 'strftime'):
+                        return date_str
+                    # 处理字符串格式
+                    for fmt in ["%Y-%m-%d", "%Y/%m/%d", "%Y%m%d", "%Y-%m-%d %H:%M:%S"]:
                         try:
                             return datetime.strptime(date_str, fmt)
                         except ValueError:
@@ -338,26 +410,68 @@ class USStockAdapter(IMarketAdapter):
 
     def _convert_to_financial_indicators(self, symbol: str, raw_data_list: List[Dict[str, Any]]) -> List[FinancialIndicator]:
         """
-        将原始数据转换为财务指标 - 简化版本
+        将美股原始数据转换为财务指标 - 更新版本以支持多年份数据
+
+        美股数据处理：akshare返回的是长表格式，每行代表一个报告期的所有财务数据
 
         Args:
             symbol: 股票代码
             raw_data_list: 原始数据列表
 
         Returns:
-            财务指标列表
+            财务指标列表，每个代表一个报告期的所有财务数据
         """
         indicators = []
 
         for raw_data in raw_data_list:
             try:
-                # 解析报告日期
-                report_date = self._parse_report_date(raw_data)
+                # 解析报告日期 - 美股使用REPORT_DATE字段
+                report_date_str = raw_data.get("REPORT_DATE", "")
+                if not report_date_str:
+                    # 如果没有REPORT_DATE，尝试其他日期字段
+                    report_date_str = raw_data.get("NOTICE_DATE", "") or raw_data.get("FINANCIAL_DATE", "")
 
-                # 解析报告期类型
-                period_type = self._parse_period_type(raw_data.get("报告期", ""))
+                if report_date_str:
+                    if isinstance(report_date_str, str):
+                        # 尝试解析日期字符串
+                        if len(report_date_str) > 10:  # 包含时间信息的日期
+                            report_date = datetime.strptime(report_date_str.split()[0], "%Y-%m-%d")
+                        else:
+                            report_date = datetime.strptime(report_date_str, "%Y-%m-%d")
+                    else:
+                        report_date = report_date_str  # 已经是datetime对象
+                else:
+                    # 如果没有日期信息，跳过这条记录
+                    continue
 
-                # 创建财务指标对象 - 简化版本
+                # 解析报告期类型 - 美股通常按季度报告，但苹果是自然年财年
+                period_type = PeriodType.QUARTERLY  # 默认为季报
+
+                # 收集该期的所有财务指标数据（排除元数据字段）
+                period_data = {}
+                raw_data_processed = {}
+
+                # 美股数据中的元数据字段
+                metadata_fields = {
+                    'SECUCODE', 'SECURITY_CODE', 'SECURITY_NAME_ABBR', 'ORG_CODE',
+                    'SECURITY_INNER_CODE', 'ACCOUNTING_STANDARDS', 'NOTICE_DATE',
+                    'START_DATE', 'REPORT_DATE', 'FINANCIAL_DATE', 'CURRENCY_ABBR'
+                }
+
+                for field_name, field_value in raw_data.items():
+                    if field_name not in metadata_fields and field_value is not None:
+                        period_data[field_name] = field_value
+                        raw_data_processed[field_name] = field_value
+
+                # 添加元数据
+                raw_data_processed.update({
+                    'symbol': symbol,
+                    'market': self.market.value,
+                    'report_date': report_date_str,
+                    'period_type': period_type.value if period_type else 'quarterly'
+                })
+
+                # 创建财务指标对象
                 indicator = FinancialIndicator(
                     symbol=symbol,
                     market=self.market,
@@ -365,16 +479,17 @@ class USStockAdapter(IMarketAdapter):
                     report_date=report_date,
                     period_type=period_type,
                     currency="USD",
-                    indicators={},  # 简化版本不进行字段映射
-                    raw_data=raw_data  # 保留所有原始数据
+                    indicators=period_data,  # 使用解析后的指标数据
+                    raw_data=raw_data_processed  # 保留完整的原始数据
                 )
 
                 indicators.append(indicator)
 
             except Exception as e:
-                print(f"警告: 跳过无效记录 {symbol}: {str(e)}")
                 continue
 
+        # 按报告日期排序，最新的在前
+        indicators.sort(key=lambda x: x.report_date, reverse=True)
         return indicators
 
     def _get_us_stock_financial_data(self, symbol: str) -> List[Dict[str, Any]]:

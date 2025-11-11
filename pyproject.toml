@@ -14,6 +14,8 @@ dependencies = [
     "plotly>=6.4.0",
     "pyyaml>=6.0.3",
     "streamlit>=1.51.0",
+    "mcp>=1.0.0",
+    "poethepoet>=0.37.0",
 ]
 
 [dependency-groups]
@@ -26,6 +28,7 @@ dev = [
 
 [project.scripts]
 akshare-value-investment = "akshare_value_investment:main"
+akshare-mcp-server = "akshare_value_investment.mcp_server:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -50,3 +53,35 @@ markers = [
     "e2e: 端到端测试",
     "slow: 慢速测试",
 ]
+
+[tool.poe.tasks]
+# MCP服务器任务
+mcp-server = "python -m akshare_value_investment.mcp_server"
+
+# 基础任务
+test = "pytest"
+demo = "python examples/demo.py"
+install = "pip install -e ."
+
+# 验证任务
+verify-mcp = "python -c \"from akshare_value_investment.mcp_server import AkshareMCPServer; print('✅ MCP服务器验证通过')\""
+
+# 开发任务组合
+dev = ["install", "test"]
+check = ["test", "verify-mcp"]
+
+# Claude Code MCP配置任务
+# 添加MCP服务器到Claude Code (本地范围)
+mcp-add-local = "claude mcp add --scope local --transport stdio akshare-value-investment -- uv run python -m akshare_value_investment.mcp_server"
+
+# 添加MCP服务器到Claude Code (项目范围)
+mcp-add-project = "claude mcp add --scope project --transport stdio akshare-value-investment -- uv run python -m akshare_value_investment.mcp_server"
+
+# 移除MCP服务器
+mcp-remove = "claude mcp remove akshare-value-investment"
+
+# 列出MCP服务器
+mcp-list = "claude mcp list"
+
+# 获取MCP服务器详情
+mcp-get = "claude mcp get akshare-value-investment"
