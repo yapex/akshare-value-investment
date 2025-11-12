@@ -1,25 +1,40 @@
 """
-多配置文件加载器
-支持加载多个YAML配置文件并合并
+多配置文件加载器（重构版）
+
+基于组合模式的配置加载器，使用拆分后的专门组件
+遵循单一职责原则（SRP），作为各组件的协调者
 """
 
-import yaml
-from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass
+from pathlib import Path
 
-from .config_loader import FieldInfo, MarketConfig
+from .models import FieldInfo, MarketConfig
+from .interfaces import IConfigLoader
+from .config_file_reader import ConfigFileReader
+from .config_merger import ConfigMerger, DefaultMergerStrategy
 
 
-class MultiConfigLoader:
-    """多配置文件加载器"""
+class MultiConfigLoader(IConfigLoader):
+    """多配置文件加载器（重构版）
 
-    def __init__(self, config_paths: Optional[List[str]] = None):
+    使用组合模式，将原本的多重职责分离到专门的组件中
+    现在只负责协调各个组件，符合单一职责原则
+    """
+
+    def __init__(
+        self,
+        config_paths: Optional[List[str]] = None,
+        file_reader: Optional[ConfigFileReader] = None,
+        config_merger: Optional[ConfigMerger] = None
+    ):
         """
         初始化多配置加载器
 
         Args:
             config_paths: 配置文件路径列表，如果为None则使用默认路径
+            file_reader: 文件读取器实例，如果为None则创建默认实例
+            config_merger: 配置合并器实例，如果为None则创建默认实例
         """
         if config_paths is None:
             current_dir = Path(__file__).parent.parent.parent / "datasource" / "config"
@@ -28,77 +43,54 @@ class MultiConfigLoader:
                 str(current_dir / "financial_statements.yaml")   # 财务三表
             ]
 
-        self.config_paths = config_paths
-        self._configs: List[Dict[str, Any]] = []
+        # 组合各个专门组件
+        self._file_reader = file_reader or ConfigFileReader(config_paths)
+        self._config_merger = config_merger or ConfigMerger(DefaultMergerStrategy())
+
+        # 内部状态
         self._markets: Dict[str, MarketConfig] = {}
+        self._is_loaded: bool = False
 
     def load_configs(self) -> bool:
         """
         加载所有配置文件
 
+        使用组合的组件进行文件读取和配置合并
+
         Returns:
             是否加载成功
         """
         try:
-            self._configs = []
+            # 1. 使用文件读取器读取配置
+            configs = self._file_reader.read_all_configs()
 
-            for config_path in self.config_paths:
-                if Path(config_path).exists():
-                    with open(config_path, 'r', encoding='utf-8') as f:
-                        config = yaml.safe_load(f)
-                        self._configs.append(config)
-                        print(f"✅ 成功加载配置: {config_path}")
-                else:
-                    print(f"⚠️ 配置文件不存在: {config_path}")
+            if not configs:
+                print("⚠️ 没有找到有效的配置文件")
+                return False
 
-            # 合并配置
-            self._merge_configs()
+            # 2. 使用配置合并器合并配置
+            self._markets = self._config_merger.merge_configs(configs)
+
+            # 3. 验证合并结果
+            validation_result = self._config_merger.validate_merge_result(self._markets)
+            if not validation_result['is_valid']:
+                print("⚠️ 配置合并验证发现问题:")
+                for issue in validation_result['issues']:
+                    print(f"   - {issue}")
+
+            # 4. 标记为已加载
+            self._is_loaded = True
+
+            # 5. 输出统计信息
+            merge_summary = self._config_merger.get_merge_summary()
+            print(f"✅ 配置加载完成: {merge_summary['total_configs_merged']} 个配置, "
+                  f"{merge_summary['total_fields_merged']} 个字段")
+
             return True
 
         except Exception as e:
-            print(f"加载配置文件失败: {e}")
+            print(f"❌ 加载配置文件失败: {e}")
             return False
-
-    def _merge_configs(self):
-        """合并多个配置文件"""
-        self._markets = {}
-
-        for config in self._configs:
-            markets_data = config.get('markets', {})
-
-            for market_id, market_data in markets_data.items():
-                # 跳过元数据字段
-                if market_id in ['name', 'currency'] and not isinstance(market_data, dict):
-                    continue
-
-                # 获取或创建市场配置
-                if market_id not in self._markets:
-                    # 解析市场基本信息
-                    market_name = market_data.get('name', market_id)
-                    market_currency = market_data.get('currency', 'CNY')
-
-                    self._markets[market_id] = MarketConfig(
-                        name=market_name,
-                        currency=market_currency,
-                        fields={}
-                    )
-
-                # 合并字段配置
-                existing_market = self._markets[market_id]
-                for field_id, field_data in market_data.items():
-                    if isinstance(field_data, dict) and 'keywords' in field_data:
-                        # 如果字段已存在，跳过（保持原有配置优先级）
-                        if field_id in existing_market.fields:
-                            print(f"⚠️ 字段已存在，跳过: {market_id}.{field_id}")
-                            continue
-
-                        field_info = FieldInfo(
-                            name=field_data.get('name', field_id),
-                            keywords=field_data.get('keywords', []),
-                            priority=field_data.get('priority', 1),
-                            description=field_data.get('description', '')
-                        )
-                        existing_market.fields[field_id] = field_info
 
     def get_market_config(self, market_id: str) -> Optional[MarketConfig]:
         """
@@ -121,58 +113,41 @@ class MultiConfigLoader:
         """
         return list(self._markets.keys())
 
-    def search_fields_by_keyword(self, keyword: str, market_id: Optional[str] = None, limit: int = 10) -> List[Tuple[str, float, FieldInfo]]:
+    def is_loaded(self) -> bool:
         """
-        根据关键字搜索字段
-
-        Args:
-            keyword: 搜索关键字
-            market_id: 市场ID，如果为None则搜索所有市场
-            limit: 最大返回数量
+        检查配置是否已加载
 
         Returns:
-            搜索结果列表，每个元素为 (field_id, similarity, field_info)
+            是否已加载
         """
-        results = []
-        keyword_lower = keyword.lower().strip()
-
-        markets_to_search = [market_id] if market_id else self._markets.keys()
-
-        for market_id_to_search in markets_to_search:
-            market_config = self._markets.get(market_id_to_search)
-            if not market_config:
-                continue
-
-            for field_id, field_info in market_config.fields.items():
-                if field_info.matches_keyword(keyword_lower):
-                    # 精确匹配，相似度为1.0
-                    similarity = 1.0
-                else:
-                    # 计算相似度
-                    similarity = field_info.get_similarity(keyword_lower)
-
-                if similarity > 0.3:  # 相似度阈值
-                    results.append((field_id, similarity, field_info, market_id_to_search))
-
-        # 按相似度和优先级排序
-        results.sort(key=lambda x: (x[1], -x[2].priority), reverse=True)
-
-        # 限制返回数量
-        return results[:limit]
+        return self._is_loaded
 
     def get_metadata(self) -> Dict[str, Any]:
         """
-        获取合并后的配置元数据
+        获取配置元数据
 
         Returns:
             元数据字典
         """
-        all_metadata = {}
-        for i, config in enumerate(self._configs):
-            metadata = config.get('metadata', {})
-            all_metadata[f'config_{i+1}'] = metadata
+        if not self._is_loaded:
+            return {}
 
-        return all_metadata
+        # 从文件读取器获取文件信息
+        files_info = self._file_reader.get_all_files_info()
+        metadata = {}
+
+        for i, file_info in enumerate(files_info):
+            if file_info['exists']:
+                key = f'config_{i+1}'
+                metadata[key] = {
+                    'path': file_info['path'],
+                    'version': file_info.get('version', 'unknown'),
+                    'description': file_info.get('description', ''),
+                    'size_bytes': file_info.get('size_bytes', 0),
+                    'markets_count': file_info.get('markets_count', 0)
+                }
+
+        return metadata
 
     def get_categories_info(self) -> Dict[str, Any]:
         """
@@ -181,32 +156,108 @@ class MultiConfigLoader:
         Returns:
             分类信息字典
         """
-        all_categories = {}
-        for i, config in enumerate(self._configs):
-            categories = config.get('categories', {})
-            all_categories[f'config_{i+1}'] = categories
+        if not self._is_loaded:
+            return {}
 
-        return all_categories
+        # 基于配置合并器的历史信息
+        merge_summary = self._config_merger.get_merge_summary()
+        categories = {}
+
+        for i, step in enumerate(merge_summary.get('merge_history', [])):
+            key = f'config_{i+1}'
+            categories[key] = {
+                'version': step.get('config_version', 'unknown'),
+                'description': step.get('config_description', ''),
+                'fields_count': step.get('total_fields', 0),
+                'markets_count': step.get('markets_count', 0)
+            }
+
+        return categories
 
     def get_config_summary(self) -> Dict[str, Any]:
         """
-        获取配置摘要信息
+        获取配置摘要
 
         Returns:
             配置摘要
         """
-        summary = {
-            'total_markets': len(self._markets),
-            'total_fields': sum(len(market.fields) for market in self._markets.values()),
-            'config_files': len(self._configs),
-            'markets_detail': {}
-        }
+        if not self._is_loaded:
+            return {}
+
+        total_fields = sum(len(market.fields) for market in self._markets.values())
+        markets_detail = {}
 
         for market_id, market_config in self._markets.items():
-            summary['markets_detail'][market_id] = {
+            # 分析字段优先级分布
+            priority_distribution = {}
+            for field_info in market_config.fields.values():
+                priority = field_info.priority
+                priority_distribution[priority] = priority_distribution.get(priority, 0) + 1
+
+            markets_detail[market_id] = {
                 'name': market_config.name,
                 'currency': market_config.currency,
-                'fields_count': len(market_config.fields)
+                'fields_count': len(market_config.fields),
+                'priority_distribution': priority_distribution
             }
 
-        return summary
+        merge_summary = self._config_merger.get_merge_summary()
+
+        return {
+            'total_markets': len(self._markets),
+            'total_fields': total_fields,
+            'config_files': merge_summary.get('total_configs_merged', 0),
+            'markets_detail': markets_detail,
+            'merge_strategy': merge_summary.get('merge_strategy', 'unknown'),
+            'load_timestamp': merge_summary.get('merge_history', [{}])[-1].get('timestamp', 'unknown')
+        }
+
+    def get_file_reader_stats(self) -> Dict[str, Any]:
+        """
+        获取文件读取器统计信息
+
+        Returns:
+            文件读取统计
+        """
+        return self._file_reader.get_file_stats()
+
+    def get_merge_summary(self) -> Dict[str, Any]:
+        """
+        获取合并摘要
+
+        Returns:
+            合并摘要信息
+        """
+        return self._config_merger.get_merge_summary()
+
+    def validate_configuration(self) -> Dict[str, Any]:
+        """
+        验证当前配置
+
+        Returns:
+            验证结果
+        """
+        if not self._is_loaded:
+            return {
+                'is_valid': False,
+                'issues': ['配置未加载'],
+                'statistics': {}
+            }
+
+        return self._config_merger.validate_merge_result(self._markets)
+
+    def reload_configs(self) -> bool:
+        """
+        重新加载配置
+
+        Returns:
+            是否重新加载成功
+        """
+        print("🔄 重新加载配置...")
+        self._markets.clear()
+        self._is_loaded = False
+        return self.load_configs()
+
+
+# 为了向后兼容，保留原有的类名作为别名
+__all__ = ['MultiConfigLoader']

@@ -5,7 +5,7 @@
 """
 
 from typing import List, Optional, Dict, Tuple, Any, Protocol, runtime_checkable
-from .config_loader import FieldInfo
+from .models import FieldInfo
 from .multi_config_loader import MultiConfigLoader
 
 
