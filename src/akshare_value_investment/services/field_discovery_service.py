@@ -5,7 +5,8 @@
 """
 
 from typing import List
-from .interfaces import IFieldDiscoveryService, IQueryService
+from ..core.interfaces import IQueryService
+from .interfaces import IFieldDiscoveryService
 
 
 class FieldDiscoveryService(IFieldDiscoveryService):

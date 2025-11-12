@@ -5,8 +5,8 @@
 """
 
 from typing import List, Optional, Any, Tuple, Dict
+from ..core.interfaces import IQueryService
 from .interfaces import (
-    IQueryService,
     IResponseFormatter,
     ITimeRangeProcessor,
     IDataStructureProcessor

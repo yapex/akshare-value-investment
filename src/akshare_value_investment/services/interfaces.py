@@ -2,26 +2,10 @@
 服务层接口定义
 
 使用Python Protocol定义轻量级接口，用于依赖注入和单元测试。
+专注于服务层接口，核心业务接口位于 core/interfaces.py
 """
 
 from typing import List, Optional, Dict, Any, Tuple, Protocol
-
-
-class IQueryService(Protocol):
-    """查询服务接口"""
-
-    def query(self, symbol: str, **kwargs) -> Any:
-        """
-        执行财务指标查询
-
-        Args:
-            symbol: 股票代码
-            **kwargs: 查询参数
-
-        Returns:
-            查询结果
-        """
-        ...
 
 
 class IFieldMapper(Protocol):
