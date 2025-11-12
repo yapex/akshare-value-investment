@@ -8,3 +8,32 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Claude Code personal configuration
+.claude/
+
+# Serena memory files (temporary)
+.serena/
+
+# Spec-workflow templates and configuration
+.spec-workflow/
+
+# Coverage reports
+htmlcov/
+.coverage
+.pytest_cache/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
