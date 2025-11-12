@@ -1,7 +1,7 @@
 [project]
 name = "akshare-value-investment"
 version = "0.1.0"
-description = "Add your description here"
+description = "基于 akshare 的价值投资分析系统，提供跨市场（A股、港股、美股）财务指标查询和财务三表分析功能，支持自然语言智能查询"
 readme = "README.md"
 authors = [
     { name = "yapex", email = "yapex.yin@gmail.com" }
@@ -68,11 +68,13 @@ demo = "python examples/demo.py"
 install = "pip install -e ."
 
 # 验证任务
-verify-mcp = "python -c \"from akshare_value_investment.mcp_server import AkshareMCPServer; print('✅ MCP服务器验证通过')\""
+verify-mcp = "python -c \"from akshare_value_investment.mcp_server import AkshareMCPServerV2; print('✅ MCP服务器验证通过')\""
+verify-query = "python -c \"from akshare_value_investment.business.mapping.query_engine import FinancialQueryEngine; engine = FinancialQueryEngine(); print('✅ 智能查询引擎验证通过')\""
 
 # 开发任务组合
 dev = ["install", "test"]
-check = ["test", "verify-mcp"]
+check = ["test", "verify-mcp", "verify-query"]
+full-check = ["test", "verify-mcp", "verify-query", "demo"]
 
 # Claude Code MCP配置任务
 # 添加MCP服务器到Claude Code (本地范围)
@@ -89,3 +91,11 @@ mcp-list = "claude mcp list"
 
 # 获取MCP服务器详情
 mcp-get = "claude mcp get akshare-value-investment"
+
+# 文档任务
+docs-serve = "python -m http.server 8000 --directory doc"
+docs-open = "open http://localhost:8000"
+
+# 研究任务
+research-summary = "head -n 50 doc/research/FINAL_RESEARCH_SUMMARY.md"
+research-config = "head -n 30 doc/research/financial_statements_config_extension.md"
