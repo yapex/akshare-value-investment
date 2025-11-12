@@ -4,6 +4,10 @@
 使用 dependency-injector 框架管理依赖关系，支持新的服务层架构。
 """
 
+import logging
+import os
+from logging.handlers import TimedRotatingFileHandler
+from pathlib import Path
 from dependency_injector import containers, providers
 
 from .core.models import MarketType
@@ -29,6 +33,7 @@ from .smart_cache.factories.adapter_factory import CacheAdapterFactory
 from .smart_cache.managers.cache_manager import CacheManager
 from .smart_cache.managers.cache_metrics import CacheMetrics
 from .smart_cache.core.enhanced_key_generator import EnhancedKeyGenerator
+from .smart_cache.decorators import smart_cache_decorator
 from .smart_cache.decorators.smart_cache_decorator import SmartCacheDecorator
 from .smart_cache.adapters.combined_adapter import CombinedCacheAdapter
 
@@ -43,6 +48,56 @@ class ProductionContainer(containers.DeclarativeContainer):
 
     # 配置
     config = providers.Configuration()
+
+    # 日志配置
+    logger = providers.Singleton(
+        logging.getLogger,
+        "investment.container"
+    )
+
+    @staticmethod
+    def _setup_logging():
+        """设置系统日志配置 - 单日轮换"""
+        # 获取根logger，让所有子logger都能使用相同的handler
+        root_logger = logging.getLogger("investment")
+
+        if not root_logger.handlers:
+            # 避免重复配置
+            root_logger.setLevel(logging.INFO)
+
+            # 创建日志目录
+            log_dir = Path("logs")
+            log_dir.mkdir(exist_ok=True)
+
+            # 创建单日轮换文件处理器
+            log_file = log_dir / "akshare_value_investment.log"
+            file_handler = TimedRotatingFileHandler(
+                log_file,
+                when='midnight',  # 每天午夜轮换
+                interval=1,       # 每天一次
+                backupCount=30,   # 保留30天的日志
+                encoding='utf-8'
+            )
+            file_handler.setLevel(logging.INFO)
+
+            # 设置轮换文件名格式
+            file_handler.suffix = "%Y-%m-%d"
+
+            # 创建格式化器
+            formatter = logging.Formatter(
+                '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                datefmt='%Y-%m-%d %H:%M:%S'
+            )
+            file_handler.setFormatter(formatter)
+
+            # 添加处理器到根logger
+            root_logger.addHandler(file_handler)
+            root_logger.propagate = False
+
+    def __init__(self):
+        """初始化容器并设置日志"""
+        super().__init__()
+        self._setup_logging()
 
     # Smart Cache配置 - 重构版本
     cache_config = providers.Singleton(CacheConfig)
@@ -81,7 +136,8 @@ class ProductionContainer(containers.DeclarativeContainer):
     stock_identifier = providers.Singleton(StockIdentifier)
     adapter_manager = providers.Singleton(AdapterManager)
 
-    # 服务层组件 - 使用新的智能字段映射系统
+
+  # 服务层组件 - 使用新的智能字段映射系统
     field_mapper = providers.Singleton(FinancialFieldMapper)  # 使用新的智能字段映射器
     response_formatter = providers.Singleton(ResponseFormatter)
     time_processor = providers.Singleton(TimeRangeProcessor)
@@ -152,6 +208,8 @@ def create_production_service() -> FinancialIndicatorQueryService:
     Returns:
         配置好的查询服务实例
     """
+    # 首先设置日志
+    ProductionContainer._setup_logging()
     container = ProductionContainer()
     return container.financial_query_service()
 
@@ -163,6 +221,8 @@ def create_container() -> ProductionContainer:
     Returns:
         配置好的容器实例
     """
+    # 首先设置日志
+    ProductionContainer._setup_logging()
     return ProductionContainer()
 
 
@@ -173,8 +233,31 @@ def create_mcp_services():
     Returns:
         MCP服务元组 (financial_query_service, field_discovery_service)
     """
+    # 首先设置日志
+    ProductionContainer._setup_logging()
     container = ProductionContainer()
     return (
         container.financial_query_service(),
         container.field_discovery_service()
     )
+
+
+def _create_cached_adapter_manager(cache_manager, stock_identifier):
+    """创建带缓存装饰器的适配器管理器"""
+
+    class CachedAdapterManager(AdapterManager):
+        """带缓存装饰器的适配器管理器"""
+
+        def __init__(self, stock_identifier=None):
+            super().__init__(stock_identifier)
+            self._cache_decorator = SmartCacheDecorator(
+                cache_manager=cache_manager,
+                prefix="adapter_query",
+                ttl=3600  # 1小时缓存
+            )
+
+        def query(self, symbol: str, **kwargs):
+            """重写query方法以应用缓存"""
+            return self._cache_decorator(super().query)(symbol, **kwargs)
+
+    return CachedAdapterManager(stock_identifier)

@@ -6,9 +6,14 @@
 """
 
 import asyncio
+import logging
+from logging.handlers import TimedRotatingFileHandler
+from pathlib import Path
 from typing import List, Dict, Any
 
 from mcp.server import Server, NotificationOptions
+
+# 删除模块级别的日志初始化，避免重复和多余的日志信息
 from mcp.server.models import InitializationOptions
 from mcp.types import (
     CallToolResult,
@@ -40,6 +45,7 @@ class AkshareMCPServerV2:
         self.server = Server("akshare-value-investment")
         self.financial_service = financial_service
         self.field_discovery_service = field_discovery_service
+        self.logger = logging.getLogger("investment.mcp_server")
 
         # 使用依赖注入的格式化器，如果没有提供则使用默认实现
         if response_formatter is None:
@@ -50,6 +56,7 @@ class AkshareMCPServerV2:
 
         self._setup_handlers()
 
+  
     def _setup_handlers(self):
         """设置MCP处理器 - 只做路由，不包含业务逻辑"""
 
@@ -151,6 +158,9 @@ class AkshareMCPServerV2:
             if not query:
                 return self._format_error_response("查询内容不能为空")
 
+            # 记录查询请求
+            self.logger.info(f"查询：股票={symbol}, 内容={query}")
+
             # 提取参数
             prefer_annual = arguments.get("prefer_annual", True)
             start_date = arguments.get("start_date")
@@ -169,13 +179,16 @@ class AkshareMCPServerV2:
             if result.get("success"):
                 data = result.get("data", [])
                 if data:
+                    self.logger.info(f"返回 [{symbol}] {len(data)} 条数据")
                     # 使用依赖注入的格式化器，遵循依赖倒置原则
                     response_text = self.response_formatter.format_query_response(
                         symbol, query, data, prefer_annual=prefer_annual
                     )
                 else:
+                    self.logger.warning(f"查询成功但无数据: 股票 {symbol}, 查询 {query}")
                     response_text = f"❌ 未找到匹配 '{query}' 的财务数据"
             else:
+                self.logger.error(f"查询失败: {result.get('message', '未知错误')}")
                 response_text = f"❌ 查询失败: {result.get('message', '未知错误')}"
 
             return CallToolResult(
@@ -184,6 +197,7 @@ class AkshareMCPServerV2:
             )
 
         except Exception as e:
+            self.logger.error(f"处理查询请求异常: {str(e)}")
             return self._format_error_response(f"查询处理失败: {str(e)}")
 
     async def _handle_search_financial_fields(self, arguments: Dict[str, Any]) -> CallToolResult:

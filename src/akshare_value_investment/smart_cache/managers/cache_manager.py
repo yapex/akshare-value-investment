@@ -4,6 +4,7 @@
 """
 
 import time
+import logging
 from typing import Any, Optional, Callable
 from ..abstractions import (
     ICacheReader, ICacheWriter, ICacheMonitor, ICacheKeyGenerator
@@ -35,6 +36,7 @@ class CacheManager:
         self._monitor = monitor
         self._key_generator = key_generator
         self._default_ttl = default_ttl
+        self.logger = logging.getLogger("investment.cache_manager")
 
     def get(self, key: str) -> Optional[Any]:
         """
@@ -114,6 +116,9 @@ class CacheManager:
                 cache_hit=True,
                 cache_key=key
             )
+
+        # 缓存未命中，记录日志
+        self.logger.info(f"缓存未命中: {key}")
 
         # 缓存未命中，计算新值
         try:

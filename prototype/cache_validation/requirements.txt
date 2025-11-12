@@ -1,3 +1,0 @@
-# 缓存验证原型依赖
-# 使用 uv add diskcache 安装
-diskcache>=5.6.0
