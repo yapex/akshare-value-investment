@@ -17,6 +17,7 @@ dependencies = [
     "mcp>=1.0.0",
     "poethepoet>=0.37.0",
     "pytest-asyncio>=1.2.0",
+    "mcp-server>=0.1.4",
 ]
 
 [dependency-groups]
