@@ -131,8 +131,8 @@ class ResponseFormatter(IResponseFormatter):
         if not annual_data:
             return ["  - 无年报数据，显示最新期数据："] + self._format_latest_data(data)[:3]
 
-        # 按年份排序，显示最近5年
-        sorted_years = sorted(annual_data.keys(), reverse=True)[:5]
+        # 按年份排序，显示所有可用的历年数据（支持"历年"查询）
+        sorted_years = sorted(annual_data.keys(), reverse=True)
         return [f"  - {year}年: {annual_data[year]}" for year in sorted_years]
 
     def _format_latest_data(self, data: Dict[str, Any]) -> List[str]:

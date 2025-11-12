@@ -1,20 +1,33 @@
 """
 MCP响应格式化器
 
-统一处理所有MCP工具的响应格式化，确保输出一致性和可读性。
+只负责格式化输出，遵循单一职责原则。
+业务逻辑委托给专门的数据处理器。
 """
 
 from typing import List, Dict, Any
+from .interfaces import IMCPResponseFormatter
+from .data_processors import SmartQueryDataProcessor
 
 
-class ResponseFormatter:
-    """MCP响应格式化器"""
+class ResponseFormatter(IMCPResponseFormatter):
+    """MCP响应格式化器 - 只负责格式化"""
+
+    def __init__(self, data_processor: SmartQueryDataProcessor = None):
+        """
+        初始化格式化器
+
+        Args:
+            data_processor: 数据处理器（可选）
+        """
+        self.data_processor = data_processor or SmartQueryDataProcessor()
 
     def format_query_response(self,
                             symbol: str,
                             query: str,
                             data: List[Dict[str, Any]],
-                            message: str = None) -> str:
+                            message: str = None,
+                            prefer_annual: bool = True) -> str:
         """
         格式化财务指标查询响应
 
@@ -23,6 +36,7 @@ class ResponseFormatter:
             query: 查询内容
             data: 查询结果数据
             message: 消息
+            prefer_annual: 是否优先年报数据
 
         Returns:
             格式化的响应文本
@@ -30,60 +44,57 @@ class ResponseFormatter:
         if not data:
             return f"❌ 未找到匹配 '{query}' 的财务数据"
 
+        # 委托给数据处理器进行业务逻辑处理
+        processed_records = self.data_processor.get_optimized_records(
+            data, query, prefer_annual=prefer_annual
+        )
+
+        # 格式化器只负责输出格式化
+        return self._format_records(symbol, query, processed_records, data)
+
+    def _format_records(self,
+                       symbol: str,
+                       query: str,
+                       records: List[Dict[str, Any]],
+                       original_data: List[Dict[str, Any]]) -> str:
+        """
+        格式化记录为Markdown文本
+
+        Args:
+            symbol: 股票代码
+            query: 查询内容
+            records: 处理后的记录
+            original_data: 原始数据
+
+        Returns:
+            格式化的Markdown文本
+        """
         response_parts = [
             f"## 📊 {symbol} 财务数据查询结果",
             f"",
             f"**查询**: {query}",
-            f"**记录数**: {len(data)} 条",
+            f"**记录数**: {len(original_data)} 条",
             f""
         ]
 
-        # 优化显示逻辑：优先显示年报数据，最多显示10条记录
-        annual_records = []
-        quarterly_records = []
-
-        # 分类年报和季报数据
-        for record in data:
-            report_date = record.get('report_date', '')
-            if '12-31' in report_date:  # 年报
-                annual_records.append(record)
-            else:  # 季报
-                quarterly_records.append(record)
-
-        # 优先显示年报数据
-        records_to_show = annual_records[:10]  # 最多10条年报
-        if len(records_to_show) < 10:  # 如果年报不足10条，补充季报
-            remaining = 10 - len(records_to_show)
-            records_to_show.extend(quarterly_records[:remaining])
-
-        for record in records_to_show:
+        for record in records:
             response_parts.append(f"**报告日期**: {record.get('report_date', 'N/A')}")
 
-            if record.get('raw_data'):
-                # 显示所有匹配查询的字段，最多显示5个关键字段
-                matched_fields = {}
+            # 显示处理器预先匹配的字段
+            if '_matched_fields' in record:
+                for field, value in record['_matched_fields'].items():
+                    response_parts.append(f"**{field}**: {value}")
+            elif record.get('raw_data'):
+                # 兼容性处理：如果没有预先匹配的字段
                 raw_data = record['raw_data']
-
-                # 优先显示完全匹配查询的字段
-                query_lower = query.lower()
-                for field, value in raw_data.items():
-                    if query_lower in field.lower():
-                        matched_fields[field] = value
-
-                # 如果匹配字段不足5个，添加其他字段
-                other_fields = {k: v for k, v in raw_data.items() if k not in matched_fields}
-                for field, value in list(other_fields.items())[:5 - len(matched_fields)]:
-                    matched_fields[field] = value
-
-                for field, value in matched_fields.items():
+                # 简单显示前几个字段
+                for field, value in list(raw_data.items())[:3]:
                     response_parts.append(f"**{field}**: {value}")
             response_parts.append("")
 
-        # 如果总数据超过显示数量，添加提示
-        total_records = len(data)
-        shown_records = len(records_to_show)
-        if total_records > shown_records:
-            response_parts.append(f"*注：共{total_records}条记录，显示前{shown_records}条*")
+        # 添加记录数量提示
+        if len(records) < len(original_data):
+            response_parts.append(f"*注：共{len(original_data)}条记录，显示{len(records)}条相关记录*")
 
         return "\n".join(response_parts)
 

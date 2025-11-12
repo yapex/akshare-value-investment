@@ -92,6 +92,30 @@ class FinancialFieldMapper:
 
         return mapped_fields, suggestions
 
+    def resolve_fields_sync(self, symbol: str, fields: List[str]) -> Tuple[List[str], List[str]]:
+        """
+        同步版本的字段解析 - 为MCP服务器提供
+
+        Args:
+            symbol: 股票代码
+            fields: 请求的字段列表
+
+        Returns:
+            (映射后的字段列表, 映射建议列表)
+        """
+        import asyncio
+
+        # 如果已在事件循环中，使用run_coroutine_threadsafe
+        try:
+            loop = asyncio.get_running_loop()
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(lambda: asyncio.run(self.resolve_fields(symbol, fields)))
+                return future.result()
+        except RuntimeError:
+            # 没有运行的事件循环，可以直接运行
+            return asyncio.run(self.resolve_fields(symbol, fields))
+
     def map_keyword_to_field(self, keyword: str, market_id: Optional[str] = None) -> Optional[Tuple[str, float, FieldInfo]]:
         """
         将关键字映射到字段名

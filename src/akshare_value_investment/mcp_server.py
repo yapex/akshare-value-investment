@@ -27,17 +27,27 @@ class AkshareMCPServerV2:
 
     def __init__(self,
                  financial_service: FinancialIndicatorQueryService,
-                 field_discovery_service: FieldDiscoveryService):
+                 field_discovery_service: FieldDiscoveryService,
+                 response_formatter: Any = None):  # 使用Any避免循环依赖
         """
         初始化MCP服务器
 
         Args:
             financial_service: 财务指标查询服务
             field_discovery_service: 字段发现服务
+            response_formatter: 响应格式化器（可选，遵循依赖注入原则）
         """
         self.server = Server("akshare-value-investment")
         self.financial_service = financial_service
         self.field_discovery_service = field_discovery_service
+
+        # 使用依赖注入的格式化器，如果没有提供则使用默认实现
+        if response_formatter is None:
+            from .mcp.formatters import ResponseFormatter
+            self.response_formatter = ResponseFormatter()
+        else:
+            self.response_formatter = response_formatter
+
         self._setup_handlers()
 
     def _setup_handlers(self):
@@ -159,16 +169,10 @@ class AkshareMCPServerV2:
             if result.get("success"):
                 data = result.get("data", [])
                 if data:
-                    response_text = f"## 📊 {symbol} 财务数据查询结果\n\n"
-                    response_text += f"**查询**: {query}\n"
-                    response_text += f"**记录数**: {len(data)} 条\n\n"
-
-                    for record in data[:5]:  # 只显示前5条
-                        response_text += f"**报告日期**: {record.get('report_date', 'N/A')}\n"
-                        if record.get('raw_data'):
-                            for field, value in list(record['raw_data'].items())[:3]:  # 只显示前3个字段
-                                response_text += f"**{field}**: {value}\n"
-                        response_text += "\n"
+                    # 使用依赖注入的格式化器，遵循依赖倒置原则
+                    response_text = self.response_formatter.format_query_response(
+                        symbol, query, data, prefer_annual=prefer_annual
+                    )
                 else:
                     response_text = f"❌ 未找到匹配 '{query}' 的财务数据"
             else:
@@ -428,7 +432,7 @@ class AkshareMCPServerV2:
             field_mapper = FinancialFieldMapper()
 
             # 使用智能字段映射
-            mapped_fields, suggestions = field_mapper.resolve_fields(symbol, [field_query])
+            mapped_fields, suggestions = field_mapper.resolve_fields_sync(symbol, [field_query])
 
             if not mapped_fields:
                 return {

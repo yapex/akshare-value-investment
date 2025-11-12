@@ -14,6 +14,7 @@ import akshare as ak
 from ..core.interfaces import IMarketAdapter, IQueryService
 from ..core.models import MarketType, FinancialIndicator, PeriodType, QueryResult
 from ..core.stock_identifier import StockIdentifier
+from ..smart_cache import smart_cache
 
 
 class AStockAdapter(IMarketAdapter):
@@ -174,6 +175,7 @@ class AStockAdapter(IMarketAdapter):
 
         return filtered_indicators
 
+    @smart_cache("astock_financial", ttl=3600)  # 1小时缓存
     def _get_a_stock_financial_data(self, symbol: str) -> List[Dict[str, Any]]:
         """
         获取A股原始财务数据
@@ -369,6 +371,7 @@ class HKStockAdapter(IMarketAdapter):
 
         return indicators
 
+    @smart_cache("hkstock_financial", ttl=3600)  # 1小时缓存
     def _get_hk_stock_financial_data(self, symbol: str) -> List[Dict[str, Any]]:
         """
         获取港股原始财务数据
@@ -548,6 +551,7 @@ class USStockAdapter(IMarketAdapter):
         indicators.sort(key=lambda x: x.report_date, reverse=True)
         return indicators
 
+    @smart_cache("usstock_financial", ttl=3600)  # 1小时缓存
     def _get_us_stock_financial_data(self, symbol: str) -> List[Dict[str, Any]]:
         """
         获取美股原始财务数据

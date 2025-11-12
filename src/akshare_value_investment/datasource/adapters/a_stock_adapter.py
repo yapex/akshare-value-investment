@@ -179,13 +179,9 @@ class AStockAdapter(BaseMarketAdapter):
         # 解析月日部分
         month_day = date_str[4:]  # MMDD
 
-        # 1231是年报，其他是季报
+        # 1231是年报，其他都归类为季报（简化设计）
         if month_day == "1231":
             return PeriodType.ANNUAL
-        elif month_day == "0630":
-            return PeriodType.SEMI_ANNUAL
-        elif month_day in ["0331", "0930"]:
-            return PeriodType.QUARTERLY
         else:
             return PeriodType.QUARTERLY
 
