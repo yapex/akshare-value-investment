@@ -191,12 +191,45 @@ class AkshareMCPServerV2:
             if not keyword:
                 return self._format_error_response("搜索关键字不能为空")
 
-            # 简化响应
-            response_text = f"🔍 搜索财务字段: {keyword}\n\n"
-            response_text += "模拟搜索结果:\n"
-            response_text += "- 净利润\n"
-            response_text += "- 归母净利润\n"
-            response_text += "- 扣非净利润\n"
+            # 使用智能字段映射器进行真实搜索
+            from .business.mapping.field_mapper import FinancialFieldMapper
+
+            field_mapper = FinancialFieldMapper()
+
+            # 确定市场过滤
+            market_id = None if market == "all" else market
+
+            # 执行真实搜索
+            search_results = field_mapper.search_similar_fields(keyword, market_id, max_results=10)
+
+            if not search_results:
+                response_text = f"🔍 搜索财务字段: {keyword}\n\n"
+                response_text += "❌ 未找到匹配的字段\n\n"
+                response_text += "💡 建议:\n"
+                response_text += "- 尝试使用更通用的关键词\n"
+                response_text += "- 检查市场类型是否正确\n"
+                response_text += "- 尝试相关同义词"
+            else:
+                response_text = f"🔍 搜索财务字段: {keyword}\n\n"
+                response_text += f"✅ 找到 {len(search_results)} 个相关字段:\n\n"
+
+                for i, (field_id, similarity, field_info, market_id) in enumerate(search_results, 1):
+                    market_names = {
+                        'a_stock': 'A股',
+                        'hk_stock': '港股',
+                        'us_stock': '美股'
+                    }
+                    market_name = market_names.get(market_id, market_id)
+
+                    response_text += f"**{i}. {field_info.name}**\n"
+                    response_text += f"   - 字段ID: `{field_id}`\n"
+                    response_text += f"   - 市场: {market_name}\n"
+                    response_text += f"   - 相似度: {similarity:.2f}\n"
+                    response_text += f"   - 关键词: {', '.join(field_info.keywords[:5])}"
+                    if len(field_info.keywords) > 5:
+                        response_text += f" 等{len(field_info.keywords)}个"
+                    response_text += f"\n"
+                    response_text += f"   - 描述: {field_info.description}\n\n"
 
             return CallToolResult(
                 content=[TextContent(type="text", text=response_text)],
@@ -204,7 +237,9 @@ class AkshareMCPServerV2:
             )
 
         except Exception as e:
-            return self._format_error_response(f"字段搜索失败: {str(e)}")
+            import traceback
+            error_details = f"字段搜索失败: {str(e)}\n调用栈:\n{traceback.format_exc()}"
+            return self._format_error_response(error_details)
 
     async def _handle_get_field_details(self, arguments: Dict[str, Any]) -> CallToolResult:
         """处理获取字段详情请求"""
@@ -364,7 +399,7 @@ class AkshareMCPServerV2:
 
     def _query_financial_indicators_sync(self, symbol: str, field_query: str, **kwargs) -> Dict[str, Any]:
         """
-        同步财务数据查询方法，避免异步调用问题
+        同步财务数据查询方法，使用智能字段映射系统
 
         Args:
             symbol: 股票代码
@@ -386,20 +421,35 @@ class AkshareMCPServerV2:
                     "total_records": 0
                 }
 
-            # 简单的字段匹配逻辑 - 不使用复杂的字段映射器
+            # 使用智能字段映射系统
+            from .business.mapping.field_mapper import FinancialFieldMapper
+
+            # 初始化字段映射器
+            field_mapper = FinancialFieldMapper()
+
+            # 使用智能字段映射
+            mapped_fields, suggestions = field_mapper.resolve_fields(symbol, [field_query])
+
+            if not mapped_fields:
+                return {
+                    "success": False,
+                    "data": [],
+                    "message": f"无法映射查询字段 '{field_query}'。{suggestions[0] if suggestions else ''}",
+                    "total_records": 0
+                }
+
             matched_data = []
-            query_keywords = field_query.lower().split()
+            mapped_field = mapped_fields[0]  # 使用第一个映射的字段
 
             for indicator in base_result.data:
                 if hasattr(indicator, 'raw_data') and indicator.raw_data:
-                    # 查找包含关键字的字段
+                    # 使用智能映射的字段名进行精确匹配
                     matched_fields = {}
                     for field_name, field_value in indicator.raw_data.items():
-                        field_name_lower = field_name.lower()
-
-                        # 简单的关键字匹配
-                        if (field_query.lower() in field_name_lower or
-                            any(keyword in field_name_lower for keyword in query_keywords)):
+                        # 支持字段ID和字段名的匹配
+                        if (field_name == mapped_field or
+                            field_name.lower() == mapped_field.lower() or
+                            mapped_field.lower() in field_name.lower()):
                             matched_fields[field_name] = field_value
 
                     if matched_fields:
@@ -411,21 +461,23 @@ class AkshareMCPServerV2:
                             "raw_data": matched_fields,
                             "metadata": {
                                 "field_query": field_query,
+                                "mapped_field": mapped_field,
                                 "matched_field": list(matched_fields.keys()),
-                                "resolution_method": "关键字匹配"
+                                "resolution_method": "智能字段映射",
+                                "suggestions": suggestions
                             }
                         })
 
             return {
                 "success": True,
                 "data": matched_data,
-                "message": f"成功匹配 {len(matched_data)} 条记录",
+                "message": f"智能映射 '{field_query}' → '{mapped_field}'，成功匹配 {len(matched_data)} 条记录",
                 "total_records": len(matched_data)
             }
 
         except Exception as e:
             import traceback
-            error_details = f"同步查询内部错误: {type(e).__name__}: {str(e)}\n"
+            error_details = f"智能查询内部错误: {type(e).__name__}: {str(e)}\n"
             error_details += f"调用栈:\n{traceback.format_exc()}"
             return {
                 "success": False,
