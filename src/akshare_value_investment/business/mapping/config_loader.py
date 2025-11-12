@@ -1,7 +1,18 @@
 """
-财务指标配置加载器
+财务指标配置加载器 [DEPRECATED]
+
+⚠️ 已弃用，请使用 MultiConfigLoader
 
 负责加载和解析财务指标字段配置文件
+此版本已被 multi_config_loader.py 中的 MultiConfigLoader 替代
+建议迁移到新的多配置文件架构以获得更好的扩展性和维护性
+
+迁移指南：
+1. 替换导入：from .multi_config_loader import MultiConfigLoader
+2. 更新初始化：loader = MultiConfigLoader()
+3. 配置文件路径：支持多文件路径列表
+
+@deprecated 使用 MultiConfigLoader 替代
 """
 
 import yaml
@@ -53,7 +64,10 @@ class MarketConfig:
 
 
 class FinancialFieldConfigLoader:
-    """财务指标字段配置加载器"""
+    """财务指标字段配置加载器 [DEPRECATED]
+
+    ⚠️ 此类已被弃用，请使用 MultiConfigLoader
+    """
 
     def __init__(self, config_path: Optional[str] = None):
         """

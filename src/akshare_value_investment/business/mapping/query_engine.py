@@ -11,14 +11,14 @@ from .field_mapper import FinancialFieldMapper
 class FinancialQueryEngine:
     """财务指标查询引擎"""
 
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, config_paths: Optional[List[str]] = None):
         """
         初始化查询引擎
 
         Args:
-            config_path: 配置文件路径
+            config_paths: 配置文件路径列表
         """
-        self.field_mapper = FinancialFieldMapper(config_path)
+        self.field_mapper = FinancialFieldMapper(config_paths)
 
     def query_financial_field(self, query: str, market_id: Optional[str] = None) -> Dict[str, Any]:
         """

@@ -5,7 +5,8 @@
 """
 
 from typing import List, Optional, Dict, Tuple, Any, Protocol, runtime_checkable
-from .config_loader import FinancialFieldConfigLoader, FieldInfo
+from .config_loader import FieldInfo
+from .multi_config_loader import MultiConfigLoader
 
 
 @runtime_checkable
@@ -27,16 +28,16 @@ class IFieldMapper(Protocol):
 
 
 class FinancialFieldMapper:
-    """财务指标字段映射器 - 兼容IFieldMapper接口"""
+    """财务指标字段映射器 - 基于多配置文件架构"""
 
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, config_paths: Optional[List[str]] = None):
         """
         初始化字段映射器
 
         Args:
-            config_path: 配置文件路径
+            config_paths: 配置文件路径列表，如果为None则使用默认路径
         """
-        self.config_loader = FinancialFieldConfigLoader(config_path)
+        self.config_loader = MultiConfigLoader(config_paths)
         self._is_loaded = False
 
     def ensure_loaded(self) -> bool:
@@ -47,7 +48,7 @@ class FinancialFieldMapper:
             是否加载成功
         """
         if not self._is_loaded:
-            self._is_loaded = self.config_loader.load_config()
+            self._is_loaded = self.config_loader.load_configs()
         return self._is_loaded
 
     async def resolve_fields(self, symbol: str, fields: List[str]) -> Tuple[List[str], List[str]]:
