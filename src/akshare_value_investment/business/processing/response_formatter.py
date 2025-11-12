@@ -214,7 +214,14 @@ class ResponseFormatter(IResponseFormatter):
                 if hasattr(indicator, 'indicators') and indicator.indicators:
                     report_date = getattr(indicator, 'report_date', None)
                     if report_date:
-                        date_str = report_date.strftime('%Y-%m-%d')
+                        # 处理日期格式，支持字符串和datetime对象
+                        if isinstance(report_date, str):
+                            # 如果是字符串，直接使用
+                            date_str = report_date
+                        else:
+                            # 如果是datetime对象，格式化为字符串
+                            date_str = report_date.strftime('%Y-%m-%d')
+
                         for field_name, field_value in indicator.indicators.items():
                             if field_value is not None:
                                 if field_name not in indicator_map:

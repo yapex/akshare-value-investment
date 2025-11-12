@@ -141,6 +141,7 @@ dependencies = [
     { name = "plotly" },
     { name = "poethepoet" },
     { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
     { name = "pyyaml" },
     { name = "streamlit" },
 ]
@@ -163,6 +164,7 @@ requires-dist = [
     { name = "plotly", specifier = ">=6.4.0" },
     { name = "poethepoet", specifier = ">=0.37.0" },
     { name = "pytest-asyncio", specifier = ">=1.2.0" },
+    { name = "pytest-cov", specifier = ">=7.0.0" },
     { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "streamlit", specifier = ">=1.51.0" },
 ]

@@ -62,7 +62,7 @@ class TestRawDataAccess:
         assert "摊薄每股收益(元)" in all_fields
         assert "自定义字段1" in all_fields
 
-    @patch('src.akshare_value_investment.datasource.adapters.ak.stock_financial_abstract')
+    @patch('src.akshare_value_investment.datasource.adapters.a_stock_adapter.ak.stock_financial_abstract')
     @pytest.mark.asyncio
     async def test_a_stock_raw_data_query(self, mock_akshare):
         """测试A股原始数据查询"""
@@ -83,7 +83,7 @@ class TestRawDataAccess:
         assert "600036" in result
         assert "摊薄每股收益" in result or "净资产收益率" in result
 
-    @patch('src.akshare_value_investment.datasource.adapters.ak.stock_financial_abstract')
+    @patch('src.akshare_value_investment.datasource.adapters.a_stock_adapter.ak.stock_financial_abstract')
     def test_a_stock_raw_data_query_sync(self, mock_akshare):
         """测试A股原始数据查询（同步版本）"""
         # 基于真实DataFrame格式的模拟数据
@@ -127,7 +127,7 @@ class TestRawDataAccess:
         assert "摊薄每股收益(元)" in indicator.raw_data
         assert indicator.raw_data["摊薄每股收益(元)"] == 5.23
 
-    @patch('src.akshare_value_investment.datasource.adapters.ak.stock_financial_hk_analysis_indicator_em')
+    @patch('src.akshare_value_investment.datasource.adapters.hk_stock_adapter.ak.stock_financial_hk_analysis_indicator_em')
     @pytest.mark.asyncio
     async def test_hk_stock_raw_data_query(self, mock_akshare):
         """测试港股原始数据查询"""
@@ -160,7 +160,7 @@ class TestRawDataAccess:
         assert result is not None
         assert "00700" in result or "腾讯控股" in result
 
-    @patch('src.akshare_value_investment.datasource.adapters.ak.stock_financial_us_analysis_indicator_em')
+    @patch('src.akshare_value_investment.datasource.adapters.us_stock_adapter.ak.stock_financial_us_analysis_indicator_em')
     @pytest.mark.asyncio
     async def test_us_stock_raw_data_query(self, mock_akshare):
         """测试美股原始数据查询"""
