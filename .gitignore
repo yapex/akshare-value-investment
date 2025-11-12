@@ -9,6 +9,10 @@ wheels/
 # Virtual environments
 .venv
 
+# Cache directories
+.cache/
+*.cache
+
 # Claude Code personal configuration
 .claude/
 
