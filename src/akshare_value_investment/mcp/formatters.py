@@ -38,13 +38,52 @@ class ResponseFormatter:
             f""
         ]
 
-        for record in data[:5]:  # 只显示前5条
+        # 优化显示逻辑：优先显示年报数据，最多显示10条记录
+        annual_records = []
+        quarterly_records = []
+
+        # 分类年报和季报数据
+        for record in data:
+            report_date = record.get('report_date', '')
+            if '12-31' in report_date:  # 年报
+                annual_records.append(record)
+            else:  # 季报
+                quarterly_records.append(record)
+
+        # 优先显示年报数据
+        records_to_show = annual_records[:10]  # 最多10条年报
+        if len(records_to_show) < 10:  # 如果年报不足10条，补充季报
+            remaining = 10 - len(records_to_show)
+            records_to_show.extend(quarterly_records[:remaining])
+
+        for record in records_to_show:
             response_parts.append(f"**报告日期**: {record.get('report_date', 'N/A')}")
 
             if record.get('raw_data'):
-                for field, value in list(record['raw_data'].items())[:3]:  # 只显示前3个字段
+                # 显示所有匹配查询的字段，最多显示5个关键字段
+                matched_fields = {}
+                raw_data = record['raw_data']
+
+                # 优先显示完全匹配查询的字段
+                query_lower = query.lower()
+                for field, value in raw_data.items():
+                    if query_lower in field.lower():
+                        matched_fields[field] = value
+
+                # 如果匹配字段不足5个，添加其他字段
+                other_fields = {k: v for k, v in raw_data.items() if k not in matched_fields}
+                for field, value in list(other_fields.items())[:5 - len(matched_fields)]:
+                    matched_fields[field] = value
+
+                for field, value in matched_fields.items():
                     response_parts.append(f"**{field}**: {value}")
             response_parts.append("")
+
+        # 如果总数据超过显示数量，添加提示
+        total_records = len(data)
+        shown_records = len(records_to_show)
+        if total_records > shown_records:
+            response_parts.append(f"*注：共{total_records}条记录，显示前{shown_records}条*")
 
         return "\n".join(response_parts)
 

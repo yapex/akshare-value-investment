@@ -47,7 +47,7 @@ async def test_moutai_revenue_cagr_analysis():
         query_result = await query_handler.handle({
             "symbol": "600519",  # 贵州茅台
             "query": "营业总收入",
-            "start_date": "2023-01-01",
+            "start_date": "2019-01-01",  # 修改为5年时间范围
             "end_date": "2024-12-31",
             "prefer_annual": True
         })
@@ -64,7 +64,7 @@ async def test_moutai_revenue_cagr_analysis():
         growth_result = await query_handler.handle({
             "symbol": "600519",
             "query": "营业总收入增长率",
-            "start_date": "2023-01-01",
+            "start_date": "2019-01-01",  # 修改为5年时间范围
             "end_date": "2024-12-31",
             "prefer_annual": True
         })
@@ -104,8 +104,8 @@ async def test_moutai_revenue_cagr_analysis():
                                 pass
             i += 1
 
-        # 验证数据完整性
-        assert len(annual_revenues) >= 1, "应该至少有1年的营收数据"
+        # 验证数据完整性 - 现在应该有5年的数据
+        assert len(annual_revenues) >= 5, f"应该至少有5年的营收数据，实际找到{len(annual_revenues)}年"
 
         # 步骤4: 计算年化增长率
         if len(annual_revenues) >= 2:
@@ -119,14 +119,22 @@ async def test_moutai_revenue_cagr_analysis():
             # 计算CAGR
             cagr = (end_revenue / start_revenue) ** (1 / year_diff) - 1
 
-            # 业务逻辑验证
-            assert 150000000000 <= start_revenue <= 200000000000, "起始营收应该在合理范围内"
-            assert 150000000000 <= end_revenue <= 200000000000, "结束营收应该在合理范围内"
-            assert 0.05 <= cagr <= 0.30, "年化增长率应该在合理范围内(5%-30%)"
+            # 业务逻辑验证 - 修正预期范围
+            assert 80000000000 <= start_revenue <= 100000000000, f"起始营收应该在合理范围内(800-1000亿)，实际{start_revenue:,.0f}"
+            assert 170000000000 <= end_revenue <= 180000000000, f"结束营收应该在合理范围内(1700-1800亿)，实际{end_revenue:,.0f}"
+            assert 0.10 <= cagr <= 0.20, f"5年CAGR应该在合理范围内(10%-20%)，实际{cagr*100:.2f}%"
 
             print(f"✅ 步骤3: 年化增长率计算成功")
             print(f"   分析期间: {start_year}-{end_year} ({year_diff}年)")
+            print(f"   起始营收: {start_revenue:,.0f} 元")
+            print(f"   结束营收: {end_revenue:,.0f} 元")
             print(f"   年化增长率: {cagr * 100:.2f}%")
+
+            # 验证这是真正的5年数据
+            if year_diff >= 5:
+                print(f"✅ 获取到真正的{year_diff}年历史数据，数据完整性好")
+            else:
+                print(f"⚠️ 只有{year_diff}年数据，可能不够完整")
 
         else:
             print("⚠️ 数据不足，无法计算多年期年化增长率")
