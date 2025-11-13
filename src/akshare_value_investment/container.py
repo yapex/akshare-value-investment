@@ -12,8 +12,6 @@ from dependency_injector import containers, providers
 
 from .core.models import MarketType
 from .core.stock_identifier import StockIdentifier
-# 注意：AdapterManager已废弃，使用新的FinancialDataService
-from .smart_cache import CacheConfig
 
 # 导入新的Queryer架构
 from .datasource.queryers.a_stock_queryers import (
@@ -43,15 +41,9 @@ from .business.mapping.candidate_ranker import CompositeRankingStrategy
 from .business.mapping.field_searcher import DefaultFieldSearcher
 from .business.mapping.market_inferrer import DefaultMarketInferrer
 
-# 导入重构后的Smart Cache组件
-from .smart_cache.factories.cache_factory import CacheFactory
-from .smart_cache.factories.adapter_factory import CacheAdapterFactory
-from .smart_cache.managers.cache_manager import CacheManager
-from .smart_cache.managers.cache_metrics import CacheMetrics
-from .smart_cache.core.enhanced_key_generator import EnhancedKeyGenerator
-from .smart_cache.decorators import smart_cache_decorator
-from .smart_cache.decorators.smart_cache_decorator import SmartCacheDecorator
-from .smart_cache.adapters.combined_adapter import CombinedCacheAdapter
+# 导入SQLite智能缓存（新架构）
+from .cache.sqlite_cache import SQLiteCache
+from .cache.smart_decorator import smart_sqlite_cache
 
 # 导入MCP相关组件
 from .mcp.formatters import ResponseFormatter as MCPResponseFormatter
@@ -115,37 +107,10 @@ class ProductionContainer(containers.DeclarativeContainer):
         super().__init__()
         self._setup_logging()
 
-    # Smart Cache配置 - 重构版本
-    cache_config = providers.Singleton(CacheConfig)
-
-    # 重构后的Smart Cache组件 - 遵循SOLID原则
-    # 1. 适配器层
-    cache_adapter = providers.Factory(
-        CacheAdapterFactory.create_adapter,
-        config=cache_config
-    )
-
-    # 2. 监控组件
-    cache_metrics = providers.Singleton(CacheMetrics)
-
-    # 3. 键生成器
-    cache_key_generator = providers.Singleton(
-        EnhancedKeyGenerator,
-        prefix="akshare_cache"
-    )
-
-    # 4. 缓存管理器 - 核心组件，依赖注入所有抽象接口
-    cache_manager = providers.Singleton(
-        CacheFactory.create_cache_manager,
-        config=cache_config
-    )
-
-    # 5. 装饰器工厂 - 轻量级装饰器
-    cache_decorator = providers.Factory(
-        SmartCacheDecorator,
-        cache_manager=cache_manager,
-        prefix="akshare",
-        ttl=cache_config.provided.default_ttl
+    # SQLite智能缓存配置 - 简化版本
+    sqlite_cache = providers.Singleton(
+        SQLiteCache,
+        db_path=".cache/financial_data.db"
     )
 
     # 核心组件
@@ -256,21 +221,17 @@ class ProductionContainer(containers.DeclarativeContainer):
     )
 
     # 新增：缓存服务访问接口
-    def get_cache_manager(self) -> CacheManager:
-        """获取缓存管理器实例"""
-        return self.cache_manager()
+    def get_cache_adapter(self) -> SQLiteCache:
+        """获取SQLite缓存适配器实例"""
+        return self.sqlite_cache()
 
-    def get_cache_decorator(self, prefix: str = "default", ttl: int = None) -> SmartCacheDecorator:
-        """获取缓存装饰器实例"""
-        return SmartCacheDecorator(
-            cache_manager=self.cache_manager(),
-            prefix=prefix,
-            ttl=ttl
+    def get_cache_decorator(self, date_field: str = 'date', query_type: str = 'indicators'):
+        """获取智能缓存装饰器实例"""
+        return smart_sqlite_cache(
+            date_field=date_field,
+            query_type=query_type,
+            cache_adapter=self.sqlite_cache()
         )
-
-    def get_cache_stats(self) -> dict:
-        """获取缓存统计信息"""
-        return self.cache_manager().get_stats()
 
 
 def create_production_service() -> FinancialIndicatorQueryService:
@@ -314,22 +275,3 @@ def create_mcp_services():
     )
 
 
-def _create_cached_adapter_manager(cache_manager, stock_identifier):
-    """创建带缓存装饰器的适配器管理器"""
-
-    class CachedAdapterManager(AdapterManager):
-        """带缓存装饰器的适配器管理器"""
-
-        def __init__(self, stock_identifier=None):
-            super().__init__(stock_identifier)
-            self._cache_decorator = SmartCacheDecorator(
-                cache_manager=cache_manager,
-                prefix="adapter_query",
-                ttl=3600  # 1小时缓存
-            )
-
-        def query(self, symbol: str, **kwargs):
-            """重写query方法以应用缓存"""
-            return self._cache_decorator(super().query)(symbol, **kwargs)
-
-    return CachedAdapterManager(stock_identifier)
