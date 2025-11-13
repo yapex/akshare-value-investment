@@ -11,7 +11,7 @@ from .interfaces import (
     ITimeRangeProcessor,
     IDataStructureProcessor
 )
-from ..business.mapping.field_mapper import IFieldMapper
+from ..business.mapping.interfaces import IFieldMapper
 
 
 class FinancialIndicatorQueryService:

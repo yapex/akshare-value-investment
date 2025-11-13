@@ -8,10 +8,12 @@ from .base_handler import BaseHandler
 from .query_handler import QueryHandler
 from .search_handler import SearchHandler
 from .details_handler import DetailsHandler
+from .financial_statements_handler import FinancialStatementsHandler
 
 __all__ = [
     'BaseHandler',
     'QueryHandler',
     'SearchHandler',
-    'DetailsHandler'
+    'DetailsHandler',
+    'FinancialStatementsHandler'
 ]

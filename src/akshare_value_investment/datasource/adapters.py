@@ -1,13 +1,17 @@
 """
-市场适配器实现 - 简化版本
+市场适配器实现 - 简化版本 [已废弃]
 
-实现A股、港股、美股三个市场的财务数据获取适配器。
-简化版本：直接返回原始数据，不进行字段映射。
+⚠️ 此模块已废弃，请使用新的Queryer架构：
+- src/akshare_value_investment/datasource/queryers/ 目录下的新Queryer实现
+- src/akshare_value_investment/services/financial_data_service.py 中的聚合服务
+
+新架构提供更清晰的财务三表支持，遵循SOLID原则。
 """
 
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from decimal import Decimal
+import warnings
 
 import akshare as ak
 
@@ -15,10 +19,15 @@ from ..core.interfaces import IMarketAdapter, IQueryService
 from ..core.models import MarketType, FinancialIndicator, PeriodType, QueryResult
 from ..core.stock_identifier import StockIdentifier
 from ..smart_cache import smart_cache
+from ..utils.deprecated import deprecated, deprecated_class
 
 
+@deprecated_class(
+    reason="A股适配器已废弃，请使用 AStockIndicatorQueryer, AStockBalanceSheetQueryer, AStockIncomeStatementQueryer, AStockCashFlowQueryer",
+    replacement="src/akshare_value_investment.datasource.queryers.a_stock_queryers"
+)
 class AStockAdapter(IMarketAdapter):
-    """A股市场适配器 - 简化版本"""
+    """A股市场适配器 - 简化版本 [已废弃]"""
 
     def __init__(self):
         """
@@ -306,8 +315,12 @@ class AStockAdapter(IMarketAdapter):
         return f"股票{symbol}"
 
 
+@deprecated_class(
+    reason="港股适配器已废弃，请使用 HKStockIndicatorQueryer 和 HKStockStatementQueryer",
+    replacement="src/akshare_value_investment.datasource.queryers.hk_stock_queryers"
+)
 class HKStockAdapter(IMarketAdapter):
-    """港股市场适配器 - 简化版本"""
+    """港股市场适配器 - 简化版本 [已废弃]"""
 
     def __init__(self):
         """
@@ -442,8 +455,12 @@ class HKStockAdapter(IMarketAdapter):
         return company_names.get(symbol, f"港股{symbol}")
 
 
+@deprecated_class(
+    reason="美股适配器已废弃，请使用 USStockIndicatorQueryer 和 USStockStatementQueryer",
+    replacement="src/akshare_value_investment.datasource.queryers.us_stock_queryers"
+)
 class USStockAdapter(IMarketAdapter):
-    """美股市场适配器 - 简化版本"""
+    """美股市场适配器 - 简化版本 [已废弃]"""
 
     def __init__(self):
         """
@@ -619,8 +636,12 @@ class USStockAdapter(IMarketAdapter):
         return company_names.get(symbol, f"美股{symbol}")
 
 
+@deprecated_class(
+    reason="适配器管理器已废弃，请使用 FinancialDataService",
+    replacement="src/akshare_value_investment.services.financial_data_service.FinancialDataService"
+)
 class AdapterManager(IQueryService):
-    """适配器管理器 - 简化版本，实现IQueryService接口"""
+    """适配器管理器 - 简化版本，实现IQueryService接口 [已废弃]"""
 
     def __init__(self):
         """
@@ -636,12 +657,12 @@ class AdapterManager(IQueryService):
         # 股票识别器
         self.stock_identifier = StockIdentifier()
 
-    def get_adapter(self, market: MarketType) -> IMarketAdapter:
+    def get_adapter(self, market) -> IMarketAdapter:
         """
         获取指定市场的适配器
 
         Args:
-            market: 市场类型
+            market: 市场类型（字符串或MarketType枚举）
 
         Returns:
             市场适配器
@@ -649,6 +670,21 @@ class AdapterManager(IQueryService):
         Raises:
             ValueError: 当市场类型不支持时
         """
+        # 支持字符串和枚举两种输入类型
+        if isinstance(market, str):
+            # 字符串转换为枚举
+            market_mapping = {
+                'a_stock': MarketType.A_STOCK,
+                'hk_stock': MarketType.HK_STOCK,
+                'us_stock': MarketType.US_STOCK,
+            }
+            market_enum = market_mapping.get(market.lower())
+            if market_enum is None:
+                raise ValueError(f"不支持的市场类型字符串: {market}")
+            market = market_enum
+        elif not isinstance(market, MarketType):
+            raise ValueError(f"无效的市场类型: {type(market)}")
+
         if market not in self.adapters:
             raise ValueError(f"不支持的市场类型: {market}")
 

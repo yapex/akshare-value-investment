@@ -80,22 +80,20 @@ graph TD
 ### 🎯 核心文档
 | 文档 | 描述 | 状态 |
 |------|------|------|
-| [doc/SIMPLIFIED_USAGE_GUIDE.md](./doc/SIMPLIFIED_USAGE_GUIDE.md) | **完整使用指南** - 系统使用方法和API | ✅ 当前版本 |
+| [doc/SYSTEM_ARCHITECTURE_SUMMARY.md](./doc/SYSTEM_ARCHITECTURE_SUMMARY.md) | **系统架构** - 智能财务查询系统架构总结 | ✅ 当前版本 |
 | [doc/mcp/](./doc/mcp/) | **MCP集成文档** - Claude Code集成指南 | ✅ 生产就绪 |
-| [doc/research/](./doc/research/) | **财务三表研究** - 扩展方案和配置 | 📋 最新研究 |
+| [doc/algorithms/](./doc/algorithms/) | **算法设计** - 智能字段算法设计和实现 | ✅ 核心文档 |
 
-### 🔬 研究文档
+### 🔬 算法设计
 | 文档 | 描述 | 状态 |
 |------|------|------|
-| [doc/research/FINAL_RESEARCH_SUMMARY.md](./doc/research/FINAL_RESEARCH_SUMMARY.md) | **研究总结** - 三地市场API分析和方案 | ✅ 最新发现 |
-| [doc/research/financial_statements_config_extension.md](./doc/research/financial_statements_config_extension.md) | **配置方案** - 300+字段具体配置 | 📝 实施指南 |
-| [doc/research/architecture_refactoring_plan.md](./doc/research/architecture_refactoring_plan.md) | **重构计划** - 重大调整后的实施方案 | 📋 架构设计 |
+| [doc/algorithms/INTELLIGENT_FIELD_ALGORITHMS_DESIGN.md](./doc/algorithms/INTELLIGENT_FIELD_ALGORITHMS_DESIGN.md) | **算法设计** - 智能字段算法详细设计 | ✅ 核心文档 |
+| [doc/algorithms/archived/](./doc/algorithms/archived/) | **归档文档** - 过时文档和设计方案 | 📁 历史记录 |
 
 ### 🏗️ 架构设计
 | 文档 | 描述 | 状态 |
 |------|------|------|
-| [doc/字段概念映射系统设计方案.md](./doc/字段概念映射系统设计方案.md) | **架构设计** - 自然语言查询系统设计 | 📋 设计方案 |
-| [doc/SOLID_REFACTORING_SUMMARY.md](./doc/SOLID_REFACTORING_SUMMARY.md) | **重构总结** - SOLID原则架构优化 | ✅ 已完成 |
+| [doc/archived/](./doc/archived/) | **归档文档** - 过时设计方案和架构文档 | 📁 历史记录 |
 
 ## 💻 开发指南
 

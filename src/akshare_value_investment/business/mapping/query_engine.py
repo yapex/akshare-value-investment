@@ -5,7 +5,7 @@
 """
 
 from typing import List, Dict, Optional, Tuple, Any
-from .field_mapper import FinancialFieldMapper
+from .unified_field_mapper import UnifiedFieldMapper
 
 
 class FinancialQueryEngine:
@@ -18,7 +18,7 @@ class FinancialQueryEngine:
         Args:
             config_paths: 配置文件路径列表
         """
-        self.field_mapper = FinancialFieldMapper(config_paths)
+        self.field_mapper = UnifiedFieldMapper(config_paths=config_paths)
 
     def query_financial_field(self, query: str, market_id: Optional[str] = None) -> Dict[str, Any]:
         """

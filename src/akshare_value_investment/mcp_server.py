@@ -166,8 +166,8 @@ class AkshareMCPServerV2:
             start_date = arguments.get("start_date")
             end_date = arguments.get("end_date")
 
-            # 使用简化查询方法避免异步问题
-            result = self._query_financial_indicators_sync(
+            # 使用异步查询方法
+            result = await self._query_financial_indicators_async(
                 symbol=symbol,
                 field_query=query,
                 prefer_annual=prefer_annual,
@@ -210,9 +210,9 @@ class AkshareMCPServerV2:
                 return self._format_error_response("搜索关键字不能为空")
 
             # 使用智能字段映射器进行真实搜索
-            from .business.mapping.field_mapper import FinancialFieldMapper
+            from .business.mapping.unified_field_mapper import UnifiedFieldMapper
 
-            field_mapper = FinancialFieldMapper()
+            field_mapper = UnifiedFieldMapper()
 
             # 确定市场过滤
             market_id = None if market == "all" else market
@@ -415,9 +415,9 @@ class AkshareMCPServerV2:
         except Exception as e:
             return self._format_error_response(f"获取字段详情失败: {str(e)}")
 
-    def _query_financial_indicators_sync(self, symbol: str, field_query: str, **kwargs) -> Dict[str, Any]:
+    async def _query_financial_indicators_async(self, symbol: str, field_query: str, **kwargs) -> Dict[str, Any]:
         """
-        同步财务数据查询方法，使用智能字段映射系统
+        异步财务数据查询方法，使用智能字段映射系统
 
         Args:
             symbol: 股票代码
@@ -428,119 +428,90 @@ class AkshareMCPServerV2:
             查询结果字典
         """
         try:
-            # 使用同步的查询服务
-            base_result = self.financial_service.query(symbol, **kwargs)
+            # 使用容器的字段映射器
+            field_mapper = self.financial_service.field_mapper
 
-            if not hasattr(base_result, 'success') or not base_result.success:
-                return {
-                    "success": False,
-                    "data": [],
-                    "message": "无法获取基础财务数据",
-                    "total_records": 0
-                }
+            # 先尝试推断市场类型
+            if symbol.startswith('00') or symbol.startswith('02'):
+                market_type = 'hk_stock'
+            elif symbol.isdigit() and len(symbol) == 6:
+                market_type = 'a_stock'
+            elif '.' in symbol or symbol.isalpha():
+                market_type = 'us_stock'
+            else:
+                market_type = 'a_stock'  # 默认A股
 
-            # 使用智能字段映射系统
-            from .business.mapping.field_mapper import FinancialFieldMapper
-
-            # 初始化字段映射器
-            field_mapper = FinancialFieldMapper()
-
-            # 使用智能字段映射
-            mapped_fields, suggestions = field_mapper.resolve_fields_sync(symbol, [field_query])
-
-            if not mapped_fields:
-                return {
-                    "success": False,
-                    "data": [],
-                    "message": f"无法映射查询字段 '{field_query}'。{suggestions[0] if suggestions else ''}",
-                    "total_records": 0
-                }
-
-            matched_data = []
-            mapped_field = mapped_fields[0]  # 使用第一个映射的字段
-
-            for indicator in base_result.data:
-                if hasattr(indicator, 'raw_data') and indicator.raw_data:
-                    # 使用智能映射的字段名进行精确匹配
-                    matched_fields = {}
-                    for field_name, field_value in indicator.raw_data.items():
-                        # 支持字段ID和字段名的匹配
-                        if (field_name == mapped_field or
-                            field_name.lower() == mapped_field.lower() or
-                            mapped_field.lower() in field_name.lower()):
-                            matched_fields[field_name] = field_value
-
-                    if matched_fields:
-                        matched_data.append({
-                            "symbol": indicator.symbol,
-                            "market": indicator.market,
-                            "report_date": indicator.report_date,
-                            "period_type": indicator.period_type,
-                            "raw_data": matched_fields,
-                            "metadata": {
-                                "field_query": field_query,
-                                "mapped_field": mapped_field,
-                                "matched_field": list(matched_fields.keys()),
-                                "resolution_method": "智能字段映射",
-                                "suggestions": suggestions
-                            }
-                        })
-
-            return {
-                "success": True,
-                "data": matched_data,
-                "message": f"智能映射 '{field_query}' → '{mapped_field}'，成功匹配 {len(matched_data)} 条记录",
-                "total_records": len(matched_data)
-            }
-
-        except Exception as e:
-            import traceback
-            error_details = f"智能查询内部错误: {type(e).__name__}: {str(e)}\n"
-            error_details += f"调用栈:\n{traceback.format_exc()}"
-            return {
-                "success": False,
-                "data": [],
-                "message": error_details,
-                "total_records": 0
-            }
-
-    def _simple_query_test(self, symbol: str, field_query: str) -> Dict[str, Any]:
-        """
-        最简单的查询测试方法，完全绕过复杂的依赖注入
-
-        Args:
-            symbol: 股票代码
-            field_query: 字段查询
-
-        Returns:
-            简单的测试结果
-        """
-        try:
-            # 完全不调用任何服务，只返回一个简单的测试结果
-            return {
-                "success": True,
-                "data": [{
-                    "symbol": symbol,
-                    "market": "test_market",
-                    "report_date": "2024-12-31",
-                    "period_type": "test_period",
-                    "raw_data": {
-                        "测试字段": "测试值",
-                        "查询内容": field_query
-                    },
-                    "metadata": {
-                        "field_query": field_query,
-                        "matched_field": ["测试字段"],
-                        "resolution_method": "简单测试"
+            # 映射字段查询到实际的字段名
+            # 使用智能字段映射器查询字段
+            try:
+                mapped_fields, suggestions = field_mapper.resolve_fields_sync(symbol, [field_query])
+                if mapped_fields:
+                    field_id = mapped_fields[0]
+                    field_result = {
+                        'field_id': field_id,
+                        'field_name': field_query,
+                        'similarity': 0.9,  # 假设相似度
+                        'suggestions': suggestions
                     }
-                }],
-                "message": f"简单测试成功 - 查询 {symbol} 的 {field_query}",
-                "total_records": 1
-            }
+                else:
+                    field_result = {
+                        'field_id': None,
+                        'field_name': field_query,
+                        'suggestions': suggestions
+                    }
+            except Exception as e:
+                field_result = {
+                    'field_id': None,
+                    'field_name': field_query,
+                    'suggestions': [f'字段映射失败: {str(e)}']
+                }
+
+            if not field_result.get('field_id'):
+                return {
+                    "success": False,
+                    "data": [],
+                    "message": f"无法映射查询字段 '{field_query}' 到实际的财务指标",
+                    "suggestions": field_result.get('suggestions', []),
+                    "total_records": 0
+                }
+
+            # 获取映射后的字段ID
+            mapped_field_id = field_result['field_id']
+
+            # 使用异步查询服务查询映射后的字段
+            base_result = await self.financial_service.query_by_field_name_simple(
+                symbol=symbol,
+                field_query=mapped_field_id,
+                prefer_annual=kwargs.get('prefer_annual', True),
+                start_date=kwargs.get('start_date'),
+                end_date=kwargs.get('end_date')
+            )
+
+            # 检查查询结果
+            if hasattr(base_result, 'data') and base_result.data:
+                return {
+                    "success": True,
+                    "data": base_result.data,
+                    "message": f"成功查询 {field_query}，共 {len(base_result.data) if hasattr(base_result.data, '__len__') else 1} 条记录",
+                    "total_records": len(base_result.data) if hasattr(base_result.data, '__len__') else 1,
+                    "field_info": {
+                        "original_query": field_query,
+                        "mapped_field": mapped_field_id,
+                        "field_name": field_result.get('field_name', mapped_field_id),
+                        "market_type": market_type
+                    }
+                }
+            else:
+                return {
+                    "success": False,
+                    "data": [],
+                    "message": f"查询成功但无数据返回",
+                    "total_records": 0
+                }
 
         except Exception as e:
             import traceback
-            error_details = f"简单测试内部错误: {type(e).__name__}: {str(e)}\n"
+            error_details = f"异步查询错误: {type(e).__name__}: {str(e)}\n"
             error_details += f"调用栈:\n{traceback.format_exc()}"
             return {
                 "success": False,
@@ -549,6 +520,7 @@ class AkshareMCPServerV2:
                 "total_records": 0
             }
 
+    
     def _format_error_response(self, error_message: str) -> CallToolResult:
         """格式化错误响应"""
         return CallToolResult(

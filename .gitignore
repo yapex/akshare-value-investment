@@ -24,7 +24,9 @@ wheels/
 
 # Coverage reports
 htmlcov/
+htmlcov_smartcache/
 .coverage
+.coverage_smartcache/
 .pytest_cache/
 
 # IDE files

@@ -12,7 +12,7 @@ from mcp.server import Server, NotificationOptions
 from mcp.server.models import InitializationOptions
 from mcp.types import CallToolResult, Tool
 
-from .handlers import QueryHandler, SearchHandler, DetailsHandler
+from .handlers import QueryHandler, SearchHandler, DetailsHandler, FinancialStatementsHandler
 
 
 class AkshareMCPServer:
@@ -32,12 +32,14 @@ class AkshareMCPServer:
         self.query_handler = QueryHandler(financial_service, field_discovery_service)
         self.search_handler = SearchHandler(financial_service, field_discovery_service)
         self.details_handler = DetailsHandler(financial_service, field_discovery_service)
+        self.statements_handler = FinancialStatementsHandler(financial_service, field_discovery_service)
 
         # 处理器映射
         self.handlers = {
             self.query_handler.get_tool_name(): self.query_handler,
             self.search_handler.get_tool_name(): self.search_handler,
             self.details_handler.get_tool_name(): self.details_handler,
+            self.statements_handler.get_tool_name(): self.statements_handler,
         }
 
         self._setup_handlers()
@@ -63,6 +65,11 @@ class AkshareMCPServer:
                     name=self.details_handler.get_tool_name(),
                     description=self.details_handler.get_tool_description(),
                     inputSchema=self.details_handler.get_tool_schema()
+                ),
+                Tool(
+                    name=self.statements_handler.get_tool_name(),
+                    description=self.statements_handler.get_tool_description(),
+                    inputSchema=self.statements_handler.get_tool_schema()
                 )
             ]
 
@@ -104,7 +111,7 @@ async def main():
     from ..container import create_container
     container = create_container()
 
-    financial_service = container.financial_query_service()
+    financial_service = container.financial_data_service()  # 修复：使用FinancialDataService
     field_discovery_service = container.field_discovery_service()
 
     # 创建MCP服务器实例

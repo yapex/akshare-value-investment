@@ -1,0 +1,131 @@
+version: "1.0.0"
+last_updated: "2025-11-13"
+
+# 港股财务三表关键字索引配置 - 资产负债表+利润表
+# 基于akshare真实数据生成，支持用户友好的自然语言查询
+# 一对多关键字映射，优先级排序，类似搜索引擎算法
+
+metadata:
+  description: "港股财务三表关键字索引配置 - 资产负债表+利润表"
+  total_fields: 300  # 港股财务三表字段总数预估
+  statement_type: "balance_sheet+income_statement"
+  generated_at: "2025-11-13"
+  data_source: "akshare真实数据"
+  design_principle: "全覆盖配置 + 核心字段重点优化"
+  markets: ["hk_stock"]
+
+# 港股配置
+markets:
+  hk_stock:
+    name: "港股"
+    currency: "HKD"
+
+    # 港股利润表核心字段（优先级3）
+    # 注：港股字段名称可能与A股不同，需根据akshare API调整
+    "TOTAL_REVENUE":
+      name: "总收入"
+      keywords: ["总收入", "营收", "收入", "营业额", "销售额", "港股收入", "营业收入", "REVENUE", "HK_REVENUE"]
+      priority: 3
+      description: "港股利润表-总收入"
+
+    "OPERATING_COSTS":
+      name: "营业成本"
+      keywords: ["营业成本", "成本", "经营成本", "销售成本", "港股成本", "COSTS", "HK_COSTS"]
+      priority: 3
+      description: "港股利润表-营业成本"
+
+    "GROSS_PROFIT":
+      name: "毛利润"
+      keywords: ["毛利润", "毛利", "销售毛利", "营业毛利", "港股毛利", "GROSS_PROFIT", "HK_GROSS"]
+      priority: 3
+      description: "港股利润表-毛利润"
+
+    "NET_PROFIT":
+      name: "净利润"
+      keywords: ["净利润", "纯利", "净收益", "税后利润", "港股利润", "NET_PROFIT", "HK_PROFIT"]
+      priority: 3
+      description: "港股利润表-净利润"
+
+    "BASIC_EPS":
+      name: "基本每股收益"
+      keywords: ["基本每股收益", "每股收益", "每股盈利", "港股每股收益", "EPS", "HK_EPS"]
+      priority: 3
+      description: "港股利润表-基本每股收益"
+
+    # 港股特有字段（根据港股会计准则）
+    "TURNOVER":
+      name: "营业额"
+      keywords: ["营业额", "周转额", "港营业额", "TURNOVER", "HK_TURNOVER"]
+      priority: 3
+      description: "港股特有-营业额"
+
+      # 港股资产负债表核心字段（优先级2）
+    # 基于akshare港股API实际可用字段配置
+    "BPS":
+      name: "每股净资产"
+      keywords: ["每股净资产", "每股权益", "净资产", "股东权益每股", "每股净值", "BPS", "BOOK_VALUE_PER_SHARE"]
+      priority: 2
+      description: "港股资产负债表-每股净资产"
+
+    "DEBT_ASSET_RATIO":
+      name: "资产负债率"
+      keywords: ["资产负债率", "负债率", "杠杆率", "债务资产比", "财务杠杆", "DEBT_ASSET_RATIO"]
+      priority: 2
+      description: "港股资产负债表-资产负债率"
+
+    "CURRENTDEBT_DEBT":
+      name: "流动负债"
+      keywords: ["流动负债", "短期负债", "流动债务", "CURRENT_DEBT", "SHORT_TERM_DEBT"]
+      priority: 2
+      description: "港股资产负债表-流动负债"
+
+    "TOTAL_ASSETS_IMPLIED":
+      name: "总资产(推算)"
+      keywords: ["总资产", "资产总额", "公司总资产", "TOTAL_ASSETS", "ASSETS"]
+      priority: 2
+      description: "港股资产负债表-总资产(可通过负债率推算)"
+
+    "NET_EQUITY_IMPLIED":
+      name: "净资产(推算)"
+      keywords: ["净资产", "股东权益", "所有者权益", "净资产总额", "股东权益合计", "公司净值", "公司家底", "NET_EQUITY", "SHAREHOLDER_EQUITY"]
+      priority: 2
+      description: "港股资产负债表-净资产(可通过每股净资产推算)"
+
+    # 待扩展：港股资产负债表其他字段（约190个）
+    # 待扩展：港股利润表其他字段（约89个）
+
+# 配置分类信息
+categories:
+  "利润表核心":
+    description: "港股利润表核心字段（收入、成本、利润等）"
+    fields_count: 6
+    priority: 1
+  "资产负债表":
+    description: "港股资产负债表科目"
+    fields_count: 200
+    priority: 2
+  "利润表其他":
+    description: "港股利润表其他科目"
+    fields_count: 94
+    priority: 3
+
+# 查询配置
+query_config:
+  # 默认优先级权重
+  priority_weights:
+    exact_match: 10
+    keyword_match: 8
+    fuzzy_match: 5
+    fallback_match: 3
+
+  # 相似度阈值
+  similarity_thresholds:
+    high: 0.8
+    medium: 0.6
+    low: 0.4
+
+  # 查询增强
+  query_enhancement:
+    enable_synonym_expansion: true
+    enable_context_analysis: true
+    max_suggestions: 5

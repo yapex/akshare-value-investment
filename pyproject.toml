@@ -97,6 +97,6 @@ mcp-get = "claude mcp get akshare-value-investment"
 docs-serve = "python -m http.server 8000 --directory doc"
 docs-open = "open http://localhost:8000"
 
-# 研究任务
-research-summary = "head -n 50 doc/research/FINAL_RESEARCH_SUMMARY.md"
-research-config = "head -n 30 doc/research/financial_statements_config_extension.md"
+# 算法文档任务
+algorithms-summary = "head -n 50 doc/algorithms/INTELLIGENT_FIELD_ALGORITHMS_DESIGN.md"
+algorithms-archived = "ls doc/algorithms/archived/*.md | wc -l"
