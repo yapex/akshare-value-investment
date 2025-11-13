@@ -332,89 +332,6 @@ class AkshareMCPServerV2:
             isError=False
         )
 
-    async def _handle_search_financial_fields(self, arguments: Dict[str, Any]) -> CallToolResult:
-        """处理财务字段搜索请求"""
-        try:
-            keyword = arguments.get("keyword", "")
-            if not keyword:
-                return self._format_error_response("搜索关键字不能为空")
-
-            market = arguments.get("market", "all")
-
-            # 委托给财务查询服务的字段搜索方法
-            fields = self.financial_service.search_fields(keyword, market)
-
-            # 格式化响应
-            if fields:
-                response_parts = [
-                    f"## 🔎 财务指标搜索结果",
-                    f"**关键字**: {keyword}",
-                    f"**市场**: {market}",
-                    f"**找到**: {len(fields)} 个相关字段",
-                    f""
-                ]
-
-                for i, field in enumerate(fields[:10], 1):  # 只显示前10个
-                    response_parts.append(f"{i}. {field}")
-
-                if len(fields) > 10:
-                    response_parts.append(f"... 还有 {len(fields) - 10} 个字段")
-
-                response_text = "\n".join(response_parts)
-            else:
-                response_text = f"❌ 未找到与 '{keyword}' 相关的财务指标字段"
-
-            return CallToolResult(
-                content=[TextContent(type="text", text=response_text)]
-            )
-
-        except Exception as e:
-            return self._format_error_response(f"字段搜索失败: {str(e)}")
-
-    async def _handle_get_field_details(self, arguments: Dict[str, Any]) -> CallToolResult:
-        """处理字段详细信息请求"""
-        try:
-            field_name = arguments.get("field_name", "")
-            if not field_name:
-                return self._format_error_response("字段名不能为空")
-
-            # 委托给财务查询服务的字段信息方法
-            field_info = self.financial_service.get_field_info(field_name)
-
-            # 格式化响应
-            response_parts = [
-                f"## 📋 财务指标详细信息",
-                f"**字段名**: {field_name}",
-                f""
-            ]
-
-            if field_info:
-                keywords = field_info.get("keywords", [])
-                priority = field_info.get("priority", 1)
-                description = field_info.get("description", "无描述")
-
-                response_parts.extend([
-                    f"**描述**: {description}",
-                    f"**优先级**: {priority}",
-                    f"**关键字数量**: {len(keywords)}",
-                    f"**关键字**: {', '.join(keywords[:10])}",
-                    ""
-                ])
-
-                if len(keywords) > 10:
-                    response_parts.append(f"... 还有 {len(keywords) - 10} 个关键字")
-            else:
-                response_parts.append("❌ 未找到该字段的详细信息")
-
-            response_text = "\n".join(response_parts)
-
-            return CallToolResult(
-                content=[TextContent(type="text", text=response_text)]
-            )
-
-        except Exception as e:
-            return self._format_error_response(f"获取字段详情失败: {str(e)}")
-
     async def _query_financial_indicators_async(self, symbol: str, field_query: str, **kwargs) -> Dict[str, Any]:
         """
         异步财务数据查询方法，使用智能字段映射系统
@@ -519,16 +436,6 @@ class AkshareMCPServerV2:
                 "message": error_details,
                 "total_records": 0
             }
-
-    
-    def _format_error_response(self, error_message: str) -> CallToolResult:
-        """格式化错误响应"""
-        return CallToolResult(
-            content=[TextContent(
-                type="text",
-                text=f"❌ 错误: {error_message}"
-            )]
-        )
 
 
 def create_mcp_server_v2() -> AkshareMCPServerV2:
