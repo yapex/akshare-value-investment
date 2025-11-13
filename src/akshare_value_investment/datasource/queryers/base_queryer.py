@@ -1,7 +1,7 @@
 """
 数据查询器基类
 
-提供通用的数据查询功能，使用SmartCache缓存。
+提供通用的数据查询功能，使用SQLite智能缓存（支持增量更新）。
 """
 
 from typing import Optional
@@ -9,11 +9,23 @@ import pandas as pd
 from datetime import datetime
 
 from ...core.data_queryer import IDataQueryer
-from ...smart_cache import smart_cache
+from ...cache.smart_decorator import smart_sqlite_cache
 
 
 class BaseDataQueryer(IDataQueryer):
-    """数据查询器基类 - 使用SmartCache"""
+    """数据查询器基类 - 使用SQLite智能缓存"""
+
+    # 子类可配置的缓存参数
+    cache_date_field = 'date'
+    cache_query_type = 'indicators'  # 默认为财务指标
+
+    def __init__(self):
+        """初始化查询器"""
+        # 应用智能缓存装饰器
+        self._query_with_dates = smart_sqlite_cache(
+            date_field=self.cache_date_field,
+            query_type=self.cache_query_type
+        )(self._query_with_dates_original)
 
     def query(self, symbol: str, start_date: Optional[str] = None,
               end_date: Optional[str] = None) -> pd.DataFrame:
@@ -30,11 +42,10 @@ class BaseDataQueryer(IDataQueryer):
         """
         return self._query_with_dates(symbol, start_date, end_date)
 
-    @smart_cache("financial_query")  # 使用默认ttl，不硬编码过期时间
-    def _query_with_dates(self, symbol: str, start_date: Optional[str] = None,
+    def _query_with_dates_original(self, symbol: str, start_date: Optional[str] = None,
                          end_date: Optional[str] = None) -> pd.DataFrame:
         """
-        实际查询逻辑 - 包含日期参数的SmartCache缓存
+        实际查询逻辑 - 原始查询方法（将被装饰器包装）
 
         Args:
             symbol: 股票代码
