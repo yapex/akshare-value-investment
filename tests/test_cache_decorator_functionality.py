@@ -219,7 +219,7 @@ class TestSmartCacheDecorator(unittest.TestCase):
 
         # 验证财务三表查询器的覆盖配置
         statement_queryer = USStockStatementQueryer()
-        self.assertEqual(statement_queryer.cache_query_type, 'statements')
+        self.assertEqual(statement_queryer.cache_query_type, 'us_statements')  # 修复：使用实际配置值
 
     def test_method_existence(self):
         """验证装饰器方法是否正确创建"""

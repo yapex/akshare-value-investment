@@ -342,26 +342,40 @@ class TestAStockQueryersProduction:
         queryer = AStockIndicatorQueryer()
 
         # 查询2024年数据 - 真实的生产环境查询场景
-        result = queryer._query_raw(symbol="SH600519")  # 贵州茅台
+        # 注意：akshare API需要使用纯数字代码，不支持SH前缀
+        result = queryer._query_raw(symbol="600519")  # 贵州茅台（修正格式）
 
         # 验证查询结果
-        assert isinstance(result, pd.DataFrame)
+        assert isinstance(result, pd.DataFrame), "应该返回DataFrame类型的数据"
         assert len(result) > 0, "应该返回至少1条数据"
 
         # 验证基本字段存在
         if len(result) > 0:
-            # 检查常见的标识字段
-            id_fields = ['SECURITY_CODE', 'symbol', '代码']
-            has_id_field = any(field in result.columns for field in id_fields)
-            assert has_id_field, f"应该包含股票代码字段，实际列: {list(result.columns[:10])}"
+            # 验证财务指标字段存在（根据实际API返回的字段调整）
+            financial_fields = ['净利润', '基本每股收益', '营业总收入', '每股净资产', '扣非净利润']
+            has_financial_field = any(field in result.columns for field in financial_fields)
+            assert has_financial_field, f"应该包含财务指标字段，实际列: {list(result.columns[:15])}"
 
-            print(f"\n📊 真实数据查询结果（贵州茅台 SH600519）:")
+            # 验证报告期字段存在
+            date_fields = ['报告期', 'REPORT_DATE', 'date']
+            has_date_field = any(field in result.columns for field in date_fields)
+            assert has_date_field, f"应该包含报告期字段，实际列: {list(result.columns[:15])}"
+
+            print(f"\n📊 真实数据查询结果（贵州茅台 600519）:")
             print(f"   返回数据: {len(result)} 条记录")
             print(f"   数据列数: {len(result.columns)} 列")
             print(f"   前10个列名: {list(result.columns[:10])}")
 
+            # 显示一些财务指标数据
+            numeric_cols = result.select_dtypes(include=['number']).columns
+            if len(numeric_cols) > 0:
+                print(f"   数值型财务指标: {len(numeric_cols)} 个")
+                first_numeric_col = numeric_cols[0]
+                print(f"   {first_numeric_col} 示例值: {result[first_numeric_col].iloc[0] if len(result) > 0 else 'N/A'}")
+
             # 端到端测试通过验证
             print(f"   ✅ 端到端测试通过：成功获取真实的茅台财务指标数据")
+            print(f"   ✅ 生产环境API调用验证：akshare财务指标API工作正常")
 
     @pytest.mark.production
     @pytest.mark.slow
@@ -372,35 +386,41 @@ class TestAStockQueryersProduction:
     ])
     def test_production_query_financial_statements_2024(self, statement_name, queryer_class):
         """测试生产环境：查询2024年度财务三表数据（端到端测试）"""
-        symbol = "SH600519"  # 贵州茅台
+        symbol = "600519"  # 贵州茅台（修正格式，使用纯数字）
 
         print(f"\n📊 真实财务三表查询测试（贵州茅台 {symbol}）:")
 
-        try:
-            queryer = queryer_class()
-            result = queryer._query_raw(symbol)
+        queryer = queryer_class()
+        result = queryer._query_raw(symbol)
 
-            # 验证查询结果
-            assert isinstance(result, pd.DataFrame)
-            assert len(result) > 0, f"{statement_name}应该返回至少1条数据"
+        # 验证查询结果
+        assert isinstance(result, pd.DataFrame), f"{statement_name}应该返回DataFrame类型的数据"
+        assert len(result) > 0, f"{statement_name}应该返回至少1条数据"
 
-            if len(result) > 0:
-                # 检查基本字段
-                id_fields = ['SECURITY_CODE', 'symbol', '代码']
-                has_id_field = any(field in result.columns for field in id_fields)
+        if len(result) > 0:
+            # 验证财务数据字段存在（根据实际API返回的字段调整）
+            # 根据实际API返回的字段名，使用带*号的核心指标字段
+            financial_fields = ['*资产合计', '*负债合计', '*所有者权益（或股东权益）合计',
+                           '*净利润', '*营业总收入', '*经营活动产生的现金流量净额',
+                           '流动资产', '货币资金']  # 添加一些常见字段
+            has_financial_field = any(field in result.columns for field in financial_fields)
+            assert has_financial_field, f"{statement_name}应该包含财务指标字段，实际列: {list(result.columns[:15])}"
 
-                date_fields = ['report_date', 'date', 'REPORT_DATE', '公布日期']
-                has_date_field = any(field in result.columns for field in date_fields)
+            # 验证日期字段存在（报告期字段在A股中比较常见）
+            date_fields = ['报告期', 'date', 'REPORT_DATE', '公布日期']
+            has_date_field = any(field in result.columns for field in date_fields)
+            assert has_date_field, f"{statement_name}应该包含日期字段，实际列: {list(result.columns[:15])}"
 
-                print(f"   ✅ {statement_name}: {len(result)}条记录, {len(result.columns)}列")
-                if not has_id_field:
-                    print(f"      ⚠️ 缺少股票代码字段")
-                if not has_date_field:
-                    print(f"      ⚠️ 缺少日期字段")
+            print(f"   ✅ {statement_name}: {len(result)}条记录, {len(result.columns)}列")
+            print(f"   📋 关键字段: {financial_fields[:3]}...")
 
-        except Exception as e:
-            print(f"   ❌ {statement_name}: 查询失败 - {str(e)}")
-            # 在生产环境中，某些API可能暂时不可用，这是可以接受的
-            pytest.skip(f"{statement_name} API暂时不可用: {str(e)}")
+            # 显示一些财务指标数据
+            numeric_cols = result.select_dtypes(include=['number']).columns
+            if len(numeric_cols) > 0:
+                print(f"   📊 数值型财务指标: {len(numeric_cols)} 个")
+                first_numeric_col = numeric_cols[0]
+                print(f"   💰 {first_numeric_col} 示例值: {result[first_numeric_col].iloc[0] if len(result) > 0 else 'N/A'}")
 
-        print(f"   ✅ 财务三表端到端测试完成")
+            # 端到端测试通过验证
+            print(f"   ✅ 生产环境测试通过：成功获取真实的{statement_name}数据")
+            print(f"   ✅ API兼容性验证：akshare财务三表API工作正常")
