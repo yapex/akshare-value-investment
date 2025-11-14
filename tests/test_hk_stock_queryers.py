@@ -155,12 +155,7 @@ class TestHKStockQueryersWithRealData:
             has_expected_columns = any(item in result.columns for item in test_items)
             assert has_expected_columns, f"应该包含财务项目列: {test_items}"
 
-    @pytest.mark.skip(reason="港股查询器不支持get_specific_items方法")
-    def test_hk_stock_statement_specific_items_method(self):
-        """测试获取指定财务项目的窄表格式方法"""
-        # 港股查询器没有get_specific_items方法，跳过此测试
-        pass
-
+  
     def test_mock_data_loader_integration(self, mock_loader):
         """测试Mock数据加载器集成"""
         # 验证可以成功获取各种类型的mock数据
