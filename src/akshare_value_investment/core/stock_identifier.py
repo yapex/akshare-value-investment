@@ -20,10 +20,17 @@ class StockIdentifier:
     def _build_prefix_mapping(self):
         """构建前缀映射"""
         self.prefix_mapping = {
+            # A股前缀
             "CN.": MarketType.A_STOCK,
             "A.": MarketType.A_STOCK,
+            "SH": MarketType.A_STOCK,   # 上海证券交易所前缀
+            "SZ": MarketType.A_STOCK,   # 深圳证券交易所前缀
+
+            # 港股前缀
             "HK.": MarketType.HK_STOCK,
             "H.": MarketType.HK_STOCK,
+
+            # 美股前缀
             "US.": MarketType.US_STOCK,
             "U.": MarketType.US_STOCK,
         }
