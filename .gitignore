@@ -47,3 +47,4 @@ Thumbs.db
 # Log files
 logs/
 *.log
+test_incremental_single.db
