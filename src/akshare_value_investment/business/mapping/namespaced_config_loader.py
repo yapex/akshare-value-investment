@@ -174,12 +174,27 @@ class NamespacedMultiConfigLoader:
                     continue
 
                 if isinstance(field_data, dict) and 'name' in field_data and 'keywords' in field_data:
-                    # 创建FieldInfo对象（GREEN阶段：最小实现，不添加新字段）
+                    # 检查是否为窄表字段
+                    api_field = field_data.get('api_field')
+                    filter_value = field_data.get('filter_value')
+                    value_field = field_data.get('value_field')
+
+                    # 判断字段类型
+                    if api_field and filter_value and value_field:
+                        field_type = "narrow"
+                    else:
+                        field_type = "standard"
+
+                    # 创建FieldInfo对象，支持窄表结构
                     field_info = FieldInfo(
                         name=field_data['name'],
                         keywords=field_data['keywords'],
                         priority=field_data.get('priority', 1),
-                        description=field_data.get('description', '')
+                        description=field_data.get('description', ''),
+                        api_field=api_field,
+                        filter_value=filter_value,
+                        value_field=value_field,
+                        field_type=field_type
                     )
                     # 存储来源类型信息在内部字典中（GREEN阶段 workaround）
                     field_info._source_type = self._infer_source_type(field_id, full_config_data)

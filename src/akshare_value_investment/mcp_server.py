@@ -65,7 +65,7 @@ class AkshareMCPServerV2:
             """列出可用工具"""
             return [
                 Tool(
-                    name="query_financial_indicators",
+                    name="query_financial",
                     description="🔍 智能查询股票财务指标，支持自然语言查询跨市场数据（A股、港股、美股）",
                     inputSchema={
                         "type": "object",
@@ -134,8 +134,8 @@ class AkshareMCPServerV2:
         async def handle_call_tool(name: str, arguments: Dict[str, Any]):
             """处理工具调用 - 委托给相应服务"""
             try:
-                if name == "query_financial_indicators":
-                    return await self._handle_query_financial_indicators(arguments)
+                if name == "query_financial":
+                    return await self._handle_query_financial(arguments)
                 elif name == "search_financial_fields":
                     return await self._handle_search_financial_fields(arguments)
                 elif name == "get_field_details":
@@ -146,7 +146,7 @@ class AkshareMCPServerV2:
             except Exception as e:
                 return self._format_error_response(f"处理请求时发生错误: {str(e)}")
 
-    async def _handle_query_financial_indicators(self, arguments: Dict[str, Any]) -> CallToolResult:
+    async def _handle_query_financial(self, arguments: Dict[str, Any]) -> CallToolResult:
         """处理智能财务数据查询请求"""
         try:
             # 验证必要参数
@@ -167,7 +167,7 @@ class AkshareMCPServerV2:
             end_date = arguments.get("end_date")
 
             # 使用异步查询方法
-            result = await self._query_financial_indicators_async(
+            result = await self._query_financial_async(
                 symbol=symbol,
                 field_query=query,
                 prefer_annual=prefer_annual,
@@ -332,7 +332,7 @@ class AkshareMCPServerV2:
             isError=False
         )
 
-    async def _query_financial_indicators_async(self, symbol: str, field_query: str, **kwargs) -> Dict[str, Any]:
+    async def _query_financial_async(self, symbol: str, field_query: str, **kwargs) -> Dict[str, Any]:
         """
         异步财务数据查询方法，使用智能字段映射系统
 
@@ -405,12 +405,19 @@ class AkshareMCPServerV2:
             )
 
             # 检查查询结果
+            # 支持两种结果格式：对象.data 和 字典直接返回
+            data = None
             if hasattr(base_result, 'data') and base_result.data:
+                data = base_result.data
+            elif isinstance(base_result, dict) and base_result.get('success') and base_result.get('data'):
+                data = base_result['data']
+
+            if data:
                 return {
                     "success": True,
-                    "data": base_result.data,
-                    "message": f"成功查询 {field_query}，共 {len(base_result.data) if hasattr(base_result.data, '__len__') else 1} 条记录",
-                    "total_records": len(base_result.data) if hasattr(base_result.data, '__len__') else 1,
+                    "data": data,
+                    "message": f"成功查询 {field_query}，共 {len(data) if hasattr(data, '__len__') else 1} 条记录",
+                    "total_records": len(data) if hasattr(data, '__len__') else 1,
                     "field_info": {
                         "original_query": field_query,
                         "mapped_field": mapped_field_id,
@@ -419,10 +426,15 @@ class AkshareMCPServerV2:
                     }
                 }
             else:
+                # 提供更详细的错误信息
+                error_msg = "查询成功但无数据返回"
+                if isinstance(base_result, dict):
+                    error_msg = base_result.get('message', error_msg)
+
                 return {
                     "success": False,
                     "data": [],
-                    "message": f"查询成功但无数据返回",
+                    "message": error_msg,
                     "total_records": 0
                 }
 

@@ -85,9 +85,27 @@ markets:
       priority: 2
       description: "港股资产负债表-总资产(可通过负债率推算)"
 
+    "净资产":
+      name: "净资产"
+      keywords: ["净资产", "股东权益", "所有者权益", "净资产总额", "股东权益合计", "公司净值", "公司家底", "NET_EQUITY", "SHAREHOLDER_EQUITY", "权益总额"]
+      priority: 1
+      description: "港股资产负债表-净资产(实际字段)"
+
+    "股东权益":
+      name: "股东权益"
+      keywords: ["股东权益", "所有者权益", "归属于股东", "股东净值", "SHAREHOLDER_EQUITY", "OWNER_EQUITY"]
+      priority: 2
+      description: "港股资产负债表-股东权益"
+
+    "总权益":
+      name: "总权益"
+      keywords: ["总权益", "权益合计", "权益总计", "TOTAL_EQUITY", "EQUITY_TOTAL"]
+      priority: 2
+      description: "港股资产负债表-总权益"
+
     "NET_EQUITY_IMPLIED":
       name: "净资产(推算)"
-      keywords: ["净资产", "股东权益", "所有者权益", "净资产总额", "股东权益合计", "公司净值", "公司家底", "NET_EQUITY", "SHAREHOLDER_EQUITY"]
+      keywords: ["净资产(推算)", "估算净资产", "理论净资产"]
       priority: 2
       description: "港股资产负债表-净资产(可通过每股净资产推算)"
 

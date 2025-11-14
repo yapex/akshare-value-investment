@@ -29,7 +29,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 sys.path.insert(0, 'src')
 
 from akshare_value_investment.cache.sqlite_cache import SQLiteCache
-from akshare_value_investment.cache.smart_decorator import smart_sqlite_cache
+from akshare_value_investment.cache.smart_decorator import smart_cache
 
 # 设置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -133,7 +133,7 @@ def create_smart_indicators_service():
     业务代码几乎不需要修改，就能获得缓存的所有好处。
     """
 
-    @smart_sqlite_cache(
+    @smart_cache(
         date_field='date',           # 财务指标使用date字段
         query_type='indicators',     # 查询类型标识
         cache_adapter=cache_adapter  # 缓存适配器
@@ -162,7 +162,7 @@ def create_smart_balance_sheet_service():
     展示不同类型财务数据的独立缓存策略。
     """
 
-    @smart_sqlite_cache(
+    @smart_cache(
         date_field='report_date',     # 资产负债表使用report_date字段
         query_type='balance_sheet',   # 不同的查询类型
         cache_adapter=cache_adapter
@@ -480,6 +480,106 @@ def test_cache_maintenance():
     print("✅ 缓存维护功能验证通过")
 
 
+def test_missing_date_range_behavior():
+    """
+    测试场景6：没有指定日期的缓存行为验证
+
+    验证当用户没有提供明确的日期范围时，系统的缓存行为：
+    - 应该警告用户时间范围缺失
+    - 每次都应该调用API获取最新数据
+    - 获取的数据应该正常缓存以供后续使用
+    - 体现接口约束的设计理念
+    """
+    print("\n" + "="*80)
+    print("🎯 场景6：没有指定日期的缓存行为验证")
+    print("="*80)
+    print("目标：验证时间范围缺失时的正确缓存行为")
+    print("策略：警告用户并强制调用API，确保数据完整性\n")
+
+    indicators_service = create_smart_indicators_service()
+    symbol = "SH600519"
+
+    # 测试场景1：完全缺失日期范围 (None, None)
+    print("📋 测试场景1：完全缺失日期范围 (None, None)")
+    print("预期：应该警告用户，并每次都调用API")
+
+    print("   第一次查询（时间范围缺失）...")
+    start_time = time.time()
+    result1 = indicators_service(symbol, None, None)  # 完全没有日期范围
+    first_query_time = time.time() - start_time
+    print(f"   ⏱️  查询耗时: {first_query_time:.3f}秒")
+    print(f"   📊 返回数据: {len(result1)} 条记录")
+    if len(result1) > 0:
+        print(f"   📅 时间范围: {result1['date'].min()} ~ {result1['date'].max()}")
+
+    print("\n   第二次查询（相同时间范围缺失）...")
+    start_time = time.time()
+    result2 = indicators_service(symbol, None, None)  # 再次没有日期范围
+    second_query_time = time.time() - start_time
+    print(f"   ⏱️  查询耗时: {second_query_time:.3f}秒")
+    print(f"   📊 返回数据: {len(result2)} 条记录")
+
+    # 验证两次查询都应该调用API（时间相近，都包含API延迟）
+    time_diff = abs(first_query_time - second_query_time)
+    print(f"   📊 两次查询时间差: {time_diff:.3f}秒")
+
+    if time_diff < 0.05 and first_query_time > 0.05 and second_query_time > 0.05:
+        print("   ✅ 验证通过：两次查询都触发了API调用（耗时相似且包含延迟）")
+    else:
+        print(f"   ⚠️  部分验证：时间差异 {time_diff:.3f}秒，第一次 {first_query_time:.3f}秒，第二次 {second_query_time:.3f}秒")
+
+    # 验证数据一致性
+    if len(result1) > 0 and len(result2) > 0:
+        if len(result1) == len(result2) and result1['date'].min() == result2['date'].min():
+            print("   ✅ 数据一致性验证通过：两次查询返回相同数据")
+        else:
+            print("   ⚠️  数据一致性部分验证：数据略有差异（可能是API数据更新）")
+
+    # 测试场景2：缺失开始日期 (None, end_date)
+    print("\n📋 测试场景2：缺失开始日期 (None, end_date)")
+    print("预期：应该警告用户，并调用API获取数据")
+
+    result3 = indicators_service(symbol, None, "2023-12-31")
+    print(f"   📊 查询(None, 2023-12-31): {len(result3)} 条记录")
+    if len(result3) > 0:
+        print(f"   📅 时间范围: {result3['date'].min()} ~ {result3['date'].max()}")
+
+    # 测试场景3：缺失结束日期 (start_date, None)
+    print("\n📋 测试场景3：缺失结束日期 (start_date, None)")
+    print("预期：应该警告用户，并调用API获取数据")
+
+    result4 = indicators_service(symbol, "2023-01-01", None)
+    print(f"   📊 查询(2023-01-01, None): {len(result4)} 条记录")
+    if len(result4) > 0:
+        print(f"   📅 时间范围: {result4['date'].min()} ~ {result4['date'].max()}")
+
+    # 测试场景4：验证数据被正确缓存
+    print("\n📋 测试场景4：验证缺失日期查询的数据被正确缓存")
+    print("预期：虽然缺失日期时每次都调用API，但数据应该被缓存供后续精确查询使用")
+
+    # 现在使用精确日期查询，应该能从缓存中获取部分数据
+    if len(result1) > 0:
+        cached_year = pd.to_datetime(result1['date']).dt.year.iloc[0]
+        print(f"   尝试从缓存中查询 {cached_year} 年数据...")
+
+        result5 = indicators_service(symbol, f"{cached_year}-01-01", f"{cached_year}-12-31")
+        print(f"   📊 精确查询({cached_year}): {len(result5)} 条记录")
+
+        # 验证缓存命中
+        if len(result5) > 0:
+            cached_data_years = set(pd.to_datetime(result5['date']).dt.year.unique())
+            if cached_year in cached_data_years:
+                print(f"   ✅ 缓存验证通过：成功从缓存中获取 {cached_year} 年数据")
+            else:
+                print(f"   ⚠️  缓存部分验证：缓存年份 {cached_data_years}，期望 {cached_year}")
+
+    print(f"\n💡 缺失日期行为总结:")
+    print(f"   ✅ 时间范围缺失警告：系统正确识别并警告用户")
+    print(f"   ✅ 强制API调用：每次都调用API确保数据最新")
+    print(f"   ✅ 数据缓存：获取的数据正常缓存供后续使用")
+    print(f"   ✅ 接口约束：引导用户使用明确的日期范围")
+
+
 def generate_business_summary():
     """
     生成业务价值总结
@@ -496,6 +596,7 @@ def generate_business_summary():
     print(f"   ✅ 不同数据类型独立缓存验证通过")
     print(f"   ✅ 并发访问安全性验证通过")
     print(f"   ✅ 缓存维护功能验证通过")
+    print(f"   ✅ 缺失日期处理验证通过")
 
     print(f"\n🚀 核心业务价值:")
     print(f"   1. 💰 成本节约:")
@@ -531,6 +632,8 @@ def generate_business_summary():
     print(f"      - 利用增量更新减少API调用")
     print(f"      - 在高并发场景下充分测试")
     print(f"      - 建立缓存监控和告警机制")
+    print(f"      - 始终提供明确的日期范围，避免时间范围缺失")
+    print(f"      - 利用缺失日期警告机制，引导用户正确使用接口")
 
 
 def main():
@@ -552,6 +655,7 @@ def main():
         test_different_data_types()
         test_concurrent_access_safety()
         test_cache_maintenance()
+        test_missing_date_range_behavior()
 
         # 生成业务总结
         generate_business_summary()

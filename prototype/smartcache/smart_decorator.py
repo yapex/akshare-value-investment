@@ -13,7 +13,7 @@ import functools
 import logging
 from typing import Callable, Any, Optional, List, Dict
 from datetime import datetime, timedelta
-from .sqlite_cache import SQLiteCache
+from sqlite_cache import SQLiteCache
 
 logger = logging.getLogger(__name__)
 
@@ -120,17 +120,14 @@ def smart_sqlite_cache(
                 api_results = func(*bound_args.args, **bound_args.kwargs)
 
                 # 获取现有缓存数据并合并
-                if api_results is not None:
-                    # 安全的DataFrame空值检查
-                    import pandas as pd
-                    if hasattr(api_results, 'empty') and not api_results.empty:
-                        saved_count = adapter.save_records(
-                            symbol=symbol,
-                            records=api_results,
-                            date_field=date_field,
-                            query_type=query_type
-                        )
-                        # 保存记录的日志已在sqlite_cache.py中处理，这里不再重复
+                if api_results is not None and not api_results.empty:
+                    saved_count = adapter.save_records(
+                        symbol=symbol,
+                        records=api_results,
+                        date_field=date_field,
+                        query_type=query_type
+                    )
+                    # 保存记录的日志已在sqlite_cache.py中处理，这里不再重复
 
                 # 返回完整范围的合并数据
                 cached_results = adapter.query_by_date_range(
@@ -162,6 +159,13 @@ def smart_sqlite_cache(
 
         # 添加缓存管理方法到包装函数
         wrapper.cache_adapter = adapter
+        wrapper.cache_summary = lambda symbol: adapter.get_symbol_summary(symbol)
+
+        # 动态添加清理方法，避免类型检查问题
+        def clear_cache(symbol: Optional[str] = None) -> int:
+            return adapter.clear_cache_by_symbol(symbol)
+        wrapper.cache_clear = clear_cache
+        wrapper.cache_summary = lambda symbol: adapter.get_symbol_summary(symbol)
 
         return wrapper
 
@@ -173,7 +177,7 @@ def _parse_function_args(func: Callable, args: tuple, kwargs: dict) -> tuple:
     解析函数参数，提取(symbol, start_date, end_date)
 
     支持多种调用方式：
-    1. 位置参数：func(symbol, start_date, end_date) 或 func(self, symbol, start_date, end_date)
+    1. 位置参数：func(symbol, start_date, end_date)
     2. 关键字参数：func(symbol="SH600519", start_date="2023-01-01", end_date="2023-12-31")
     3. 混合参数：func("SH600519", start_date="2023-01-01", end_date="2023-12-31")
     """
@@ -183,33 +187,27 @@ def _parse_function_args(func: Callable, args: tuple, kwargs: dict) -> tuple:
     bound_args = sig.bind_partial(*args, **kwargs)
     bound_args.apply_defaults()
 
-    # 过滤掉 self 参数（如果是实例方法）
-    params = {}
-    for param_name, param_value in bound_args.arguments.items():
-        if param_name != 'self':
-            params[param_name] = param_value
-
     # 尝试多种常见的参数名
+    param_names = ['symbol', 'start_date', 'end_date', 'symbol_code', 'begin_date', 'finish_date']
+
     result = []
     for expected_name in ['symbol', 'start_date', 'end_date']:
         value = None
 
         # 1. 首先尝试精确匹配
-        if expected_name in params:
-            value = params[expected_name]
+        if expected_name in bound_args.arguments:
+            value = bound_args.arguments[expected_name]
         else:
             # 2. 尝试模糊匹配
-            for param_name, param_value in params.items():
+            for param_name, param_value in bound_args.arguments.items():
                 if expected_name in param_name.lower() or param_name.lower() in expected_name:
                     value = param_value
                     break
 
-        # 检查是否找到了参数（None值也是有效的）
-        if expected_name not in params:
-            # 只有当参数名确实不存在时才报错
-            raise ValueError(f"无法找到参数: {expected_name}. 可用参数: {list(params.keys())}")
+        if value is None:
+            raise ValueError(f"无法找到参数: {expected_name}. 可用参数: {list(bound_args.arguments.keys())}")
 
-        result.append(value)  # None值也是有效的
+        result.append(value)
 
     return tuple(result)
 
@@ -243,8 +241,16 @@ class CacheManager:
             SELECT DISTINCT symbol FROM financial_data ORDER BY symbol
         """)
 
-        symbols = list(row[0] for row in cursor.fetchall())
+        symbols = {}
+        for row in cursor.fetchall():
+            symbol = row[0]
+            symbols[symbol] = self.adapter.get_symbol_summary(symbol)
+
         return symbols
+
+    def clear_all_cache(self) -> int:
+        """清空所有缓存"""
+        return self.adapter.clear_cache_by_symbol(symbol=None)
 
     def close(self) -> None:
         """关闭缓存管理器"""
@@ -261,7 +267,3 @@ def get_cache_manager() -> CacheManager:
     if _global_cache_manager is None:
         _global_cache_manager = CacheManager()
     return _global_cache_manager
-
-
-# 用户友好的别名，隐藏实现细节
-smart_cache = smart_sqlite_cache

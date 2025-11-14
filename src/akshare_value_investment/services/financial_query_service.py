@@ -234,7 +234,7 @@ class FinancialIndicatorQueryService:
 
     async def query_by_field_name_simple(self, symbol: str, field_query: str, **kwargs) -> Any:
         """
-        简化版字段查询，避免复杂的异步调用
+        简化版字段查询，支持财务指标和财务三表数据
 
         Args:
             symbol: 股票代码
@@ -245,15 +245,12 @@ class FinancialIndicatorQueryService:
             查询结果
         """
         try:
-            # 直接获取基础数据，不进行复杂的字段映射
+            # 首先尝试从财务指标数据中查找
             base_result = self.query(symbol, **kwargs)
+
             if not hasattr(base_result, 'success') or not base_result.success:
-                return {
-                    "success": False,
-                    "data": [],
-                    "message": "无法获取基础财务数据",
-                    "total_records": 0
-                }
+                # 财务指标查询失败，尝试财务三表数据
+                return await self._query_from_financial_statements(symbol, field_query, **kwargs)
 
             # 简单的字段匹配逻辑
             matched_data = []
@@ -279,6 +276,10 @@ class FinancialIndicatorQueryService:
                                 "resolution_method": "关键字匹配"
                             }
                         })
+
+            # 如果财务指标中没有找到匹配项，尝试财务三表数据
+            if not matched_data:
+                return await self._query_from_financial_statements(symbol, field_query, **kwargs)
 
             return {
                 "success": True,
@@ -336,3 +337,129 @@ class FinancialIndicatorQueryService:
         similar_fields = self.field_mapper.search_similar_fields(keyword, market_id, max_results=20)
 
         return [field_info.name for _, _, field_info, _ in similar_fields]
+
+    async def _query_from_financial_statements(self, symbol: str, field_query: str, **kwargs) -> Any:
+        """
+        从财务三表数据中查询字段，失败时尝试财务指标数据
+
+        Args:
+            symbol: 股票代码
+            field_query: 字段查询
+            **kwargs: 其他查询参数
+
+        Returns:
+            查询结果
+        """
+        try:
+            # 获取查询参数
+            start_date = kwargs.get('start_date')
+            end_date = kwargs.get('end_date')
+
+            # 首先尝试财务三表数据
+            base_result = self.query(symbol, data_type='balance_sheet', start_date=start_date, end_date=end_date)
+
+            matched_data = []
+            resolution_method = ""
+
+            # 如果财务三表查询成功，在其中查找匹配项
+            if hasattr(base_result, 'success') and base_result.success:
+                resolution_method = "财务三表匹配"
+                for indicator in base_result.data:
+                    if hasattr(indicator, 'raw_data') and indicator.raw_data:
+                        # 财务三表数据字段：STD_ITEM_NAME 和 AMOUNT
+                        std_item_name = indicator.raw_data.get('STD_ITEM_NAME', '')
+                        amount = indicator.raw_data.get('AMOUNT', None)
+
+                        # 检查是否匹配查询字段
+                        if (field_query.lower() in std_item_name.lower() or
+                            std_item_name == field_query):
+
+                            matched_data.append({
+                                "symbol": indicator.symbol,
+                                "market": indicator.market,
+                                "report_date": indicator.raw_data.get('REPORT_DATE', indicator.report_date),
+                                "period_type": indicator.period_type,
+                                "raw_data": {
+                                    std_item_name: amount,
+                                    "STD_ITEM_CODE": indicator.raw_data.get('STD_ITEM_CODE', ''),
+                                    "FISCAL_YEAR": indicator.raw_data.get('FISCAL_YEAR', '')
+                                },
+                                "metadata": {
+                                    "field_query": field_query,
+                                    "matched_field": [std_item_name],
+                                    "resolution_method": resolution_method
+                                }
+                            })
+
+                if matched_data:
+                    return {
+                        "success": True,
+                        "data": matched_data,
+                        "message": f"从财务三表成功匹配 {len(matched_data)} 条记录",
+                        "total_records": len(matched_data)
+                    }
+
+            # 财务三表无匹配数据，尝试财务指标数据
+            resolution_method = "财务指标匹配"
+            indicators_result = self.query(symbol, data_type='indicators', start_date=start_date, end_date=end_date)
+
+            if hasattr(indicators_result, 'success') and indicators_result.success:
+                for indicator in indicators_result.data:
+                    if hasattr(indicator, 'raw_data') and indicator.raw_data:
+                        # 在财务指标数据中查找匹配字段
+                        matched_fields = {}
+                        for field_name, field_value in indicator.raw_data.items():
+                            # 精确匹配或包含匹配
+                            if (field_query.lower() == field_name.lower() or
+                                field_query.lower() in field_name.lower() or
+                                field_name.lower() in field_query.lower()):
+                                matched_fields[field_name] = field_value
+
+                        # 特别处理营收相关字段映射
+                        if field_query in ['TOTAL_REVENUE', '营业收入', '营收'] and not matched_fields:
+                            revenue_mappings = {
+                                'OPERATE_INCOME': '营业收入',
+                                'TOTAL_OPERATING_REVENUE': '总营业收入',
+                                'REVENUE': '收入'
+                            }
+                            for actual_field, mapped_name in revenue_mappings.items():
+                                if actual_field in indicator.raw_data:
+                                    matched_fields[mapped_name] = indicator.raw_data[actual_field]
+                                    break
+
+                        if matched_fields:
+                            matched_data.append({
+                                "symbol": indicator.symbol,
+                                "market": indicator.market,
+                                "report_date": indicator.report_date,
+                                "period_type": indicator.period_type,
+                                "raw_data": matched_fields,
+                                "metadata": {
+                                    "field_query": field_query,
+                                    "matched_field": list(matched_fields.keys()),
+                                    "resolution_method": resolution_method
+                                }
+                            })
+
+            if matched_data:
+                return {
+                    "success": True,
+                    "data": matched_data,
+                    "message": f"从财务指标成功匹配 {len(matched_data)} 条记录",
+                    "total_records": len(matched_data)
+                }
+            else:
+                return {
+                    "success": False,
+                    "data": [],
+                    "message": f"无法找到匹配 '{field_query}' 的财务数据",
+                    "total_records": 0
+                }
+
+        except Exception as e:
+            return {
+                "success": False,
+                "data": [],
+                "message": f"数据查询失败: {str(e)}",
+                "total_records": 0
+            }

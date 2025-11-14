@@ -53,21 +53,25 @@ class SQLiteCache:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
 
-            # 创建主表 - 使用复合主键，去除cache_key冗余
+            # 创建主表 - 简化设计，去除冗余字段
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS financial_data (
+                    cache_key TEXT PRIMARY KEY,    -- 唯一键：symbol_date
                     symbol TEXT NOT NULL,          -- 股票代码（已包含市场信息）
                     date_value TEXT NOT NULL,      -- 标准化日期值
+                    date_field TEXT NOT NULL,      -- 原始日期字段名（date/report_date/end_date）
                     query_type TEXT NOT NULL,      -- 查询类型（indicators/profit/balance/cashflow）
                     data_json TEXT NOT NULL,       -- 完整原始数据JSON
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    PRIMARY KEY (symbol, date_value, query_type)  -- 复合主键
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
 
             # 创建高效索引 - 支持各种查询模式
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_symbol_type ON financial_data(symbol, query_type)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_symbol_date ON financial_data(symbol, date_value)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_symbol_type_date ON financial_data(symbol, query_type, date_value)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_date_field ON financial_data(date_field)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_query_type ON financial_data(query_type)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_created_at ON financial_data(created_at)")
 
             conn.commit()
@@ -110,19 +114,21 @@ class SQLiteCache:
                     logger.warning(f"记录缺少日期字段 {date_field}: {record}")
                     continue
 
-                # 序列化完整数据，处理pandas数据类型
-                data_json = json.dumps(record, ensure_ascii=False, default=str)
+                # 生成缓存键 - 简化设计，基于股票代码和日期
+                cache_key = f"{symbol}_{record[date_field]}_{query_type}"
+
+                # 序列化完整数据
+                data_json = json.dumps(record, ensure_ascii=False)
 
                 # 使用UPSERT：存在则更新，不存在则插入
-                # 直接使用复合主键 (symbol, date_value, query_type)
                 cursor.execute("""
                     INSERT INTO financial_data
-                    (symbol, date_value, query_type, data_json, updated_at)
-                    VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-                    ON CONFLICT(symbol, date_value, query_type) DO UPDATE SET
+                    (cache_key, symbol, date_value, date_field, query_type, data_json, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    ON CONFLICT(cache_key) DO UPDATE SET
                         data_json = excluded.data_json,
                         updated_at = CURRENT_TIMESTAMP
-                """, (symbol, record[date_field], query_type, data_json))
+                """, (cache_key, symbol, record[date_field], date_field, query_type, data_json))
 
                 saved_count += 1
 
@@ -155,42 +161,14 @@ class SQLiteCache:
         conn = self._get_connection()
         cursor = conn.cursor()
 
-        # 构建动态SQL查询，处理NULL日期范围
-        if start_date is None and end_date is None:
-            # 查询所有该股票和查询类型的数据
-            cursor.execute("""
-                SELECT data_json FROM financial_data
-                WHERE symbol = ?
-                  AND query_type = ?
-                ORDER BY date_value
-            """, (symbol, query_type))
-        elif start_date is None:
-            # 只有结束日期
-            cursor.execute("""
-                SELECT data_json FROM financial_data
-                WHERE symbol = ?
-                  AND query_type = ?
-                  AND date_value <= ?
-                ORDER BY date_value
-            """, (symbol, query_type, end_date))
-        elif end_date is None:
-            # 只有开始日期
-            cursor.execute("""
-                SELECT data_json FROM financial_data
-                WHERE symbol = ?
-                  AND query_type = ?
-                  AND date_value >= ?
-                ORDER BY date_value
-            """, (symbol, query_type, start_date))
-        else:
-            # 完整日期范围
-            cursor.execute("""
-                SELECT data_json FROM financial_data
-                WHERE symbol = ?
-                  AND query_type = ?
-                  AND date_value BETWEEN ? AND ?
-                ORDER BY date_value
-            """, (symbol, query_type, start_date, end_date))
+        cursor.execute("""
+            SELECT data_json FROM financial_data
+            WHERE symbol = ?
+              AND date_field = ?
+              AND query_type = ?
+              AND date_value BETWEEN ? AND ?
+            ORDER BY date_value
+        """, (symbol, date_field, query_type, start_date, end_date))
 
         rows = cursor.fetchall()
         if not rows:
@@ -229,42 +207,14 @@ class SQLiteCache:
         conn = self._get_connection()
         cursor = conn.cursor()
 
-        # 构建动态SQL查询，处理NULL日期范围
-        if start_date is None and end_date is None:
-            # 查询所有该股票和查询类型的数据
-            cursor.execute("""
-                SELECT date_value FROM financial_data
-                WHERE symbol = ?
-                  AND query_type = ?
-                ORDER BY date_value
-            """, (symbol, query_type))
-        elif start_date is None:
-            # 只有结束日期
-            cursor.execute("""
-                SELECT date_value FROM financial_data
-                WHERE symbol = ?
-                  AND query_type = ?
-                  AND date_value <= ?
-                ORDER BY date_value
-            """, (symbol, query_type, end_date))
-        elif end_date is None:
-            # 只有开始日期
-            cursor.execute("""
-                SELECT date_value FROM financial_data
-                WHERE symbol = ?
-                  AND query_type = ?
-                  AND date_value >= ?
-                ORDER BY date_value
-            """, (symbol, query_type, start_date))
-        else:
-            # 完整日期范围
-            cursor.execute("""
-                SELECT date_value FROM financial_data
-                WHERE symbol = ?
-                  AND query_type = ?
-                  AND date_value BETWEEN ? AND ?
-                ORDER BY date_value
-            """, (symbol, query_type, start_date, end_date))
+        cursor.execute("""
+            SELECT date_value FROM financial_data
+            WHERE symbol = ?
+              AND date_field = ?
+              AND query_type = ?
+              AND date_value BETWEEN ? AND ?
+            ORDER BY date_value
+        """, (symbol, date_field, query_type, start_date, end_date))
 
         cached_dates = sorted([row[0] for row in cursor.fetchall()])
 
@@ -276,10 +226,10 @@ class SQLiteCache:
         first_cached = cached_dates[0]
         last_cached = cached_dates[-1]
 
-        # 检查是否有任何缺失 - 处理NULL日期比较
+        # 检查是否有任何缺失
         has_gaps = False
-        has_start_gap = start_date is not None and first_cached > start_date
-        has_end_gap = end_date is not None and last_cached < end_date
+        has_start_gap = first_cached > start_date
+        has_end_gap = last_cached < end_date
         has_middle_gaps = False
 
         if has_start_gap:
@@ -296,13 +246,6 @@ class SQLiteCache:
                     has_middle_gaps = True
                     has_gaps = True
                     break
-
-        # 特殊处理：当时间范围缺失（start_date和end_date都是None）时
-        # 应该警告用户并直接调用API获取数据
-        if start_date is None and end_date is None:
-            logger.warning(f"⚠️ 时间范围缺失：{symbol} {query_type} - 请提供明确的 start_date 和 end_date 参数")
-            # 返回缺失范围，强制调用API
-            return [{'start': start_date, 'end': end_date}]
 
         if has_gaps:
             if has_middle_gaps or (has_start_gap and has_end_gap):
@@ -362,6 +305,68 @@ class SQLiteCache:
         date = datetime.strptime(date_str, '%Y-%m-%d')
         previous_day = date - timedelta(days=1)
         return previous_day.strftime('%Y-%m-%d')
+
+    
+    def clear_cache_by_symbol(self, symbol: Optional[str] = None) -> int:
+        """
+        清理指定股票的缓存数据
+
+        Args:
+            symbol: 股票代码，如果为None则清空所有数据
+
+        Returns:
+            删除的记录数量
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        if symbol:
+            cursor.execute("DELETE FROM financial_data WHERE symbol = ?", (symbol,))
+            if cursor.rowcount > 0:
+                logger.info(f"🗑️ 清理了股票 {symbol} 的 {cursor.rowcount} 条缓存记录")
+        else:
+            cursor.execute("DELETE FROM financial_data")
+            if cursor.rowcount > 0:
+                logger.info(f"🗑️ 清空了所有缓存记录，共 {cursor.rowcount} 条")
+
+        deleted_count = cursor.rowcount
+        conn.commit()
+        return deleted_count
+
+    def get_symbol_summary(self, symbol: str) -> Dict[str, Any]:
+        """
+        获取指定股票的缓存概要
+
+        Args:
+            symbol: 股票代码
+
+        Returns:
+            缓存概要信息
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT
+                query_type,
+                COUNT(*) as record_count,
+                MIN(date_value) as earliest_date,
+                MAX(date_value) as latest_date
+            FROM financial_data
+            WHERE symbol = ?
+            GROUP BY query_type
+            ORDER BY query_type
+        """, (symbol,))
+
+        summary = {}
+        for row in cursor.fetchall():
+            query_type, count, earliest, latest = row
+            summary[query_type] = {
+                'record_count': count,
+                'date_range': f"{earliest} 至 {latest}" if earliest and latest else "无数据"
+            }
+
+        return summary
 
     def close(self) -> None:
         """关闭数据库连接"""
