@@ -85,7 +85,7 @@ class CustomStockQueryer(BaseDataQueryer):
 from typing import Optional, ClassVar, Tuple
 import pandas as pd
 
-from ...core.data_queryer import IDataQueryer
+from .interfaces import IDataQueryer
 from ...core.models import MarketType
 from ...cache.smart_decorator import smart_sqlite_cache as smart_cache
 from ...core.stock_identifier import StockIdentifier

@@ -223,11 +223,18 @@ class TestHKStockQueryersIntegration:
     @pytest.mark.integration
     def test_api_parameter_consistency(self):
         """测试API参数一致性"""
-        # 准备mock数据
-        mock_data = pd.DataFrame({'test': [1]})
+        # 准备mock数据 - 为不同查询器准备合适的格式
+        indicator_mock_data = pd.DataFrame({'test': [1]})
+        statement_mock_data = pd.DataFrame({
+            'REPORT_DATE': ['2024-12-31'],
+            'SECURITY_CODE': ['00700'],
+            'SECURITY_NAME_ABBR': ['腾讯控股'],
+            'STD_ITEM_NAME': ['测试项目'],
+            'AMOUNT': [1000000]
+        })
 
-        with patch('akshare.stock_financial_hk_analysis_indicator_em', return_value=mock_data) as mock_indicator, \
-             patch('akshare.stock_financial_hk_report_em', return_value=mock_data) as mock_report:
+        with patch('akshare.stock_financial_hk_analysis_indicator_em', return_value=indicator_mock_data) as mock_indicator, \
+             patch('akshare.stock_financial_hk_report_em', return_value=statement_mock_data) as mock_report:
 
             symbol = '00700'
             indicator_queryer = HKStockIndicatorQueryer()
@@ -239,7 +246,7 @@ class TestHKStockQueryersIntegration:
 
             # 验证API调用参数名正确
             mock_indicator.assert_called_once_with(symbol=symbol)
-            mock_report.assert_called_once_with(stock=symbol)
+            mock_report.assert_called_once_with(symbol=symbol)
 
     def test_hk_vs_other_markets_difference(self):
         """测试港股与其他市场的API差异"""

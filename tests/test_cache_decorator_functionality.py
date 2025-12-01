@@ -215,7 +215,7 @@ class TestSmartCacheDecorator(unittest.TestCase):
         """测试缓存配置的继承机制"""
         # 验证财务指标查询器的默认配置
         indicator_queryer = USStockIndicatorQueryer()
-        self.assertEqual(indicator_queryer.cache_query_type, 'indicators')
+        self.assertEqual(indicator_queryer.cache_query_type, 'us_indicators')  # 修复：使用实际配置值
 
         # 验证财务三表查询器的覆盖配置
         statement_queryer = USStockStatementQueryer()

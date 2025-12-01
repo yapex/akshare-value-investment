@@ -1,7 +1,8 @@
 """
-依赖注入容器配置 - 重构版本
+依赖注入容器配置 - 简化版本
 
-使用 dependency-injector 框架管理依赖关系，支持新的服务层架构。
+使用 dependency-injector 框架管理核心查询器依赖关系。
+专注于数据查询器功能，移除已删除的业务层和服务层组件。
 """
 
 import logging
@@ -13,46 +14,24 @@ from dependency_injector import containers, providers
 from .core.models import MarketType
 from .core.stock_identifier import StockIdentifier
 
-# 导入新的Queryer架构
+# 导入查询器架构
 from .datasource.queryers.a_stock_queryers import (
     AStockIndicatorQueryer, AStockBalanceSheetQueryer,
     AStockIncomeStatementQueryer, AStockCashFlowQueryer
 )
 from .datasource.queryers.hk_stock_queryers import HKStockIndicatorQueryer, HKStockStatementQueryer
-from .datasource.queryers.us_stock_queryers import USStockIndicatorQueryer, USStockStatementQueryer
-from .services.financial_data_service import FinancialDataService
-from .services.adapters.query_service_adapter import QueryServiceAdapter
+from .datasource.queryers.us_stock_queryers import (
+    USStockIndicatorQueryer, USStockBalanceSheetQueryer,
+    USStockIncomeStatementQueryer, USStockCashFlowQueryer
+)
 
-# 导入业务层组件
-from .business.processing.response_formatter import ResponseFormatter
-from .business.processing.time_range_processor import TimeRangeProcessor
-from .business.processing.data_processor import DataStructureProcessor
-
-# 导入服务层组件
-from .services.financial_query_service import FinancialIndicatorQueryService
-from .services.field_discovery_service import FieldDiscoveryService
-
-# 导入智能字段映射系统
-from .business.mapping.unified_field_mapper import UnifiedFieldMapper
-from .business.mapping.namespaced_config_loader import NamespacedMultiConfigLoader
-from .business.mapping.interfaces import IConfigLoader, IFieldSearcher, IMarketInferrer
-from .business.mapping.field_similarity_calculator import FieldSimilarityCalculator
-from .business.mapping.candidate_ranker import CompositeRankingStrategy
-from .business.mapping.field_searcher import DefaultFieldSearcher
-from .business.mapping.market_inferrer import DefaultMarketInferrer
-
-# 导入SQLite智能缓存（新架构）
+# 导入SQLite智能缓存
 from .cache.sqlite_cache import SQLiteCache
 from .cache.smart_decorator import smart_sqlite_cache
 
-# 导入MCP相关组件
-from .mcp.formatters import ResponseFormatter as MCPResponseFormatter
-from .mcp_server import AkshareMCPServerV2
-from .mcp.data_processors import SmartQueryDataProcessor, QueryDataProcessor, FieldMatcher
-
 
 class ProductionContainer(containers.DeclarativeContainer):
-    """生产环境容器 - 重构版本"""
+    """生产环境容器 - 简化版本"""
 
     # 配置
     config = providers.Configuration()
@@ -107,7 +86,7 @@ class ProductionContainer(containers.DeclarativeContainer):
         super().__init__()
         self._setup_logging()
 
-    # SQLite智能缓存配置 - 简化版本
+    # SQLite智能缓存配置
     sqlite_cache = providers.Singleton(
         SQLiteCache,
         db_path=".cache/financial_data.db"
@@ -116,7 +95,7 @@ class ProductionContainer(containers.DeclarativeContainer):
     # 核心组件
     stock_identifier = providers.Singleton(StockIdentifier)
 
-    # 新Queryer架构 - 遵循SOLID原则
+    # 查询器架构 - 遵循SOLID原则
     # A股Queryers
     a_stock_indicators = providers.Singleton(AStockIndicatorQueryer)
     a_stock_balance_sheet = providers.Singleton(AStockBalanceSheetQueryer)
@@ -129,98 +108,11 @@ class ProductionContainer(containers.DeclarativeContainer):
 
     # 美股Queryers
     us_stock_indicators = providers.Singleton(USStockIndicatorQueryer)
-    us_stock_statement = providers.Singleton(USStockStatementQueryer)
+    us_stock_balance_sheet = providers.Singleton(USStockBalanceSheetQueryer)
+    us_stock_income_statement = providers.Singleton(USStockIncomeStatementQueryer)
+    us_stock_cash_flow = providers.Singleton(USStockCashFlowQueryer)
 
-    # 财务数据聚合服务
-    financial_data_service = providers.Singleton(
-        FinancialDataService,
-        a_stock_indicators=a_stock_indicators,
-        a_stock_balance_sheet=a_stock_balance_sheet,
-        a_stock_income_statement=a_stock_income_statement,
-        a_stock_cash_flow=a_stock_cash_flow,
-        hk_stock_indicators=hk_stock_indicators,
-        hk_stock_statement=hk_stock_statement,
-        us_stock_indicators=us_stock_indicators,
-        us_stock_statement=us_stock_statement
-    )
-
-    # 查询服务适配器 - 确保向后兼容性
-    query_service_adapter = providers.Singleton(
-        QueryServiceAdapter,
-        financial_service=financial_data_service
-    )
-
-    # 保留旧配置以兼容现有代码（已废弃标记）
-    # adapter_manager = providers.Singleton(AdapterManager)  # 已废弃
-
-
-  # 配置加载器 - 遵循依赖倒置原则
-    config_loader = providers.Singleton(
-        NamespacedMultiConfigLoader,
-    )
-
-    # 组件工厂 - 创建各个专门组件
-    field_searcher = providers.Singleton(
-        DefaultFieldSearcher,
-        config_loader=config_loader
-    )
-
-    market_inferrer = providers.Singleton(
-        DefaultMarketInferrer
-    )
-
-    # 统一字段映射器 - 最先进的SOLID架构实现
-    field_mapper = providers.Singleton(
-        UnifiedFieldMapper,
-        config_loader=config_loader,
-        field_searcher=field_searcher,
-        market_inferrer=market_inferrer
-    )
-    response_formatter = providers.Singleton(ResponseFormatter)
-    time_processor = providers.Singleton(TimeRangeProcessor)
-    data_processor = providers.Singleton(DataStructureProcessor)
-    field_discovery_service = providers.Singleton(
-        FieldDiscoveryService,
-        query_service=query_service_adapter  # 使用适配器确保接口兼容
-    )
-
-    # 核心财务指标查询服务 - 新架构
-    financial_query_service = providers.Singleton(
-        FinancialIndicatorQueryService,
-        query_service=query_service_adapter,  # 使用适配器确保接口兼容
-        field_mapper=field_mapper,
-        formatter=response_formatter,
-        time_processor=time_processor,
-        data_processor=data_processor
-    )
-
-    # 向后兼容的查询服务别名
-    query_service = financial_query_service
-
-      # MCP数据处理器 - 遵循单一职责原则
-    mcp_field_matcher = providers.Singleton(FieldMatcher)
-    mcp_data_processor = providers.Singleton(QueryDataProcessor)
-    mcp_smart_data_processor = providers.Singleton(
-        SmartQueryDataProcessor,
-        data_processor=mcp_data_processor,
-        field_matcher=mcp_field_matcher
-    )
-
-    # MCP格式化器 - 只负责格式化，依赖注入数据处理器
-    mcp_response_formatter = providers.Singleton(
-        MCPResponseFormatter,
-        data_processor=mcp_smart_data_processor
-    )
-
-    # MCP服务器 - 使用依赖注入，避免直接依赖
-    mcp_server = providers.Singleton(
-        AkshareMCPServerV2,
-        financial_service=financial_data_service,  # 修复：使用FinancialDataService而不是FinancialIndicatorQueryService
-        field_discovery_service=field_discovery_service,
-        response_formatter=mcp_response_formatter
-    )
-
-    # 新增：缓存服务访问接口
+    # 缓存服务访问接口
     def get_cache_adapter(self) -> SQLiteCache:
         """获取SQLite缓存适配器实例"""
         return self.sqlite_cache()
@@ -232,19 +124,6 @@ class ProductionContainer(containers.DeclarativeContainer):
             query_type=query_type,
             cache_adapter=self.sqlite_cache()
         )
-
-
-def create_production_service() -> FinancialIndicatorQueryService:
-    """
-    创建生产环境的查询服务实例 - 重构版本
-
-    Returns:
-        配置好的查询服务实例
-    """
-    # 首先设置日志
-    ProductionContainer._setup_logging()
-    container = ProductionContainer()
-    return container.financial_query_service()
 
 
 def create_container() -> ProductionContainer:
@@ -259,19 +138,15 @@ def create_container() -> ProductionContainer:
     return ProductionContainer()
 
 
-def create_mcp_services():
+# 为了向后兼容，提供一个简单的服务创建函数
+def create_production_service():
     """
-    创建MCP服务器所需的服务实例
+    创建生产环境的容器实例 - 向后兼容函数
 
     Returns:
-        MCP服务元组 (financial_data_service, field_discovery_service)
+        配置好的容器实例
     """
-    # 首先设置日志
-    ProductionContainer._setup_logging()
-    container = ProductionContainer()
-    return (
-        container.financial_data_service(),  # 修复：返回FinancialDataService
-        container.field_discovery_service()
-    )
+    return create_container()
+
 
 

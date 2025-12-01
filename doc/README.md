@@ -1,39 +1,64 @@
-# 项目文档
+# 文档目录
 
-## 📚 当前版本文档
+## 📋 文档概览
 
-| 文档 | 描述 | 适用版本 |
-|------|------|----------|
-| [SIMPLIFIED_USAGE_GUIDE.md](./SIMPLIFIED_USAGE_GUIDE.md) | **简化版完整使用指南** - 100%字段覆盖，原始数据访问 | ✅ 当前版本 |
+本目录包含 akshare-value-investment 项目的核心文档。
 
-## 📜 历史文档
+## 🎯 核心文档
 
-过时的字段映射相关文档已归档至 [`archive/`](./archive/) 目录。
+### [SYSTEM_ARCHITECTURE_SUMMARY.md](./SYSTEM_ARCHITECTURE_SUMMARY.md)
+**系统架构总结** - 项目的整体架构设计和技术实现
 
-## 🔗 项目文档体系
+- ✅ 当前版本：v2.1.0 (SOLID架构优化)
+- ✅ 核心能力：跨市场财务数据查询系统
+- ✅ 架构设计：SOLID原则 + 查询器模式
+- ✅ 技术特性：SQLite智能缓存、依赖注入、设计模式
 
-```
-akshare-value-investment/
-├── README.md                           # 项目总览和快速开始
-├── CLAUDE.md                           # 详细架构说明（供AI使用）
-├── doc/
-│   ├── README.md                      # 文档索引（本文件）
-│   ├── SIMPLIFIED_USAGE_GUIDE.md       # ✅ 简化版使用指南
-│   └── archive/                        # 📜 历史文档归档
-└── examples/
-    ├── demo.py                         # 简化版演示程序
-    └── README.md                       # 示例使用说明
-```
+### [CACHE_SYSTEM_TECHNICAL_GUIDE.md](./CACHE_SYSTEM_TECHNICAL_GUIDE.md)
+**缓存系统技术指南** - SQLite智能缓存系统的详细技术文档
 
-## 💡 推荐阅读顺序
+- ✅ 智能增量更新算法
+- ✅ 复合主键设计
+- ✅ 装饰器模式集成
+- ✅ 线程安全机制
 
-1. **项目入门**：项目根目录 `README.md`
-2. **详细使用**：`doc/SIMPLIFIED_USAGE_GUIDE.md`
-3. **运行示例**：`examples/demo.py`
-4. **架构了解**：`CLAUDE.md`
+## 📊 数据示例
 
-## ⚠️ 重要提醒
+### [sample_data/](./sample_data/)
+**数据示例** - 各市场财务数据的实际样本
 
-- 当前版本**不再使用字段映射**，直接返回akshare原始数据
-- 通过 `FinancialIndicator.raw_data` 访问所有原始字段
-- 不同市场使用原生字段名（如A股用中文，港股/美股用英文）
+- **A股数据**：`a_stock_data_analysis.md` + CSV样本文件
+- **港股数据**：`hk_stock_data_analysis.md` + CSV样本文件
+- **美股数据**：`us_stock_data_analysis.md` + CSV样本文件
+- **API参考**：`DATA_SOURCE_API_REFERENCE.md`
+
+## 🗂️ 文档使用指南
+
+### 新手入门
+1. 首先阅读 [SYSTEM_ARCHITECTURE_SUMMARY.md](./SYSTEM_ARCHITECTURE_SUMMARY.md) 了解系统概览
+2. 查看 [sample_data/](./sample_data/) 了解数据格式和API调用
+3. 参考 [CACHE_SYSTEM_TECHNICAL_GUIDE.md](./CACHE_SYSTEM_TECHNICAL_GUIDE.md) 了解缓存机制
+
+### 开发者参考
+- **架构设计**：SOLID原则、设计模式应用、查询器架构
+- **性能优化**：智能缓存算法、增量更新策略
+- **数据格式**：跨市场数据标准化、窄表宽表转换
+
+## 🔗 相关资源
+
+- **项目根目录**：[`../README.md`](../README.md)
+- **代码示例**：[`../examples/demo.py`](../examples/demo.py)
+- **测试用例**：[`../tests/`](../tests/)
+- **核心代码**：[`../src/akshare_value_investment/`](../src/akshare_value_investment/)
+
+## 📈 文档维护
+
+文档与代码保持同步更新：
+
+- **v2.1.0** (2025-12-01): SOLID架构优化，删除过时文档
+- **v2.0.0** (2025-11-13): SQLite智能缓存系统
+- **v1.0.0**: 基础架构实现
+
+---
+
+**注意**: 本项目专注于原始数据访问和智能缓存，文档内容反映了当前简化版本的架构设计。

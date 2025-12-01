@@ -11,6 +11,9 @@ from unittest.mock import patch
 import pytest
 from akshare_value_investment.datasource.queryers.us_stock_queryers import (
     USStockIndicatorQueryer,
+    USStockBalanceSheetQueryer,
+    USStockIncomeStatementQueryer,
+    USStockCashFlowQueryer,
     USStockStatementQueryer
 )
 
