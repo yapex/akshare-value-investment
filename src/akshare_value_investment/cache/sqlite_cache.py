@@ -30,7 +30,7 @@ class SQLiteCache:
     4. 线程安全：支持并发访问
     """
 
-    def __init__(self, db_path: str = "cache/financial_data.db"):
+    def __init__(self, db_path: str = ".cache/financial_data.db"):
         """
         初始化SQLite缓存
 
@@ -363,8 +363,24 @@ class SQLiteCache:
         previous_day = date - timedelta(days=1)
         return previous_day.strftime('%Y-%m-%d')
 
+    def __enter__(self):
+        """进入上下文管理器"""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """退出上下文管理器"""
+        self.close()
+
     def close(self) -> None:
         """关闭数据库连接"""
         if hasattr(self._local, 'connection'):
             self._local.connection.close()
             delattr(self._local, 'connection')
+
+    def __del__(self):
+        """析构函数，确保资源被正确释放"""
+        try:
+            self.close()
+        except:
+            # 在析构时忽略异常，避免程序崩溃
+            pass

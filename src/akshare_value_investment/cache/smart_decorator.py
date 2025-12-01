@@ -22,7 +22,7 @@ def smart_sqlite_cache(
     date_field: str = 'date',
     query_type: str = 'indicators',
     cache_adapter: Optional[SQLiteCache] = None,
-    cache_path: str = "cache/financial_data.db",
+    cache_path: str = ".cache/financial_data.db",
     enable_logging: bool = True
 ):
     """
@@ -219,7 +219,7 @@ class CacheManager:
     简化的缓存管理器 - 提供基本的缓存统计和清理功能
     """
 
-    def __init__(self, cache_path: str = "cache/financial_data.db"):
+    def __init__(self, cache_path: str = ".cache/financial_data.db"):
         self.adapter = SQLiteCache(cache_path)
 
     def get_global_stats(self) -> dict:
