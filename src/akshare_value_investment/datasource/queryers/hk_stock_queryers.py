@@ -15,7 +15,7 @@ class HKStockIndicatorQueryer(BaseDataQueryer):
 
     def _query_raw(self, symbol: str) -> pd.DataFrame:
         """查询港股财务指标原始数据"""
-        raw_data = ak.stock_financial_hk_analysis_indicator_em(symbol=symbol)
+        raw_data = ak.stock_financial_hk_analysis_indicator_em(symbol=symbol, indicator="年度")
 
         if raw_data.empty:
             return pd.DataFrame()

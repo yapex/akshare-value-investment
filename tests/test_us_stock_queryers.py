@@ -324,7 +324,7 @@ class TestUSStockQueryersIntegration:
             statement_queryer._query_raw(symbol)
 
             # 验证API调用参数名正确
-            mock_indicator.assert_called_once_with(symbol=symbol)
+            mock_indicator.assert_called_once_with(symbol=symbol, indicator="单季报")
             # 美股三表需要多次调用，每次参数不同
             assert mock_report.call_count == 3
 

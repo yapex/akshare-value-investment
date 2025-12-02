@@ -416,24 +416,53 @@ class MockDataLoader:
 
         Returns:
             过滤后的DataFrame
+
+        Raises:
+            ValueError: 如果找不到日期字段
         """
         if start_date is None and end_date is None:
             return df
 
-        # 查找日期列
-        date_columns = ['date', 'REPORT_DATE', 'report_date', '公布日期', 'STD_REPORT_DATE']
-        date_col = None
+        # 按优先级查找日期列
+        # 统一的日期字段名（按市场优先级排序）
+        date_columns = [
+            # 优先使用英文字段名
+            'REPORT_DATE', 'STD_REPORT_DATE', 'FINANCIAL_DATE', 'NOTICE_DATE', 'START_DATE',
+            'date',
+            # A股特定的中文日期字段
+            '报告期',
+            # 其他可能的日期字段
+            'report_date', '公布日期', 'DATE_TYPE_CODE', 'DATE_TYPE'
+        ]
 
+        date_col = None
+        found_columns = []
+
+        # 查找存在的日期列
         for col in date_columns:
             if col in df.columns:
-                date_col = col
-                break
+                found_columns.append(col)
+                # 优先使用REPORT_DATE，如果存在的话
+                if col == 'REPORT_DATE':
+                    date_col = col
+                    break
 
+        # 如果没有REPORT_DATE但找到了其他日期字段，使用第一个找到的
+        if date_col is None and found_columns:
+            date_col = found_columns[0]
+
+        # 严格检查：如果找不到任何日期字段，抛出错误
         if date_col is None:
-            return df
+            available_columns = list(df.columns)
+            raise ValueError(
+                f"❌ 数据中未找到有效的日期字段！\n"
+                f"查找的日期字段: {date_columns}\n"
+                f"可用字段: {available_columns}\n"
+                f"请在数据中包含以下任一字段: {date_columns}"
+            )
 
         # 转换日期列为datetime类型
-        if date_col != 'date' or not pd.api.types.is_datetime64_any_dtype(df[date_col]):
+        if not pd.api.types.is_datetime64_any_dtype(df[date_col]):
             df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
 
         # 应用日期过滤

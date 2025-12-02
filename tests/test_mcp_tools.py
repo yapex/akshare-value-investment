@@ -348,8 +348,10 @@ class TestMCPIntegration:
         assert "error" in response
         assert "查询执行失败" in response["error"]["message"]
 
-    def test_参数验证和错误消息(self, financial_tool):
+    def test_参数验证和错误消息(self, tools):
         """测试参数验证和错误消息"""
+        financial_tool, _ = tools
+
         # 测试无效市场类型
         response = financial_tool.query_financial_data(
             market="invalid_market",
