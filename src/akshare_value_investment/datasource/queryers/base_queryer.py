@@ -120,37 +120,11 @@ class BaseDataQueryer(IDataQueryer):
             if not symbol:
                 raise ValueError("股票代码不能为空字符串")
 
-            if symbol.startswith(("SH", "SZ")) and len(symbol) == 8 and symbol[2:].isdigit():
-                return symbol
-
+            # 识别市场类型并标准化代码
             market_type, standardized_symbol = self._identify_market_type(symbol)
 
-            if market_type == MarketType.A_STOCK:
-                if len(standardized_symbol) == 6:
-                    if standardized_symbol.startswith('6'):
-                        return f"SH{standardized_symbol}"
-                    else:
-                        return f"SZ{standardized_symbol}"
-                else:
-                    raise ValueError(f"A股代码格式不正确：{symbol} (标准化后：{standardized_symbol})")
-
-            elif market_type == MarketType.HK_STOCK:
-                formatted = self._stock_identifier.format_symbol(market_type, standardized_symbol)
-                if len(formatted) != 5 or not formatted.isdigit():
-                    raise ValueError(f"港股代码格式化失败：{symbol} → {formatted} (期望5位数字)")
-                return formatted
-
-            elif market_type == MarketType.US_STOCK:
-                formatted = self._stock_identifier.format_symbol(market_type, standardized_symbol)
-                # 美股代码格式检查：允许字母和连字符，长度1-10字符，大写
-                if not (1 <= len(formatted) <= 10):
-                    raise ValueError(f"美股代码格式化失败：{symbol} → {formatted} (期望1-10字符)")
-                if not all(c.isupper() or c == '-' for c in formatted):
-                    raise ValueError(f"美股代码格式化失败：{symbol} → {formatted} (期望大写字母和连字符)")
-                return formatted
-
-            else:
-                raise ValueError(f"不支持的市场类型：{market_type}")
+            # 使用StockIdentifier的AKShare格式化方法
+            return self._stock_identifier.format_symbol_for_akshare(market_type, standardized_symbol)
 
         except Exception as e:
             raise ValueError(f"股票代码格式转换失败：{symbol}，错误：{e}")

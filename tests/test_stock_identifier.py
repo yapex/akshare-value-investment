@@ -163,7 +163,7 @@ class TestStockIdentifier:
         assert clean_symbol == "600519"
 
     @pytest.mark.parametrize("invalid_symbol", [
-        "", "   ", None, "123", "1234567", "ABC123", "123ABC", "TOOLONGSYMBOL"
+        "", "   ", None, "1234567", "ABC123", "123ABC", "TOOLONGSYMBOL"
     ])
     def test_identify_invalid_formats(self, identifier, invalid_symbol):
         """测试无效格式处理"""
@@ -244,8 +244,9 @@ class TestStockIdentifier:
     @pytest.mark.parametrize("symbol,is_valid", [
         # 港股有效代码
         ("00700", True), ("09988", True), ("00005", True), ("12345", True), ("99999", True),
+        ("1234", True), ("0070", True), ("123", True), ("987", True),  # 3-4位数字也有效
         # 港股无效代码
-        ("1234", False), ("123456", False), ("ABCDE", False), ("0070", False), ("007001", False),
+        ("123456", False), ("ABCDE", False), ("007001", False), ("12", False), ("1234567", False),
         ("", False), (None, False),
     ])
     def test_validate_symbol_hk_stock(self, identifier, symbol, is_valid):
@@ -285,7 +286,7 @@ class TestStockIdentifier:
             ("CN.600519", MarketType.A_STOCK, "600519", "600519"),
             ("HK.00700", MarketType.HK_STOCK, "00700", "00700"),
             ("US.aapl", MarketType.US_STOCK, "aapl", "AAPL"),
-            ("700", MarketType.US_STOCK, "700", "700"),  # 3位数字不符合任何格式，默认美股
+            ("700", MarketType.HK_STOCK, "700", "00700"),  # 3位数字识别为港股，格式化补齐到5位
             ("00700", MarketType.HK_STOCK, "00700", "00700"),  # 5位数字且以0开头，识别为港股
         ]
 
@@ -306,7 +307,7 @@ class TestStockIdentifier:
             ("00700", MarketType.HK_STOCK, True),
             ("12345", MarketType.HK_STOCK, True),  # 5位数字被识别为港股
             ("AAPL", MarketType.US_STOCK, True),
-            ("700", MarketType.US_STOCK, False),  # 3位数字默认美股，但美股验证失败
+            ("700", MarketType.HK_STOCK, True),  # 3位数字识别为港股，港股验证通过
         ]
 
         for input_symbol, expected_market, should_be_valid in test_cases:
