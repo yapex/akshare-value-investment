@@ -1,3 +1,16 @@
 {
-  "mcpServers": {}
+  "mcpServers": {
+    "akshare-value-investment": {
+      "command": "uv",
+      "args": [
+        "run",
+        "python",
+        "-m",
+        "akshare_value_investment.mcp.server"
+      ],
+      "env": {
+        "PYTHONPATH": "src"
+      }
+    }
+  }
 }
