@@ -37,11 +37,22 @@ class MCPResponse:
             标准化的成功响应
         """
         # 构建基础响应
+        import json
+
+        # 使用pandas的to_json方法处理DataFrame，确保日期等对象正确序列化
+        if not data.empty:
+            # 使用orient='records'将DataFrame转换为记录列表
+            # date_format='iso'确保日期以ISO格式输出
+            records_json = data.to_json(orient='records', date_format='iso', force_ascii=False)
+            records = json.loads(records_json)
+        else:
+            records = []
+
         response = {
             "status": "success",
             "timestamp": datetime.now().isoformat(),
             "data": {
-                "records": data.to_dict('records') if not data.empty else [],
+                "records": records,
                 "columns": list(data.columns),
                 "shape": data.shape,
                 "empty": data.empty

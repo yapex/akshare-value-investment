@@ -49,6 +49,12 @@ async def main():
         help="运行测试模式"
     )
 
+    parser.add_argument(
+        "--stdio",
+        action="store_true",
+        help="启用stdio模式（用于MCP协议通信）"
+    )
+
     args = parser.parse_args()
 
     # 创建服务器配置
@@ -71,6 +77,11 @@ async def main():
     # 如果是测试模式
     if args.test:
         await run_test_mode(server)
+        return
+
+    # 如果是stdio模式
+    if args.stdio:
+        await run_stdio_mode(server)
         return
 
     # 启动服务器
@@ -137,6 +148,174 @@ async def run_interactive_mode(server):
             break
 
     print("\n👋 退出交互模式")
+
+
+async def run_stdio_mode(server):
+    """运行stdio模式用于MCP协议通信"""
+    import sys
+
+    # 启用调试模式时输出到stderr，避免干扰stdio通信
+    if server.config.debug:
+        print("🚀 启动MCP服务器stdio模式", file=sys.stderr)
+
+    try:
+        while True:
+            try:
+                # 从stdin读取一行JSON-RPC请求
+                line = await asyncio.get_event_loop().run_in_executor(
+                    None, sys.stdin.readline
+                )
+
+                if not line:
+                    break  # EOF
+
+                line = line.strip()
+                if not line:
+                    continue
+
+                # 解析JSON-RPC请求
+                try:
+                    request = json.loads(line)
+
+                    # 处理标准MCP协议请求
+                    response = await handle_mcp_request(server, request)
+
+                    # 输出JSON-RPC响应到stdout
+                    print(json.dumps(response, ensure_ascii=False))
+                    sys.stdout.flush()
+
+                except json.JSONDecodeError as e:
+                    error_response = {
+                        "jsonrpc": "2.0",
+                        "id": None,
+                        "error": {
+                            "code": -32700,
+                            "message": "Parse error",
+                            "data": str(e)
+                        }
+                    }
+                    print(json.dumps(error_response, ensure_ascii=False))
+                    sys.stdout.flush()
+
+                except Exception as e:
+                    request_id = request.get("id") if 'request' in locals() else None
+                    error_response = {
+                        "jsonrpc": "2.0",
+                        "id": request_id,
+                        "error": {
+                            "code": -32603,
+                            "message": "Internal error",
+                            "data": str(e)
+                        }
+                    }
+                    print(json.dumps(error_response, ensure_ascii=False))
+                    sys.stdout.flush()
+
+            except KeyboardInterrupt:
+                break
+            except EOFError:
+                break
+
+    except Exception as e:
+        if server.config.debug:
+            print(f"❌ stdio模式错误: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+async def handle_mcp_request(server, request):
+    """处理标准MCP协议请求"""
+    jsonrpc_version = request.get("jsonrpc", "2.0")
+    request_id = request.get("id")
+    method = request.get("method")
+    params = request.get("params", {})
+
+    # 构建基本响应结构
+    response = {
+        "jsonrpc": jsonrpc_version,
+        "id": request_id
+    }
+
+    try:
+        # 处理initialize请求
+        if method == "initialize":
+            response["result"] = {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {
+                    "tools": {
+                        "listChanged": True
+                    }
+                },
+                "serverInfo": {
+                    "name": "akshare-value-investment-mcp",
+                    "version": "1.0.0"
+                }
+            }
+
+        # 处理tools/list请求
+        elif method == "tools/list":
+            tools_info = server.get_tools_info()
+            mcp_tools = []
+
+            for tool_name, tool_info in tools_info["tools"].items():
+                mcp_tool = {
+                    "name": tool_name,
+                    "description": tool_info["description"],
+                    "inputSchema": tool_info["schema"]
+                }
+                mcp_tools.append(mcp_tool)
+
+            response["result"] = {
+                "tools": mcp_tools
+            }
+
+        # 处理tools/call请求
+        elif method == "tools/call":
+            tool_name = params.get("name")
+            arguments = params.get("arguments", {})
+
+            # 转换为我们的内部请求格式
+            internal_request = {
+                "tool": tool_name,
+                "parameters": arguments,
+                "id": str(request_id)
+            }
+
+            # 调用内部处理逻辑
+            internal_response = await server.handle_request(internal_request)
+
+            if internal_response.get("success"):
+                # 现在DataFrame已经在MCPResponse中使用pandas.to_json()处理过了
+                # 直接序列化整个响应即可
+                response_text = json.dumps(internal_response["result"], ensure_ascii=False, indent=2)
+
+                response["result"] = {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": response_text
+                        }
+                    ]
+                }
+            else:
+                response["error"] = {
+                    "code": -32603,
+                    "message": internal_response.get("error", {}).get("message", "Tool execution failed")
+                }
+
+        # 处理其他请求
+        else:
+            response["error"] = {
+                "code": -32601,
+                "message": f"Method not found: {method}"
+            }
+
+    except Exception as e:
+        response["error"] = {
+            "code": -32603,
+            "message": f"Internal error: {str(e)}"
+        }
+
+    return response
 
 
 async def run_test_mode(server):
