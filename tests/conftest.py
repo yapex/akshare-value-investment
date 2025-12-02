@@ -7,9 +7,13 @@ pytest fixtures and configuration
 import os
 import sys
 import pandas as pd
+import tempfile
+import shutil
 from typing import Dict, List, Optional, Union
 from datetime import datetime
+from pathlib import Path
 import pytest
+import diskcache
 
 # 添加项目根目录到Python路径
 project_root = os.path.dirname(os.path.abspath(__file__))
@@ -472,6 +476,60 @@ class MockDataLoader:
             }
 
         return info
+
+
+# 测试缓存fixtures
+@pytest.fixture
+def temp_cache_dir():
+    """创建临时缓存目录的fixture"""
+    temp_dir = tempfile.mkdtemp(prefix="test_cache_")
+    yield temp_dir
+    # 测试结束后清理临时目录
+    shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+@pytest.fixture
+def test_cache(temp_cache_dir):
+    """创建测试专用的diskcache实例"""
+    cache_path = os.path.join(temp_cache_dir, "test_cache")
+    cache = diskcache.Cache(cache_path)
+    yield cache
+    # 清理缓存
+    cache.clear()
+
+
+@pytest.fixture(scope="function")
+def test_container(test_cache):
+    """创建测试专用的容器实例，使用临时缓存"""
+    from akshare_value_investment.container import ProductionContainer
+    from dependency_injector import providers
+    from akshare_value_investment.datasource.queryers.hk_stock_queryers import HKStockIndicatorQueryer
+    from akshare_value_investment.datasource.queryers.us_stock_queryers import USStockIndicatorQueryer
+    from akshare_value_investment.datasource.queryers.a_stock_queryers import AStockIndicatorQueryer
+
+    # 创建测试专用的容器类
+    class TestContainer(ProductionContainer):
+        # 覆盖diskcache配置，使用测试缓存
+        diskcache = providers.Singleton(
+            lambda: test_cache
+        )
+
+        # 覆盖查询器配置，直接传递测试缓存
+        a_stock_indicators = providers.Factory(
+            AStockIndicatorQueryer,
+            cache=test_cache
+        )
+        hk_stock_indicators = providers.Factory(
+            HKStockIndicatorQueryer,
+            cache=test_cache
+        )
+        us_stock_indicators = providers.Factory(
+            USStockIndicatorQueryer,
+            cache=test_cache
+        )
+
+    container = TestContainer()
+    yield container
 
 
 # pytest fixtures

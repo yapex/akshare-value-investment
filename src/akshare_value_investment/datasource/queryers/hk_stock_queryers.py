@@ -13,7 +13,7 @@ class HKStockIndicatorQueryer(BaseDataQueryer):
     cache_date_field = 'date'
     cache_query_type = 'hk_indicators'
 
-    def _query_raw(self, symbol: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> pd.DataFrame:
+    def _query_raw(self, symbol: str) -> pd.DataFrame:
         """查询港股财务指标原始数据"""
         raw_data = ak.stock_financial_hk_analysis_indicator_em(symbol=symbol)
 
@@ -34,7 +34,7 @@ class HKStockStatementQueryer(BaseDataQueryer):
     cache_date_field = 'date'  # 报表查询器的日期字段是转换后生成的date
     cache_query_type = 'hk_statements'
 
-    def _query_raw(self, symbol: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> pd.DataFrame:
+    def _query_raw(self, symbol: str) -> pd.DataFrame:
         """查询港股财务三表原始数据"""
         # 调用akshare API获取港股财务报表数据
         raw_data = ak.stock_financial_hk_report_em(symbol=symbol)

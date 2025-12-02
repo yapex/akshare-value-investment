@@ -12,7 +12,7 @@ class USStockIndicatorQueryer(BaseDataQueryer):
     cache_query_type = 'us_indicators'
     cache_date_field = 'date'
 
-    def _query_raw(self, symbol: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> pd.DataFrame:
+    def _query_raw(self, symbol: str) -> pd.DataFrame:
         """查询美股财务指标原始数据"""
         return ak.stock_financial_us_analysis_indicator_em(symbol=symbol)
 
@@ -20,7 +20,7 @@ class USStockIndicatorQueryer(BaseDataQueryer):
 class USStockStatementQueryerBase(BaseDataQueryer):
     """美股财务报表查询器基类"""
 
-    def _query_raw(self, symbol: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> pd.DataFrame:
+    def _query_raw(self, symbol: str) -> pd.DataFrame:
         """查询美股财务报表原始数据"""
         df = ak.stock_financial_us_report_em(stock=symbol, symbol=self._get_statement_name(), indicator="年报")
         return self._process_narrow_table(df)
@@ -88,7 +88,7 @@ class USStockStatementQueryer(USStockStatementQueryerBase):
     """美股财务三表查询器 - 测试用"""
     cache_query_type = 'us_statements'
 
-    def _query_raw(self, symbol: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> pd.DataFrame:
+    def _query_raw(self, symbol: str) -> pd.DataFrame:
         """查询美股财务三表原始数据"""
         try:
             # 获取三种财务报表

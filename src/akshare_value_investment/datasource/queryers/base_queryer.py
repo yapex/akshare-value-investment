@@ -1,313 +1,118 @@
-"""
-数据查询器基类 - SQLite智能缓存架构核心
-
-该模块定义了所有市场查询器的基类，提供统一的查询接口和SQLite智能缓存功能。
-采用模板方法模式和工厂模式，实现高效的数据查询和缓存管理。
-
-## 🏗️ 架构设计
-
-### 设计模式应用
-- **模板方法模式**: 定义统一的查询流程，子类实现具体的数据获取逻辑
-- **工厂模式**: create_cached_query_method 动态创建带缓存的查询方法
-- **装饰器模式**: 透明集成SQLite智能缓存功能
-- **策略模式**: 不同子类实现不同的数据获取策略
-
-### 核心组件
-- **BaseDataQueryer**: 抽象基类，定义查询接口和缓存逻辑
-- **create_cached_query_method**: 工厂函数，动态创建缓存查询方法
-- **smart_sqlite_cache**: 智能缓存装饰器，提供增量更新功能
-
-## 💾 缓存机制详解
-
-### SQLite智能缓存特性
-- **增量更新**: 智能识别缺失数据范围，仅获取必要数据
-- **复合主键**: (symbol, date, query_type) 精确缓存管理
-- **线程安全**: 使用 threading.local() 支持高并发访问
-- **性能优化**: API调用减少70%+，查询速度提升50%+
-
-### 缓存流程
-1. **查询请求**: 接收股票代码和日期范围
-2. **缓存检查**: 检查SQLite缓存中是否存在所需数据
-3. **缺失分析**: 智能识别数据缺失的时间范围
-4. **API调用**: 仅获取缺失的数据，避免重复请求
-5. **数据存储**: 将新数据存储到缓存中
-6. **结果返回**: 返回完整的日期范围数据
-
-## 🔧 扩展指南
-
-### 创建新的查询器
-```python
-class CustomStockQueryer(BaseDataQueryer):
-    # 缓存配置
-    cache_date_field = 'custom_date'  # 日期字段名
-    cache_query_type = 'custom_data'  # 查询类型标识
-
-    def _query_raw(self, symbol: str, start_date: Optional[str] = None,
-                   end_date: Optional[str] = None) -> pd.DataFrame:
-        # 实现具体的数据获取逻辑
-        return get_custom_data(symbol, start_date, end_date)
-```
-
-### 缓存配置说明
-- **cache_date_field**: 指定数据中的日期字段名，用于缓存索引
-- **cache_query_type**: 查询类型标识，用于区分不同类型的数据缓存
-
-## 📊 数据格式规范
-
-### 输入参数
-- **symbol**: 股票代码，格式因市场而异
-- **start_date**: 开始日期，YYYY-MM-DD格式，可选
-- **end_date**: 结束日期，YYYY-MM-DD格式，可选
-
-### 输出格式
-- **pandas.DataFrame**: 标准化的DataFrame格式
-- **日期列**: 必须包含指定的日期字段
-- **数据列**: 具体的财务数据字段
-
-## ⚠️ 重要说明
-
-### 日期处理
-- 缓存层自动处理日期范围过滤
-- API调用时传递的日期参数取决于具体API的支持情况
-- 原始数据获取后由缓存层进行日期过滤
-
-### 异常处理
-- 子类必须实现 _query_raw 方法
-- 建议在子类中添加具体的异常处理逻辑
-- 缓存装饰器会处理缓存相关的异常
-
-### 性能考虑
-- 首次查询会触发API调用和数据缓存
-- 后续相同范围的查询会直接返回缓存数据
-- 增量查询只会获取缺失的时间段数据
-"""
-
 from typing import Optional, ClassVar, Tuple
 import pandas as pd
 
 from .interfaces import IDataQueryer
 from ...core.models import MarketType
-from ...cache.smart_decorator import smart_sqlite_cache as smart_cache
 from ...core.stock_identifier import StockIdentifier
 
 
-def create_cached_query_method(cache_date_field: str, cache_query_type: str):
-    """
-    工厂函数：创建带SQLite智能缓存装饰器的查询方法
-
-    该函数实现了工厂模式，根据配置参数动态创建带缓存功能的查询方法。
-    生成的查询方法会自动集成SQLite智能缓存系统，提供增量更新功能。
-
-    Args:
-        cache_date_field (str): 数据中的日期字段名，用于缓存索引和日期过滤
-            - A股通常使用 'report_date'
-            - 港股/美股通常使用 'date'
-        cache_query_type (str): 查询类型标识符，用于区分不同类型的数据缓存
-            - 格式: '{market}_{datatype}'，如 'a_stock_indicators'
-            - 用于SQLite缓存表的复合主键的一部分
-
-    Returns:
-        callable: 装饰好的查询方法，具有以下特性：
-            - 自动缓存集成
-            - 增量更新支持
-            - 日期范围过滤
-            - 线程安全保障
-
-    Example:
-        >>> # 创建A股财务指标查询方法
-        cached_method = create_cached_query_method(
-            cache_date_field='report_date',
-            cache_query_type='a_stock_indicators'
-        )
-
-        >>> # 应用到类实例
-        queryer._query_with_dates = cached_method.__get__(queryer, type(queryer))
-
-    Note:
-        返回的方法需要绑定到具体的类实例上才能正常工作。
-        使用 __get__ 方法进行方法绑定是Python的标准做法。
-    """
-    @smart_cache(date_field=cache_date_field, query_type=cache_query_type)
+def create_cached_query_method(cache_date_field: str, cache_query_type: str, cache=None):
     def cached_query(self, symbol: str, start_date: Optional[str] = None,
                     end_date: Optional[str] = None) -> pd.DataFrame:
-        """
-        实际查询逻辑 - 带SQLite智能缓存装饰器的方法
+        cache_key = f"{cache_query_type}:{symbol}"
 
-        该方法作为缓存装饰器的目标函数，负责调用具体的数据获取逻辑。
-        所有日期过滤和缓存管理都由装饰器自动处理。
+        # 使用注入的缓存实例，如果没有则创建默认实例
+        if cache is not None:
+            cache_instance = cache
+        else:
+            import diskcache
+            cache_instance = diskcache.Cache(".cache/diskcache")
 
-        Args:
-            self: 查询器实例，必须实现 _query_raw 方法
-            symbol (str): 股票代码，格式因市场而异：
-                - A股: "SH600519", "SZ000001"
-                - 港股: "00700", "09988"
-                - 美股: "AAPL", "MSFT"
-            start_date (Optional[str]): 开始日期，YYYY-MM-DD格式
-                - 用于过滤返回数据的起始时间
-                - 如果为None，从最早的数据开始
-            end_date (Optional[str]): 结束日期，YYYY-MM-DD格式
-                - 用于过滤返回数据的结束时间
-                - 如果为None，到最新的数据为止
+        cached_data = cache_instance.get(cache_key)
 
-        Returns:
-            pd.DataFrame: 包含财务数据的DataFrame，具有以下特征：
-                - 包含指定的日期字段
-                - 数据已按日期过滤
-                - 格式标准化，便于后续处理
+        if cached_data is not None:
+            if isinstance(cached_data, pd.DataFrame):
+                return _filter_data_by_date_range(cached_data, start_date, end_date, cache_date_field)
+            else:
+                cache_instance.delete(cache_key)
 
-        Raises:
-            NotImplementedError: 如果子类未实现 _query_raw 方法
-            Exception: 数据获取过程中的其他异常
+        raw_data = self._query_raw(symbol)
 
-        Note:
-            该方法本身不包含具体的查询逻辑，而是委托给子类的 _query_raw 方法。
-            缓存装饰器会智能处理增量更新和缓存管理。
-        """
-        # 直接获取原始数据，日期过滤由缓存层自动处理
-        # 这种设计确保了缓存逻辑和业务逻辑的分离
-        return self._query_raw(symbol, start_date, end_date)
+        if raw_data is not None and not raw_data.empty:
+            cache_instance.set(cache_key, raw_data, expire=30*24*3600)
+
+        return _filter_data_by_date_range(raw_data, start_date, end_date, cache_date_field)
 
     return cached_query
 
 
+def _filter_data_by_date_range(data: pd.DataFrame, start_date: Optional[str],
+                              end_date: Optional[str], date_field: str) -> pd.DataFrame:
+    """
+    根据日期范围过滤数据
+
+    Args:
+        data: 完整的财务数据DataFrame
+        start_date: 开始日期，YYYY-MM-DD格式
+        end_date: 结束日期，YYYY-MM-DD格式
+        date_field: 日期字段名
+
+    Returns:
+        过滤后的DataFrame
+    """
+    if data is None or data.empty:
+        return data
+
+    # 如果没有日期过滤条件，直接返回原数据
+    if start_date is None and end_date is None:
+        return data
+
+    filtered_data = data.copy()
+
+    # 确保日期字段是datetime类型
+    if date_field not in filtered_data.columns:
+        # 如果指定的日期字段不存在，尝试常见的日期字段名
+        possible_date_fields = [date_field, 'date', 'DATE', 'report_date', 'REPORT_DATE', 'datetime', 'DATETIME']
+        found_date_field = None
+        for field in possible_date_fields:
+            if field in filtered_data.columns:
+                found_date_field = field
+                break
+
+        if found_date_field is None:
+            # 如果找不到日期字段，返回原数据
+            return data
+
+        date_field = found_date_field
+
+    if not pd.api.types.is_datetime64_any_dtype(filtered_data[date_field]):
+        filtered_data[date_field] = pd.to_datetime(filtered_data[date_field], errors='coerce')
+
+    # 应用日期过滤
+    if start_date:
+        start_dt = pd.to_datetime(start_date)
+        filtered_data = filtered_data[filtered_data[date_field] >= start_dt]
+
+    if end_date:
+        end_dt = pd.to_datetime(end_date)
+        filtered_data = filtered_data[filtered_data[date_field] <= end_dt]
+
+    return filtered_data
+
+
 class BaseDataQueryer(IDataQueryer):
-    """
-    数据查询器基类 - SQLite智能缓存架构核心
 
-    该抽象基类定义了所有市场查询器的统一接口和核心功能。
-    集成SQLite智能缓存系统，提供高效的数据查询和缓存管理能力。
+    cache_date_field: ClassVar[str] = 'date'
+    cache_query_type: ClassVar[str] = 'indicators'
 
-    采用模板方法模式，定义了查询的标准流程，子类只需实现具体的数据获取逻辑。
-
-    ## 🎯 核心职责
-
-    ### 缓存管理
-    - 自动集成SQLite智能缓存装饰器
-    - 支持增量更新，减少API调用
-    - 提供线程安全的并发访问能力
-
-    ### 接口标准化
-    - 统一的查询接口设计
-    - 标准化的参数传递和返回格式
-    - 一致的错误处理机制
-
-    ### 配置管理
-    - 可配置的缓存参数
-    - 灵活的日期字段映射
-    - 支持不同市场的特殊需求
-
-    ## 🔧 子类实现要求
-
-    ### 必须实现的抽象方法
-    - `_query_raw()`: 具体的数据获取逻辑
-
-    ### 可配置的类属性
-    - `cache_date_field`: 日期字段名
-    - `cache_query_type`: 查询类型标识
-
-    ## 📊 使用示例
-
-    ```python
-    class MyStockQueryer(BaseDataQueryer):
-        cache_date_field = 'report_date'
-        cache_query_type = 'my_stock_data'
-
-        def _query_raw(self, symbol, start_date=None, end_date=None):
-            # 实现具体的数据获取逻辑
-            return get_stock_data(symbol, start_date, end_date)
-
-    # 使用
-    queryer = MyStockQueryer()
-    data = queryer.query("AAPL", "2023-01-01", "2023-12-31")
-    ```
-
-    Attributes:
-        cache_date_field (ClassVar[str]): 日期字段名，用于缓存索引
-        cache_query_type (ClassVar[str]): 查询类型标识，用于缓存分类
-        _query_with_dates (callable): 带缓存装饰器的查询方法实例
-
-    Note:
-        该类是抽象基类，不能直接实例化使用。
-        子类必须实现 _query_raw 方法才能正常工作。
-    """
-
-    # 子类可配置的缓存参数
-    cache_date_field: ClassVar[str] = 'date'  # 默认日期字段名
-    cache_query_type: ClassVar[str] = 'indicators'  # 默认查询类型标识
-
-    def __init__(self, stock_identifier: Optional[StockIdentifier] = None):
-        """
-        初始化查询器实例
-
-        在初始化过程中，会使用依赖注入的股票代码识别器和带缓存装饰器的查询方法，
-        并将其绑定到当前实例。这种设计确保了每个实例都有独立的功能模块，
-        同时符合依赖倒置原则。
-
-        Args:
-            stock_identifier (Optional[StockIdentifier]): 股票代码识别器实例
-                - 如果为None，将创建默认的StockIdentifier实例
-                - 支持注入自定义的识别器实现，便于测试和扩展
-
-        Raises:
-            TypeError: 如果子类未正确配置缓存参数
-
-        Note:
-            初始化过程主要完成以下工作：
-            1. 获取股票代码识别器实例（依赖注入）
-            2. 读取子类的缓存配置参数
-            3. 调用工厂函数创建缓存查询方法
-            4. 将方法绑定到当前实例
-
-        Example:
-            # 使用默认识别器
-            queryer = AStockIndicatorQueryer()
-
-            # 使用自定义识别器（测试场景）
-            mock_identifier = MockStockIdentifier()
-            queryer = AStockIndicatorQueryer(stock_identifier=mock_identifier)
-        """
+    def __init__(self, stock_identifier: Optional[StockIdentifier] = None, cache=None):
         try:
-            # 依赖注入：使用传入的股票代码识别器，如果未传入则创建默认实例
             self._stock_identifier = stock_identifier or StockIdentifier()
+            self._cache = cache  # 注入缓存实例
 
-            # 使用工厂函数创建带缓存装饰器的查询方法
-            # 传入子类配置的缓存参数
             cached_method = create_cached_query_method(
                 cache_date_field=self.cache_date_field,
-                cache_query_type=self.cache_query_type
+                cache_query_type=self.cache_query_type,
+                cache=self._cache
             )
 
-            # 将方法绑定到当前实例，使其成为实例方法
-            # __get__ 是Python的描述符协议方法
             self._query_with_dates = cached_method.__get__(self, type(self))
 
         except Exception as e:
             raise TypeError(f"初始化查询器失败，请检查缓存配置: {e}")
 
     def _format_symbol_for_api(self, symbol: str) -> str:
-        """
-        根据查询器类型格式化股票代码为API兼容格式
-
-        该方法使用 StockIdentifier 识别股票代码的市场类型，然后转换为各市场API
-        所需的格式。主要解决 A 股代码需要交易所前缀的问题。
-
-        Args:
-            symbol (str): 输入的股票代码，可以是任意格式
-
-        Returns:
-            str: 格式化后的股票代码，符合具体市场API要求
-
-        Raises:
-            ValueError: 当股票代码格式无法识别或转换失败时
-
-        Note:
-            格式转换规则：
-            - A股：6位数字 → SH/SZ前缀 + 6位数字 (如：600519 → SH600519)
-            - 港股：保持5位数字格式 (如：00700)
-            - 美股：保持大写字母格式 (如：AAPL)
-        """
         try:
-            # 输入验证
             if not symbol or not isinstance(symbol, str):
                 raise ValueError(f"股票代码不能为空且必须为字符串：{symbol}")
 
@@ -315,19 +120,13 @@ class BaseDataQueryer(IDataQueryer):
             if not symbol:
                 raise ValueError("股票代码不能为空字符串")
 
-            # 特殊处理1：检查是否已经是A股交易所前缀格式
             if symbol.startswith(("SH", "SZ")) and len(symbol) == 8 and symbol[2:].isdigit():
-                # 已经是正确的A股API格式，直接返回
                 return symbol
 
-            # 识别市场类型并标准化代码
             market_type, standardized_symbol = self._identify_market_type(symbol)
 
-            # 根据市场类型进行API格式转换
             if market_type == MarketType.A_STOCK:
-                # A股需要添加交易所前缀
                 if len(standardized_symbol) == 6:
-                    # 简单判断：6开头为上海，其他为深圳
                     if standardized_symbol.startswith('6'):
                         return f"SH{standardized_symbol}"
                     else:
@@ -336,19 +135,18 @@ class BaseDataQueryer(IDataQueryer):
                     raise ValueError(f"A股代码格式不正确：{symbol} (标准化后：{standardized_symbol})")
 
             elif market_type == MarketType.HK_STOCK:
-                # 港股保持5位数字格式，使用 StockIdentifier 格式化
                 formatted = self._stock_identifier.format_symbol(market_type, standardized_symbol)
-                # 验证格式是否正确（应该是5位数字）
                 if len(formatted) != 5 or not formatted.isdigit():
                     raise ValueError(f"港股代码格式化失败：{symbol} → {formatted} (期望5位数字)")
                 return formatted
 
             elif market_type == MarketType.US_STOCK:
-                # 美股保持大写字母格式，使用 StockIdentifier 格式化
                 formatted = self._stock_identifier.format_symbol(market_type, standardized_symbol)
-                # 验证格式是否正确（应该是1-5位大写字母）
-                if not (1 <= len(formatted) <= 5) or not formatted.isalpha() or not formatted.isupper():
-                    raise ValueError(f"美股代码格式化失败：{symbol} → {formatted} (期望1-5位大写字母)")
+                # 美股代码格式检查：允许字母和连字符，长度1-10字符，大写
+                if not (1 <= len(formatted) <= 10):
+                    raise ValueError(f"美股代码格式化失败：{symbol} → {formatted} (期望1-10字符)")
+                if not all(c.isupper() or c == '-' for c in formatted):
+                    raise ValueError(f"美股代码格式化失败：{symbol} → {formatted} (期望大写字母和连字符)")
                 return formatted
 
             else:
@@ -358,157 +156,23 @@ class BaseDataQueryer(IDataQueryer):
             raise ValueError(f"股票代码格式转换失败：{symbol}，错误：{e}")
 
     def _identify_market_type(self, symbol: str) -> Tuple[MarketType, str]:
-        """
-        识别股票代码市场类型并标准化，改进 StockIdentifier 的逻辑
-
-        Args:
-            symbol: 股票代码
-
-        Returns:
-            (市场类型, 标准化后的股票代码)
-        """
-        # 特殊处理：数字股票代码格式，改进 StockIdentifier 的逻辑
         if symbol.isdigit():
             if len(symbol) == 6:
-                # A股：6位数字
                 return MarketType.A_STOCK, symbol
             elif len(symbol) <= 5:
-                # 港股：1-5位数字，使用 StockIdentifier 格式化
                 return MarketType.HK_STOCK, symbol
             else:
                 raise ValueError(f"无法识别的数字股票代码：{symbol}")
         else:
-            # 使用 StockIdentifier 识别其他格式
             try:
                 return self._stock_identifier.identify(symbol)
             except Exception:
-                # 如果 StockIdentifier 也无法识别，默认为美股
                 return MarketType.US_STOCK, symbol.upper()
 
     def query(self, symbol: str, start_date: Optional[str] = None,
               end_date: Optional[str] = None) -> pd.DataFrame:
-        """
-        查询数据 - 统一的外部接口
-
-        该方法提供了统一的数据查询接口，集成了股票代码格式化、日期过滤、
-        缓存管理和错误处理。这是用户调用的主要入口点，所有复杂的逻辑都被封装在内部。
-
-        Args:
-            symbol (str): 股票代码，支持任意格式输入：
-                - A股: 可接受 "600519"、"SH600519" 等格式，自动转换为API要求格式
-                - 港股: 可接受 "0700"、"00700" 等格式，自动标准化为5位数字
-                - 美股: 可接受 "aapl"、"AAPL" 等格式，自动转换为大写
-            start_date (Optional[str]): 开始日期，YYYY-MM-DD格式：
-                - 用于指定查询的时间范围起始点
-                - 如果为None，从可获得的最早数据开始
-                - 日期格式必须严格遵循YYYY-MM-DD
-            end_date (Optional[str]): 结束日期，YYYY-MM-DD格式：
-                - 用于指定查询的时间范围结束点
-                - 如果为None，到可获得的最新数据为止
-                - 日期格式必须严格遵循YYYY-MM-DD
-
-        Returns:
-            pd.DataFrame: 包含财务数据的DataFrame，具有以下特征：
-                - 包含完整的日期范围数据
-                - 数据已按日期排序（通常为降序）
-                - 包含缓存系统管理的元数据字段
-                - 格式标准化，便于后续分析和处理
-
-        Raises:
-            ValueError: 当股票代码格式无法识别或转换失败时
-            ValueError: 当日期格式不正确时
-            Exception: 当API调用失败或数据获取异常时
-
-        Example:
-            >>> queryer = AStockIndicatorQueryer()
-            >>> # 查询贵州茅台2023年全年财务指标，支持多种输入格式
-            >>> data1 = queryer.query("600519", "2023-01-01", "2023-12-31")  # 自动转换为SH600519
-            >>> data2 = queryer.query("SH600519", "2023-01-01", "2023-12-31")  # 直接使用
-            >>> print(f"获取到 {len(data1)} 条财务记录")
-
-            >>> # 查询所有历史数据
-            >>> all_data = queryer.query("600519")
-
-        Note:
-            - 股票代码格式转换：自动识别市场类型并转换为API兼容格式
-            - 缓存逻辑：首次查询可能较慢（需要API调用），后续查询显著加速
-            - 增量更新：缓存层支持增量更新，只会获取缺失的时间段数据
-            - 错误处理：代码格式转换失败时会抛出详细的异常信息
-            - 透明处理：所有日期处理和过滤都是透明的，用户无需关心具体实现
-        """
-        # 使用 StockIdentifier 格式化股票代码为API兼容格式
         formatted_symbol = self._format_symbol_for_api(symbol)
-
-        # 调用带缓存的查询方法
         return self._query_with_dates(formatted_symbol, start_date, end_date)
 
-    def _query_raw(self, symbol: str, start_date: Optional[str] = None,
-                   end_date: Optional[str] = None) -> pd.DataFrame:
-        """
-        获取原始财务数据 - 抽象方法，子类必须实现
-
-        该方法定义了数据获取的抽象接口，子类必须根据具体的市场和API
-        实现相应的数据获取逻辑。
-
-        ## 🎯 方法职责
-
-        ### 数据获取
-        - 调用相应的API获取原始财务数据
-        - 处理API的特殊参数和返回格式
-        - 进行基本的数据验证和清理
-
-        ### 数据格式化
-        - 确保返回标准的pandas.DataFrame格式
-        - 包含必要的日期字段和数据字段
-        - 处理数据类型转换和格式标准化
-
-        ## 🔧 实现要求
-
-        ### 参数处理
-        - 必须接受symbol、start_date、end_date参数
-        - 根据具体API的支持情况处理日期参数
-        - 进行参数验证和错误处理
-
-        ### 返回格式
-        - 必须返回pandas.DataFrame对象
-        - 包含cache_date_field指定的日期字段
-        - 数据字段名称和格式要保持一致
-
-        Args:
-            symbol (str): 股票代码，子类需要验证格式的正确性
-            start_date (Optional[str]): 开始日期，YYYY-MM-DD格式
-                - 某些API可能不支持日期参数
-                - 子类需要根据API能力处理该参数
-            end_date (Optional[str]): 结束日期，YYYY-MM-DD格式
-                - 某些API可能不支持日期参数
-                - 子类需要根据API能力处理该参数
-
-        Returns:
-            pd.DataFrame: 包含原始财务数据的DataFrame，要求：
-                - 包含配置的日期字段（cache_date_field）
-                - 数据类型正确，日期字段为datetime类型
-                - 格式标准化，便于缓存系统处理
-                - 不包含日期过滤（由缓存层处理）
-
-        Raises:
-            NotImplementedError: 子类未实现该方法时的默认异常
-            ValueError: 股票代码格式不正确
-            Exception: API调用失败或数据获取异常
-
-        Example:
-            >>> class MyQueryer(BaseDataQueryer):
-            ...     def _query_raw(self, symbol, start_date=None, end_date=None):
-            ...         # 调用具体的API
-            ...         raw_data = some_api.get_data(symbol, start_date, end_date)
-            ...         # 数据处理和格式化
-            ...         return process_data(raw_data)
-
-        Note:
-            - 该方法应该专注于数据获取，不进行缓存处理
-            - 日期过滤由上层的缓存装饰器自动处理
-            - 子类应该添加适当的异常处理和日志记录
-            - 建议在方法文档中说明具体的API限制和特性
-        """
+    def _query_raw(self, symbol: str) -> pd.DataFrame:
         raise NotImplementedError("子类必须实现 _query_raw 方法以提供具体的数据获取逻辑")
-
-  

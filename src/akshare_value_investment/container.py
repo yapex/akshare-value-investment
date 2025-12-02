@@ -25,9 +25,10 @@ from .datasource.queryers.us_stock_queryers import (
     USStockIncomeStatementQueryer, USStockCashFlowQueryer
 )
 
-# 导入SQLite智能缓存
-from .cache.sqlite_cache import SQLiteCache
-from .cache.smart_decorator import smart_sqlite_cache
+
+# 导入DiskCache支持
+import diskcache
+
 
 
 class ProductionContainer(containers.DeclarativeContainer):
@@ -86,45 +87,34 @@ class ProductionContainer(containers.DeclarativeContainer):
         super().__init__()
         self._setup_logging()
 
-    # SQLite智能缓存配置
-    sqlite_cache = providers.Singleton(
-        SQLiteCache,
-        db_path=".cache/financial_data.db"
+    
+    # DiskCache配置
+    diskcache = providers.Singleton(
+        diskcache.Cache,
+        ".cache/diskcache"
     )
 
     # 核心组件
     stock_identifier = providers.Singleton(StockIdentifier)
 
-    # 查询器架构 - 遵循SOLID原则
+    # 查询器架构 - 遵循SOLID原则，注入缓存依赖
     # A股Queryers
-    a_stock_indicators = providers.Singleton(AStockIndicatorQueryer)
-    a_stock_balance_sheet = providers.Singleton(AStockBalanceSheetQueryer)
-    a_stock_income_statement = providers.Singleton(AStockIncomeStatementQueryer)
-    a_stock_cash_flow = providers.Singleton(AStockCashFlowQueryer)
+    a_stock_indicators = providers.Singleton(AStockIndicatorQueryer, cache=diskcache)
+    a_stock_balance_sheet = providers.Singleton(AStockBalanceSheetQueryer, cache=diskcache)
+    a_stock_income_statement = providers.Singleton(AStockIncomeStatementQueryer, cache=diskcache)
+    a_stock_cash_flow = providers.Singleton(AStockCashFlowQueryer, cache=diskcache)
 
     # 港股Queryers
-    hk_stock_indicators = providers.Singleton(HKStockIndicatorQueryer)
-    hk_stock_statement = providers.Singleton(HKStockStatementQueryer)
+    hk_stock_indicators = providers.Singleton(HKStockIndicatorQueryer, cache=diskcache)
+    hk_stock_statement = providers.Singleton(HKStockStatementQueryer, cache=diskcache)
 
     # 美股Queryers
-    us_stock_indicators = providers.Singleton(USStockIndicatorQueryer)
-    us_stock_balance_sheet = providers.Singleton(USStockBalanceSheetQueryer)
-    us_stock_income_statement = providers.Singleton(USStockIncomeStatementQueryer)
-    us_stock_cash_flow = providers.Singleton(USStockCashFlowQueryer)
+    us_stock_indicators = providers.Singleton(USStockIndicatorQueryer, cache=diskcache)
+    us_stock_balance_sheet = providers.Singleton(USStockBalanceSheetQueryer, cache=diskcache)
+    us_stock_income_statement = providers.Singleton(USStockIncomeStatementQueryer, cache=diskcache)
+    us_stock_cash_flow = providers.Singleton(USStockCashFlowQueryer, cache=diskcache)
 
-    # 缓存服务访问接口
-    def get_cache_adapter(self) -> SQLiteCache:
-        """获取SQLite缓存适配器实例"""
-        return self.sqlite_cache()
-
-    def get_cache_decorator(self, date_field: str = 'date', query_type: str = 'indicators'):
-        """获取智能缓存装饰器实例"""
-        return smart_sqlite_cache(
-            date_field=date_field,
-            query_type=query_type,
-            cache_adapter=self.sqlite_cache()
-        )
-
+    
 
 def create_container() -> ProductionContainer:
     """

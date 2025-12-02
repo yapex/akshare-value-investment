@@ -2,11 +2,13 @@
 港股查询器单元测试 - pytest版本
 
 基于真实CSV样本数据的港股财务指标和财务三表查询器测试。
-使用pytest fixtures和现代化测试模式。
+使用pytest fixtures和现代化测试模式，测试完整的query方法包括缓存和日期过滤。
 """
 
 import pandas as pd
 from unittest.mock import patch
+import tempfile
+import os
 
 import pytest
 from akshare_value_investment.datasource.queryers.hk_stock_queryers import (
@@ -18,8 +20,8 @@ from akshare_value_investment.datasource.queryers.hk_stock_queryers import (
 class TestHKStockQueryersWithRealData:
     """港股查询器测试类 - 使用真实Mock数据"""
 
-    def test_hk_stock_indicator_queryer_success(self, mock_loader):
-        """测试港股财务指标查询器成功查询"""
+    def test_hk_stock_indicator_queryer_success(self, mock_loader, test_container):
+        """测试港股财务指标查询器成功查询（使用完整query方法）"""
         test_symbol = "00700"
         test_start_date = "2024-01-01"
         test_end_date = "2024-12-31"
@@ -33,11 +35,11 @@ class TestHKStockQueryersWithRealData:
         )
 
         with patch('akshare.stock_financial_hk_analysis_indicator_em', return_value=mock_data):
-            # 创建查询器
-            queryer = HKStockIndicatorQueryer()
+            # 使用测试容器创建查询器（包含测试缓存）
+            queryer = test_container.hk_stock_indicators()
 
-            # 执行查询 - 直接调用_raw方法避免缓存问题
-            result = queryer._query_raw(test_symbol, test_start_date, test_end_date)
+            # 执行完整查询（包括缓存和日期过滤）
+            result = queryer.query(test_symbol, test_start_date, test_end_date)
 
             # 验证结果
             assert isinstance(result, pd.DataFrame)
@@ -52,14 +54,60 @@ class TestHKStockQueryersWithRealData:
             if 'SECURITY_CODE' in result.columns:
                 assert result['SECURITY_CODE'].iloc[0] == test_symbol
 
-    def test_hk_stock_indicator_queryer_no_data(self):
-        """测试港股财务指标查询器无数据情况"""
+            # 验证日期过滤生效（数据应该在指定日期范围内）
+            if 'date' in result.columns:
+                result_date = pd.to_datetime(result['date'].iloc[0])
+                start_dt = pd.to_datetime(test_start_date)
+                end_dt = pd.to_datetime(test_end_date)
+                assert start_dt <= result_date <= end_dt, "日期过滤未生效"
+
+    def test_hk_stock_indicator_queryer_caching(self, mock_loader, test_container):
+        """测试港股财务指标查询器缓存功能"""
+        test_symbol = "00700"
+        test_start_date = "2024-01-01"
+        test_end_date = "2024-12-31"
+
+        # 创建包含多条记录的mock数据（用于测试日期过滤）
+        mock_data = mock_loader.get_hk_stock_indicators_mock(
+            symbol=test_symbol,
+            start_date="2020-01-01",
+            end_date="2024-12-31",
+            limit=5
+        )
+
+        with patch('akshare.stock_financial_hk_analysis_indicator_em', return_value=mock_data):
+            # 使用测试容器创建查询器
+            queryer = test_container.hk_stock_indicators()
+
+            # 第一次查询（应该调用API并缓存）
+            result1 = queryer.query(test_symbol, test_start_date, test_end_date)
+
+            # 验证第一次查询结果
+            assert isinstance(result1, pd.DataFrame)
+            assert len(result1) >= 0  # 可能被日期过滤为0
+
+            # 第二次相同查询（应该使用缓存）
+            result2 = queryer.query(test_symbol, test_start_date, test_end_date)
+
+            # 验证缓存查询返回相同结果
+            assert result1.equals(result2), "缓存结果不一致"
+
+            # 验证缓存实例存在且是测试缓存
+            assert queryer._cache is not None
+            assert hasattr(queryer._cache, 'directory')  # diskcache.Cache 的属性
+
+            # 验证缓存使用临时目录
+            cache_dir = queryer._cache.directory
+            assert cache_dir is not None
+            assert 'test_cache' in cache_dir or os.path.basename(cache_dir).startswith('test_cache_')
+
+    def test_hk_stock_indicator_queryer_no_data(self, test_container):
+        """测试港股财务指标查询器无数据情况（使用完整query方法）"""
         # 返回空DataFrame
         with patch('akshare.stock_financial_hk_analysis_indicator_em', return_value=pd.DataFrame()):
-            queryer = HKStockIndicatorQueryer()
-
-            # 执行查询 - 直接调用_raw方法避免缓存问题
-            result = queryer._query_raw("99999", "2024-01-01", "2024-12-31")
+            queryer = test_container.hk_stock_indicators()
+            # 执行完整查询
+            result = queryer.query("99999", "2024-01-01", "2024-12-31")
 
             # 验证结果
             assert isinstance(result, pd.DataFrame)
@@ -82,7 +130,7 @@ class TestHKStockQueryersWithRealData:
             queryer = HKStockIndicatorQueryer()
 
             # 测试精确日期查询 - 直接调用_raw方法避免缓存问题
-            result = queryer._query_raw(test_symbol, test_start_date, test_end_date)
+            result = queryer._query_raw(test_symbol)
 
             # 验证结果
             assert result is not None
@@ -108,7 +156,7 @@ class TestHKStockQueryersWithRealData:
             queryer = HKStockStatementQueryer()
 
             # 执行查询 - 直接调用_raw方法避免缓存问题
-            result = queryer._query_raw(test_symbol, test_start_date, test_end_date)
+            result = queryer._query_raw(test_symbol)
 
             # 验证结果
             assert isinstance(result, pd.DataFrame)
@@ -145,7 +193,7 @@ class TestHKStockQueryersWithRealData:
 
         with patch('akshare.stock_financial_hk_report_em', return_value=mock_data):
             queryer = HKStockStatementQueryer()
-            result = queryer._query_raw(test_symbol, test_start_date, test_end_date)
+            result = queryer._query_raw(test_symbol)
 
             # 验证结果
             assert isinstance(result, pd.DataFrame)
@@ -241,8 +289,8 @@ class TestHKStockQueryersIntegration:
             statement_queryer = HKStockStatementQueryer()
 
             # 执行查询
-            indicator_queryer._query_raw(symbol, "2024-01-01", "2024-12-31")
-            statement_queryer._query_raw(symbol, "2024-01-01", "2024-12-31")
+            indicator_queryer._query_raw(symbol)
+            statement_queryer._query_raw(symbol)
 
             # 验证API调用参数名正确
             mock_indicator.assert_called_once_with(symbol=symbol)
@@ -271,11 +319,7 @@ class TestHKStockQueryersIntegration:
         queryer = HKStockIndicatorQueryer()
 
         # 查询2022-2024年数据 - 真实的生产环境查询场景
-        result = queryer._query_raw(
-            symbol="00700",  # 腾讯控股
-            start_date="2022-01-01",
-            end_date="2024-12-31"
-        )
+        result = queryer._query_raw(symbol="00700")  # 腾讯控股
 
         # 验证查询结果
         assert isinstance(result, pd.DataFrame)

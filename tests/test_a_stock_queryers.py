@@ -2,11 +2,12 @@
 A股查询器单元测试 - pytest版本
 
 基于真实MockDataLoader数据的A股财务指标和财务三表查询器测试。
-使用pytest fixtures和现代化测试模式。
+使用pytest fixtures和现代化测试模式，测试完整的query方法包括缓存和日期过滤。
 """
 
 import pandas as pd
 from unittest.mock import patch
+import os
 
 import pytest
 from akshare_value_investment.datasource.queryers.a_stock_queryers import (
@@ -20,22 +21,26 @@ from akshare_value_investment.datasource.queryers.a_stock_queryers import (
 class TestAStockQueryersWithRealData:
     """A股查询器测试类 - 使用真实Mock数据"""
 
-    def test_a_stock_indicator_queryer_success(self, mock_loader):
-        """测试A股财务指标查询器成功查询"""
+    def test_a_stock_indicator_queryer_success(self, mock_loader, test_container):
+        """测试A股财务指标查询器成功查询（使用完整query方法）"""
         test_symbol = "SH600519"  # 贵州茅台
+        test_start_date = "2024-01-01"
+        test_end_date = "2024-12-31"
 
         # 使用真实的mock数据
         mock_data = mock_loader.get_a_stock_indicators_mock(
             symbol=test_symbol,
+            start_date=test_start_date,
+            end_date=test_end_date,
             limit=1
         )
 
         with patch('akshare.stock_financial_abstract_ths', return_value=mock_data):
-            # 创建查询器
-            queryer = AStockIndicatorQueryer()
+            # 使用测试容器创建查询器（包含测试缓存）
+            queryer = test_container.a_stock_indicators()
 
-            # 执行查询 - 直接调用_raw方法避免缓存问题
-            result = queryer._query_raw(test_symbol)
+            # 执行完整查询（包括缓存和日期过滤）
+            result = queryer.query(test_symbol, test_start_date, test_end_date)
 
             # 验证结果
             assert isinstance(result, pd.DataFrame)
@@ -51,14 +56,54 @@ class TestAStockQueryersWithRealData:
             found_date_fields = [field for field in date_fields if field in result.columns]
             assert len(found_date_fields) > 0, "应该包含日期字段"
 
-    def test_a_stock_indicator_queryer_no_data(self, mock_loader):
-        """测试A股财务指标查询器无数据情况"""
+    def test_a_stock_indicator_queryer_caching(self, mock_loader, test_container):
+        """测试A股财务指标查询器缓存功能"""
+        test_symbol = "SH600519"
+        test_start_date = "2024-01-01"
+        test_end_date = "2024-12-31"
+
+        # 创建包含多条记录的mock数据
+        mock_data = mock_loader.get_a_stock_indicators_mock(
+            symbol=test_symbol,
+            start_date="2020-01-01",
+            end_date="2024-12-31",
+            limit=5
+        )
+
+        with patch('akshare.stock_financial_abstract_ths', return_value=mock_data):
+            # 使用测试容器创建查询器
+            queryer = test_container.a_stock_indicators()
+
+            # 第一次查询（应该调用API并缓存）
+            result1 = queryer.query(test_symbol, test_start_date, test_end_date)
+
+            # 验证第一次查询结果
+            assert isinstance(result1, pd.DataFrame)
+            assert len(result1) >= 0  # 可能被日期过滤为0
+
+            # 第二次相同查询（应该使用缓存）
+            result2 = queryer.query(test_symbol, test_start_date, test_end_date)
+
+            # 验证缓存查询返回相同结果
+            assert result1.equals(result2), "缓存结果不一致"
+
+            # 验证缓存实例存在且是测试缓存
+            assert queryer._cache is not None
+            assert hasattr(queryer._cache, 'directory')  # diskcache.Cache 的属性
+
+            # 验证缓存使用临时目录
+            cache_dir = queryer._cache.directory
+            assert cache_dir is not None
+            assert 'test_cache' in cache_dir or os.path.basename(cache_dir).startswith('test_cache_')
+
+    def test_a_stock_indicator_queryer_no_data(self, test_container):
+        """测试A股财务指标查询器无数据情况（使用完整query方法）"""
         # 返回空DataFrame
         with patch('akshare.stock_financial_abstract_ths', return_value=pd.DataFrame()):
-            queryer = AStockIndicatorQueryer()
+            queryer = test_container.a_stock_indicators()
 
-            # 执行查询 - 直接调用_raw方法避免缓存问题
-            result = queryer._query_raw("INVALID")
+            # 执行完整查询
+            result = queryer.query("INVALID", "2024-01-01", "2024-12-31")
 
             # 验证结果
             assert isinstance(result, pd.DataFrame)
