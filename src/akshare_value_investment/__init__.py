@@ -10,7 +10,7 @@ __author__ = "akshare-value-investment team"
 
 # 导出主要接口
 from .core.models import MarketType
-from .container import create_container, create_production_service
+from .container import create_container
 
 __all__ = [
     "create_container",

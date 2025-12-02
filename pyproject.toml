@@ -19,7 +19,7 @@ dependencies = [
     "pytest-asyncio>=1.2.0",
     "mcp-server>=0.1.4",
     "pytest-cov>=7.0.0",
-    "diskcache>=5.6.3",
+    "anthropic",
 ]
 
 [dependency-groups]
@@ -60,43 +60,10 @@ markers = [
 asyncio_mode = "auto"
 
 [tool.poe.tasks]
-# MCP服务器任务
-mcp-server = "python -m akshare_value_investment.mcp_server"
 
 # 基础任务
 test = "pytest"
 demo = "python examples/demo.py"
 install = "pip install -e ."
 
-# 验证任务
-verify-mcp = "python -c \"from akshare_value_investment.mcp_server import AkshareMCPServerV2; print('✅ MCP服务器验证通过')\""
-verify-query = "python -c \"from akshare_value_investment.business.mapping.query_engine import FinancialQueryEngine; engine = FinancialQueryEngine(); print('✅ 智能查询引擎验证通过')\""
 
-# 开发任务组合
-dev = ["install", "test"]
-check = ["test", "verify-mcp", "verify-query"]
-full-check = ["test", "verify-mcp", "verify-query", "demo"]
-
-# Claude Code MCP配置任务
-# 添加MCP服务器到Claude Code (本地范围)
-mcp-add-local = "claude mcp add --scope local --transport stdio akshare-value-investment -- uv run python -m akshare_value_investment.mcp_server"
-
-# 添加MCP服务器到Claude Code (项目范围)
-mcp-add-project = "claude mcp add --scope project --transport stdio akshare-value-investment -- uv run python -m akshare_value_investment.mcp_server"
-
-# 移除MCP服务器
-mcp-remove = "claude mcp remove akshare-value-investment"
-
-# 列出MCP服务器
-mcp-list = "claude mcp list"
-
-# 获取MCP服务器详情
-mcp-get = "claude mcp get akshare-value-investment"
-
-# 文档任务
-docs-serve = "python -m http.server 8000 --directory doc"
-docs-open = "open http://localhost:8000"
-
-# 算法文档任务
-algorithms-summary = "head -n 50 doc/algorithms/INTELLIGENT_FIELD_ALGORITHMS_DESIGN.md"
-algorithms-archived = "ls doc/algorithms/archived/*.md | wc -l"
