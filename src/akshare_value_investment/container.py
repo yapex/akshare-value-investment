@@ -138,15 +138,6 @@ def create_container() -> ProductionContainer:
     return ProductionContainer()
 
 
-# 为了向后兼容，提供一个简单的服务创建函数
-def create_production_service():
-    """
-    创建生产环境的容器实例 - 向后兼容函数
-
-    Returns:
-        配置好的容器实例
-    """
-    return create_container()
 
 
 
