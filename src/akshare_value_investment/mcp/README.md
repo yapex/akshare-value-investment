@@ -35,11 +35,17 @@
 ### 1. 启动MCP服务器
 
 ```bash
-# 使用uv启动
-uv run python -m src.akshare_value_investment.mcp.server
+# 方法1: 使用专用启动脚本（推荐）
+./start_mcp.sh
 
-# 或者启动交互模式
-uv run python -m src.akshare_value_investment.mcp.server --info
+# 方法2: 直接使用uv启动
+uv run python -m akshare_value_investment.mcp --stdio
+
+# 方法3: 查看工具信息
+uv run python -m akshare_value_investment.mcp --info
+
+# 方法4: 运行测试模式
+uv run python -m akshare_value_investment.mcp --test
 ```
 
 ### 2. 配置MCP客户端
@@ -55,7 +61,8 @@ uv run python -m src.akshare_value_investment.mcp.server --info
         "run",
         "python",
         "-m",
-        "src.akshare_value_investment.mcp.server"
+        "akshare_value_investment.mcp",
+        "--stdio"
       ],
       "env": {
         "PYTHONPATH": "src"
@@ -65,7 +72,17 @@ uv run python -m src.akshare_value_investment.mcp.server --info
 }
 ```
 
-### 3. 使用MCP工具
+### 3. 验证MCP配置
+
+```bash
+# 验证MCP协议兼容性
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | uv run python -m akshare_value_investment.mcp --stdio
+
+# 测试字段发现工具
+echo '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"get_available_fields","arguments":{"market":"a_stock","query_type":"a_stock_indicators"}}}' | uv run python -m akshare_value_investment.mcp --stdio
+```
+
+### 4. 使用MCP工具
 
 #### 查询财务数据
 
@@ -151,22 +168,44 @@ uv run python -m src.akshare_value_investment.mcp.server --info
 
 ## 🔧 开发和测试
 
-### 启动交互模式
+### 命令行参数
 
 ```bash
-uv run python -m src.akshare_value_investment.mcp.server --info
+# 查看所有可用参数
+uv run python -m akshare_value_investment.mcp --help
+
+# 启动交互模式（查看工具信息）
+uv run python -m akshare_value_investment.mcp --info
+
+# 运行内置测试模式
+uv run python -m akshare_value_investment.mcp --test
+
+# 启动stdio模式（用于MCP协议通信）
+uv run python -m akshare_value_investment.mcp --stdio
+
+# 启动调试模式
+uv run python -m akshare_value_investment.mcp --debug --stdio
 ```
 
-### 运行测试
+### 测试验证
 
+**✅ 测试结果确认 (v3.0.0)**:
+- 5个MCP工具正确注册和路由
+- MCP JSON-RPC协议完全兼容
+- 25个A股财务指标字段发现成功
+- 标准化错误处理和响应格式
+- 真实API调用验证通过
+
+**快速验证命令**:
 ```bash
-uv run python -m src.akshare_value_investment.mcp.server --test
-```
+# 基础功能测试
+uv run python -m akshare_value_investment.mcp --test
 
-### 调试模式
+# MCP协议测试
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | uv run python -m akshare_value_investment.mcp --stdio
 
-```bash
-uv run python -m src.akshare_value_investment.mcp.server --debug
+# 字段发现测试
+echo '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"get_available_fields","arguments":{"market":"a_stock","query_type":"a_stock_indicators"}}}' | uv run python -m akshare_value_investment.mcp --stdio
 ```
 
 ## 📖 响应格式
@@ -244,9 +283,17 @@ mcp/
 
 ## 📝 更新日志
 
-### v1.0.0
+### v3.0.0 (2025-12-03) - MCP集成版
+- ✅ **完整MCP集成**: 5个核心MCP工具实现
+- ✅ **JSON-RPC协议**: 标准MCP协议完全兼容
+- ✅ **专用启动脚本**: `start_mcp.sh` 简化部署
+- ✅ **命令行界面**: 多种启动模式(--info, --test, --stdio, --debug)
+- ✅ **测试验证**: 完整的功能测试和协议测试
+- ✅ **字段发现**: 25+A股财务指标字段验证
+- ✅ **标准化响应**: MCP协议兼容的错误处理
+
+### v2.0.0 (2025-11-13) - 基础架构
 - ✅ 完整的MCP服务器实现
-- ✅ 5个核心MCP工具
 - ✅ 标准化的Schema定义
 - ✅ 交互式测试模式
 - ✅ 完整的错误处理机制
