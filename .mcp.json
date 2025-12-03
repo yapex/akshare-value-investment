@@ -1,16 +1,7 @@
 {
   "mcpServers": {
     "akshare-value-investment": {
-      "command": "uv",
-      "args": [
-        "run",
-        "python",
-        "-m",
-        "akshare_value_investment.mcp.server"
-      ],
-      "env": {
-        "PYTHONPATH": "src"
-      }
+      "command": "/Users/yapex/workspace/akshare-value-investment/start_mcp.sh"
     }
   }
 }

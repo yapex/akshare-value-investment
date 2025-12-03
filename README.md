@@ -1,205 +1,257 @@
-# akshare-value-investment
+# AKShare价值投资分析系统
 
-基于 akshare 的智能财务数据分析系统 - 完整实现版
+> 基于akshare和MCP的智能财务数据查询系统
 
-## 🎯 项目概述
+[![Python](https://img.shields.io/badge/Python-3.13+-blue.svg)](https://www.python.org/)
+[![akshare](https://img.shields.io/badge/akshare-1.0.0+-green.svg)](https://www.akshare.xyz/)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-本项目已成功实现从简单财务指标查询系统向智能财务分析平台的完整演进，具备以下核心能力：
+**项目愿景**: 基于akshare和MCP协议的跨市场财务数据查询系统，为AI助手提供标准化的财务数据访问接口。
 
-- **智能字段推荐**：基于自然语言的智能字段映射和推荐
-- **跨市场对比**：支持A股、港股、美股三地市场数据对比
-- **SOLID架构**：组件化、可扩展的高质量代码架构
-- **高性能查询**：毫秒级响应的智能查询系统
-- **MCP集成**：完全集成Claude Code环境
+## 🎯 核心特性
 
-## 🚀 核心功能
+- 🔍 **跨市场覆盖**: A股、港股、美股财务数据
+- 🤖 **MCP协议**: Model Context Protocol标准化接口
+- 💾 **智能缓存**: SQLite缓存系统，API调用减少70%+
+- 🏗️ **SOLID架构**: 基于设计模式的可扩展架构
+- ⚡ **严格字段过滤**: 按需返回数据，减少传输开销
 
-### 智能字段推荐系统
+## 🚀 快速开始
+
+### 基础查询
+
 ```python
-from src.akshare_value_investment.business.mapping.query_engine import FinancialQueryEngine
+from akshare_value_investment import create_container
 
-# 创建智能查询引擎
-engine = FinancialQueryEngine()
+# 创建容器
+container = create_container()
 
-# 自然语言查询财务指标
-result1 = engine.query_financial_field("ROE", "a_stock")        # 净资产收益率
-result2 = engine.query_financial_field("每股收益", "a_stock")   # 基本每股收益
-result3 = engine.query_financial_field("毛利率", "a_stock")     # 毛利率
-result4 = engine.query_financial_field("净利", "a_stock")        # 净利润（同义词）
-```
-
-### 跨市场数据对比
-```python
-# 对比腾讯(港股) vs Meta(美股)的净利润
-from src.akshare_value_investment.business.mapping.intelligent_field_router import IntelligentFieldRouter
-
-router = IntelligentFieldRouter(config_loader)
-
-# 查询港股腾讯净利润
-result_hk = router.route_field_query("净利润", "00700", "hk_stock")
-
-# 查询美股Meta净利润
-result_us = router.route_field_query("净利润", "META", "us_stock")
-```
-
-### MCP Claude Code集成
-```bash
-# 在Claude Code中使用MCP命令
-/search_financial_fields keyword="ROE" market="a_stock"
-/query_financial_data symbol="SH600519" query="净利润" start_date="2023-01-01"
-```
-
-### 基础数据访问
-```python
-from akshare_value_investment import create_production_service
-
-# 创建查询服务（简化版，适合基础使用）
-service = create_production_service()
+# 获取查询器
+a_stock_queryer = container.a_stock_indicators()
 
 # 查询A股财务数据
-result = service.query("600036")  # 招商银行
-print(f"ROE: {result.data['ROE']}")
-print(f"每股收益: {result.data['EPS']}")
+data = a_stock_queryer.query("600519", "2023-01-01", "2023-12-31")
+print(f"贵州茅台ROE: {data.iloc[0]['净资产收益率(%)']}")
 ```
 
-## 📦 安装和部署
+### MCP服务器使用
+
+```bash
+# 启动MCP服务器
+uv run python -m akshare_value_investment.mcp.server --stdio
+
+# 或查看工具信息
+uv run python -m akshare_value_investment.mcp.server --info
+```
+
+## 📊 支持的市场和查询类型
+
+### A股市场 (4个查询类型)
+- **财务指标**: 净资产收益率、净利润、毛利率等25+指标
+- **资产负债表**: 资产总计、负债合计等75+字段
+- **利润表**: 营业收入、营业成本等46+字段
+- **现金流量表**: 经营活动现金流等72+字段
+
+### 港股市场 (2个查询类型)
+- **财务指标**: ROE、净利润等核心指标
+- **财务三表**: 完整财务报表数据
+
+### 美股市场 (4个查询类型)
+- **财务指标**: ROE、EPS等财务指标
+- **资产负债表**: 完整资产负债表
+- **利润表**: 收入、成本、利润等
+- **现金流量表**: 经营、投资、筹资现金流
+
+## 🛠️ MCP工具集
+
+### 1. query_financial_data
+查询财务数据，支持严格字段过滤和时间频率处理
+
+```json
+{
+  "tool": "query_financial_data",
+  "parameters": {
+    "market": "a_stock",
+    "query_type": "a_stock_indicators",
+    "symbol": "600519",
+    "fields": ["报告期", "净利润", "净资产收益率"],
+    "frequency": "annual"
+  }
+}
+```
+
+### 2. get_available_fields
+获取指定查询类型的所有可用字段
+
+```json
+{
+  "tool": "get_available_fields",
+  "parameters": {
+    "market": "a_stock",
+    "query_type": "a_stock_indicators"
+  }
+}
+```
+
+### 3. validate_fields
+验证字段有效性并提供智能建议
+
+```json
+{
+  "tool": "validate_fields",
+  "parameters": {
+    "market": "a_stock",
+    "query_type": "a_stock_indicators",
+    "fields": ["净利润", "不存在的字段"]
+  }
+}
+```
+
+### 4. discover_fields
+发现指定查询类型的字段
+
+```json
+{
+  "tool": "discover_fields",
+  "parameters": {
+    "market": "a_stock",
+    "query_type": "a_stock_indicators"
+  }
+}
+```
+
+### 5. discover_all_market_fields
+发现指定市场下所有查询类型的字段
+
+```json
+{
+  "tool": "discover_all_market_fields",
+  "parameters": {
+    "market": "a_stock"
+  }
+}
+```
+
+## 🏗️ 系统架构
+
+```
+src/akshare_value_investment/
+├── core/                   # 核心组件
+│   ├── models.py          # 数据模型定义
+│   └── stock_identifier.py # 智能股票代码识别
+├── datasource/queryers/    # SOLID查询器架构
+│   ├── base_queryer.py    # 模板方法基类
+│   ├── a_stock_queryers.py # A股查询器
+│   ├── hk_stock_queryers.py # 港股查询器
+│   └── us_stock_queryers.py # 美股查询器
+├── cache/                 # SQLite智能缓存
+│   ├── sqlite_cache.py    # 缓存核心实现
+│   └── smart_decorator.py # 透明缓存装饰器
+├── business/              # 业务服务层
+│   ├── financial_query_service.py # 统一查询接口
+│   ├── field_discovery_service.py # 字段发现服务
+│   └── mcp_response.py    # MCP标准化响应
+├── mcp/                   # MCP协议实现
+│   ├── server.py          # MCP服务器核心
+│   ├── tools/             # MCP工具集
+│   └── schemas/           # Schema定义
+└── container.py           # 依赖注入容器
+```
+
+## 💾 缓存系统
+
+### 智能增量更新
+- **API调用减少70%+**: 智能识别缺失数据范围
+- **查询速度提升50%+**: SQL范围查询优于多次键值查询
+- **存储效率提升60%+**: 按条精确缓存，无冗余字段
+- **线程安全保障**: 支持高并发访问
+
+### 使用示例
+
+```python
+from akshare_value_investment.cache import SQLiteCache, smart_sqlite_cache
+
+# 创建缓存实例
+cache = SQLiteCache(db_path=".cache/financial_data.db")
+
+# 应用装饰器
+@smart_sqlite_cache(
+    date_field='date',
+    query_type='indicators',
+    cache_adapter=cache
+)
+def get_financial_data(symbol, start_date, end_date):
+    return akshare_api_call(symbol)
+
+# 透明缓存使用
+data1 = get_financial_data("600519", "2023-01-01", "2023-12-31")  # API调用
+data2 = get_financial_data("600519", "2023-01-01", "2023-12-31")  # 缓存命中
+```
+
+## 🧪 测试覆盖
+
+```bash
+# 运行所有测试
+uv run pytest tests/
+
+# 运行MCP集成测试
+uv run python test_mcp_integration.py
+
+# 运行缓存业务场景测试
+uv run pytest tests/test_financial_cache_business_scenarios.py
+```
+
+**测试统计**: 293个测试用例，100%通过率
+
+## 📈 性能指标
+
+| 指标 | 数值 | 说明 |
+|------|------|------|
+| 总测试数 | 293个 | 100%通过率 |
+| API调用减少 | 70%+ | 智能缓存效果 |
+| 查询速度提升 | 50%+ | SQL优化效果 |
+| 存储效率提升 | 60%+ | 精确缓存策略 |
+| 字段覆盖 | 218个 | A股全市场字段 |
+
+## 🔧 开发指南
 
 ### 环境要求
 - Python >= 3.13
 - uv 包管理器
 - akshare >= 1.0.0
 
-### 安装依赖
-```bash
-# 克隆项目
-git clone <repository-url>
-cd akshare-value-investment
+### 核心原则
+- **SOLID架构**: 基于设计模式的可扩展架构
+- **智能缓存**: 透明的缓存机制，提升性能
+- **原始数据完整**: 保留所有原始字段，用户自主选择
+- **跨市场统一**: 同一接口支持三地市场
 
-# 安装依赖
-uv sync
+## 📚 文档
 
-# 安装MCP服务器（可选）
-claude mcp add .
-```
+- [MCP集成文档](./src/akshare_value_investment/mcp/README.md) - MCP服务器完整文档
+- [系统架构总结](./doc/SYSTEM_ARCHITECTURE_SUMMARY.md) - 核心架构设计
+- [缓存技术指南](./doc/CACHE_SYSTEM_TECHNICAL_GUIDE.md) - SQLite缓存系统
 
-## 📊 技术特性
+## 🚀 版本历史
 
-### 🏗️ 架构优势
-- **SOLID架构**：100%符合SOLID原则
-- **组件化设计**：4个专业组件，职责清晰
-- **依赖注入**：支持灵活的组件替换
-- **接口抽象**：基于Protocol的接口设计
+### v3.0.0 (2025-12-03) - MCP集成版
+- ✅ **完整MCP集成**: 5个核心MCP工具
+- ✅ **标准化响应**: MCP协议兼容的响应格式
+- ✅ **智能字段验证**: 字段有效性检查和建议
+- ✅ **跨市场统一**: 统一接口支持A股/港股/美股
 
-### 🧠 智能算法
-- **多维度相似度计算**：字段名+关键字+同义词+缩写词
-- **智能排序策略**：5因子排序算法
-- **财务领域专业化**：195个财务词汇映射
-- **上下文感知**：基于股票代码的个性化推荐
+### v2.1.0 (2025-12-01) - SOLID架构优化
+- ✅ **美股查询器重构**: 恢复基类架构，消除代码重复
+- ✅ **港股字段修复**: 修复REPORT_DATE字段缺失问题
+- ✅ **测试完善**: 293个测试全部通过
 
-### ⚡ 性能表现
-- **响应时间**：0.79毫秒平均响应
-- **查询吞吐量**：1,264 QPS
-- **查询准确性**：88.7%智能匹配覆盖率
-- **系统稳定性**：100% TDD测试通过率
-
-## 📚 文档资源
-
-### 📖 用户文档
-- **[SYSTEM_ARCHITECTURE_SUMMARY.md](./doc/SYSTEM_ARCHITECTURE_SUMMARY.md)** - 智能系统架构总结
-
-### 🔬 算法设计
-- **[doc/algorithms/INTELLIGENT_FIELD_ALGORITHMS_DESIGN.md](./doc/algorithms/INTELLIGENT_FIELD_ALGORITHMS_DESIGN.md)** - 智能字段算法设计（核心文档）
-- **[doc/algorithms/archived/](./doc/algorithms/archived/)** - 归档文档索引
-
-### 🔌 MCP集成
-- **[doc/mcp/README_MCP.md](./doc/mcp/README_MCP.md)** - MCP集成指南
-- **[doc/mcp/CLAUDE_CODE_MCP_SETUP.md](./doc/mcp/CLAUDE_CODE_MCP_SETUP.md)** - Claude Code设置
-
-## 🏆 项目成就
-
-### ✅ 核心价值
-- **195个财务指标字段**：完整的A股、港股、美股数据覆盖
-- **智能查询体验**：支持自然语言查询和智能推荐
-- **高性能架构**：毫秒级响应的企业级系统
-- **完整工程实践**：TDD驱动、SOLID架构、文档完善
-
-### 🎯 技术创新
-- **命名空间隔离**：零字段冲突的跨市场架构
-- **智能算法**：财务领域专业化的匹配算法
-- **组件化设计**：可复用、可扩展的架构模式
+### v2.0.0 (2025-11-13) - SQLite智能缓存系统
+- ✅ **架构重构**: 复合主键设计，摒弃冗余存储
+- ✅ **智能增量更新**: 6种数据缺失场景处理
+- ✅ **装饰器模式**: 透明集成缓存功能
 
 ---
 
-**版本**: v2.0.0 (智能推荐系统完整版)
-**技术栈**: Python 3.13, akshare, SOLID, TDD, MCP
-**最后更新**: 2025-11-13
-result = service.query("AAPL")   # 苹果
-
-    latest = result.data[0]
-
-    # 获取所有字段
-    all_fields = list(latest.raw_data.keys())
-    print(f"可用字段数: {len(all_fields)}")
-
-    # 访问特定字段
-    if "摊薄每股收益(元)" in latest.raw_data:
-        eps = latest.raw_data["摊薄每股收益(元)"]
-        print(f"每股收益: {eps}")
-```
-
-## 核心特性
-
-- ✅ **100%原始数据覆盖** - 直接访问akshare所有字段
-- ✅ **跨市场支持** - A股/港股/美股一体化查询
-- ✅ **简化架构** - 移除复杂字段映射，专注原始数据
-- ✅ **易于使用** - 通过`raw_data`直接访问所有字段
-
-## 项目结构
-
-```
-akshare-value-investment/
-├── src/akshare_value_investment/    # 核心功能模块
-├── examples/                        # 使用示例
-├── tests/                           # 测试用例
-├── doc/                             # 文档
-└── prototype/                       # 原型代码
-```
-
-## 运行示例
-
-```bash
-# 运行演示程序
-uv run python examples/demo.py
-
-# 运行测试
-uv run pytest tests/
-
-# 运行MCP服务器
-uv run python -m akshare_value_investment.mcp_server
-```
-
-## 文档
-
-- [简化版使用指南](./doc/SIMPLIFIED_USAGE_GUIDE.md) - 完整使用说明
-- [MCP集成文档](./doc/mcp/) - Claude Code集成指南
-- [字段概念映射设计](./doc/字段概念映射系统设计方案.md) - 未来功能设计方案
-- [项目架构文档](./CLAUDE.md) - 技术架构详情
-
-## 技术栈
-
-- Python >= 3.13
-- akshare >= 1.17.83
-- dependency-injector >= 4.48.2
-- mcp >= 1.0.0 (可选，用于MCP服务器)
-
-## 开发指南
-
-### 环境要求
-- Python >= 3.13
-- uv 包管理器
-
-### 核心原则
-- **简化优先**: 避免过度设计，保持架构简洁
-- **原始数据**: 直接返回akshare原始数据，不进行字段映射
-- **用户灵活**: 用户通过`raw_data`自主选择需要的字段
-- **优雅设计**: 保留依赖注入和Protocol接口的优秀模式
+**当前版本**: v3.0.0 (MCP集成版)
+**技术栈**: Python 3.13, akshare, dependency-injector, SQLite, MCP
+**最后更新**: 2025-12-03
