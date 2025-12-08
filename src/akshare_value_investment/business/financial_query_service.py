@@ -415,7 +415,7 @@ class FinancialQueryService:
         """
         将报告期数据转换为年度数据
 
-        采用选项A：取每年最后一份报告（如2024-12-31代表2024年）
+        过滤出财报日期为12月31日的年度报告。
 
         Args:
             data: 原始报告期数据
@@ -429,7 +429,7 @@ class FinancialQueryService:
         # 查找日期字段
         date_field = self._find_date_field(data)
         if date_field is None:
-            # 找不到日期字段，返回原数据
+            # 找不到日期字段，无法转换为年度数据
             self.logger.warning("未找到日期字段，无法转换为年度数据")
             return data.copy()
 
@@ -438,14 +438,14 @@ class FinancialQueryService:
         if not pd.api.types.is_datetime64_any_dtype(data_copy[date_field]):
             data_copy[date_field] = pd.to_datetime(data_copy[date_field], errors='coerce')
 
-        # 提取年份
-        data_copy['year'] = data_copy[date_field].dt.year
+        # 过滤掉无效日期
+        data_copy = data_copy.dropna(subset=[date_field])
 
-        # 按年份分组，取每年最后一条记录
-        annual_data = data_copy.loc[data_copy.groupby('year')[date_field].idxmax()]
-
-        # 删除临时列
-        annual_data = annual_data.drop(columns=['year'])
+        # 过滤出年度报告（12月31日）
+        annual_data = data_copy[
+            (data_copy[date_field].dt.month == 12) &
+            (data_copy[date_field].dt.day == 31)
+        ]
 
         return annual_data.reset_index(drop=True)
 
