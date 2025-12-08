@@ -21,6 +21,9 @@ dependencies = [
     "pytest-cov>=7.0.0",
     "anthropic",
     "diskcache>=5.6.3",
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "httpx>=0.25.0",
 ]
 
 [dependency-groups]
@@ -66,5 +69,8 @@ asyncio_mode = "auto"
 test = "pytest"
 demo = "python examples/demo.py"
 install = "pip install -e ."
+
+# FastAPI任务
+api = "uvicorn akshare_value_investment.api.main:create_app --reload"
 
 
