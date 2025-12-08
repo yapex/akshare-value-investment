@@ -27,6 +27,9 @@ class MCPServerConfig:
     enable_cache: bool = True
     cache_ttl: int = 3600  # 缓存过期时间（秒）
 
+      # FastAPI 集成配置
+    fastapi_base_url: str = "http://localhost:8000"
+
     # 日志配置
     log_level: str = "INFO"
     log_format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

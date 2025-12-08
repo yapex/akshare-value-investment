@@ -73,4 +73,8 @@ install = "pip install -e ."
 # FastAPI任务
 api = "uvicorn akshare_value_investment.api.main:create_app --reload"
 
+# MCP服务器任务
+mcp = "akshare-mcp-server"
+mcp-debug = "akshare-mcp-server --debug"
+
 

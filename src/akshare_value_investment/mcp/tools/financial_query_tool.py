@@ -51,8 +51,8 @@ response = tool.query_financial_data(
 
 from typing import Dict, List, Any, Optional, Union
 import logging
+import httpx
 
-from ...business.financial_query_service import FinancialQueryService
 from ...business.financial_types import FinancialQueryType, Frequency, MCPErrorType
 from ...core.models import MarketType
 
@@ -65,15 +65,16 @@ class FinancialQueryTool:
     MCP标准响应格式输出。
     """
 
-    def __init__(self, service: Optional[FinancialQueryService] = None):
+    def __init__(self, api_base_url: str = "http://localhost:8000"):
         """
         初始化MCP财务查询工具
 
         Args:
-            service: 财务查询服务实例，如果为None则创建默认实例
+            api_base_url: FastAPI服务的基础URL
         """
-        self.service = service or FinancialQueryService()
+        self.api_base_url = api_base_url.rstrip("/")
         self.logger = logging.getLogger(__name__)
+        self.client = httpx.Client(timeout=30.0)
 
     def query_financial_data(
         self,
@@ -123,24 +124,45 @@ class FinancialQueryTool:
             ... )
         """
         try:
-            # 参数类型转换
-            market_enum = self._parse_market(market)
-            query_type_enum = self._parse_query_type(query_type)
-            frequency_enum = self._parse_frequency(frequency)
+            # 构建请求体
+            request_data = {
+                "market": market,
+                "query_type": query_type,
+                "symbol": symbol,
+                "frequency": frequency
+            }
 
-            # 调用财务查询服务
-            response = self.service.query(
-                market=market_enum,
-                query_type=query_type_enum,
-                symbol=symbol,
-                fields=fields,
-                start_date=start_date,
-                end_date=end_date,
-                frequency=frequency_enum
+            # 添加可选字段
+            if fields is not None:
+                request_data["fields"] = fields
+            if start_date is not None:
+                request_data["start_date"] = start_date
+            if end_date is not None:
+                request_data["end_date"] = end_date
+
+            # 发送HTTP请求到FastAPI端点
+            response = self.client.post(
+                f"{self.api_base_url}/api/v1/financial/query",
+                json=request_data
             )
 
-            # 转换为MCP标准格式
-            return self._convert_to_mcp_response(response)
+            # 检查HTTP响应状态
+            if response.status_code == 200:
+                api_response = response.json()
+                # 转换为MCP标准格式
+                return self._convert_to_mcp_response(api_response)
+            else:
+                # 处理HTTP错误
+                error_detail = response.json() if response.headers.get("content-type", "").startswith("application/json") else {"detail": response.text}
+                return self._create_mcp_error(
+                    error_type=MCPErrorType.INTERNAL_ERROR,
+                    message=f"FastAPI服务错误 (HTTP {response.status_code}): {error_detail.get('detail', '未知错误')}",
+                    details={
+                        "http_status_code": response.status_code,
+                        "api_response": error_detail,
+                        "request_data": request_data
+                    }
+                )
 
         except ValueError as e:
             return self._create_mcp_error(
@@ -195,25 +217,36 @@ class FinancialQueryTool:
             >>> print(f"可用字段: {fields}")
         """
         try:
-            # 参数类型转换
-            market_enum = self._parse_market(market)
-            query_type_enum = self._parse_query_type(query_type)
-
-            # 调用财务查询服务
-            response = self.service.get_available_fields(
-                market=market_enum,
-                query_type=query_type_enum
+            # 发送HTTP请求到FastAPI字段发现端点
+            response = self.client.get(
+                f"{self.api_base_url}/api/v1/financial/fields/{market}/{query_type}"
             )
 
-            # 转换为MCP标准格式
-            mcp_response = self._convert_to_mcp_response(response)
+            # 检查HTTP响应状态
+            if response.status_code == 200:
+                api_response = response.json()
+                # 转换为MCP标准格式
+                mcp_response = self._convert_to_mcp_response(api_response)
 
-            # 提取字段信息到顶层，方便MCP客户端访问
-            if mcp_response.get("success") and "metadata" in mcp_response:
-                mcp_response["available_fields"] = mcp_response["metadata"].get("available_fields", [])
-                mcp_response["field_count"] = mcp_response["metadata"].get("field_count", 0)
+                # 提取字段信息到顶层，方便MCP客户端访问
+                if mcp_response.get("success") and "metadata" in mcp_response:
+                    mcp_response["available_fields"] = mcp_response["metadata"].get("available_fields", [])
+                    mcp_response["field_count"] = mcp_response["metadata"].get("field_count", 0)
 
-            return mcp_response
+                return mcp_response
+            else:
+                # 处理HTTP错误
+                error_detail = response.json() if response.headers.get("content-type", "").startswith("application/json") else {"detail": response.text}
+                return self._create_mcp_error(
+                    error_type=MCPErrorType.INTERNAL_ERROR,
+                    message=f"FastAPI字段发现服务错误 (HTTP {response.status_code}): {error_detail.get('detail', '未知错误')}",
+                    details={
+                        "http_status_code": response.status_code,
+                        "api_response": error_detail,
+                        "market": market,
+                        "query_type": query_type
+                    }
+                )
 
         except ValueError as e:
             return self._create_mcp_error(
@@ -394,3 +427,14 @@ class FinancialQueryTool:
             支持的时间频率字符串列表
         """
         return [freq.value for freq in Frequency]
+
+    def __del__(self):
+        """
+        析构函数，确保HTTP客户端正确关闭
+        """
+        try:
+            if hasattr(self, 'client'):
+                self.client.close()
+        except Exception:
+            # 忽略关闭时的异常
+            pass

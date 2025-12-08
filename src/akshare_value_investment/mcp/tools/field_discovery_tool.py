@@ -34,8 +34,8 @@ response = tool.discover_all_market_fields(market="a_stock")
 
 from typing import Dict, List, Any, Optional
 import logging
+import httpx
 
-from ...business.field_discovery_service import FieldDiscoveryService
 from ...business.financial_types import FinancialQueryType, MCPErrorType
 from ...core.models import MarketType
 
@@ -47,22 +47,16 @@ class FieldDiscoveryTool:
     专门用于字段发现功能，提供独立的字段查询接口。
     """
 
-    def __init__(self, service: Optional[FieldDiscoveryService] = None):
+    def __init__(self, api_base_url: str = "http://localhost:8000"):
         """
         初始化MCP字段发现工具
 
         Args:
-            service: 字段发现服务实例，如果为None则创建默认实例
+            api_base_url: FastAPI服务的基础URL
         """
-        if service:
-            self.service = service
-        else:
-            # 创建默认容器和服务实例
-            from ...container import create_container
-            container = create_container()
-            self.service = FieldDiscoveryService(container)
-
+        self.api_base_url = api_base_url.rstrip("/")
         self.logger = logging.getLogger(__name__)
+        self.client = httpx.Client(timeout=30.0)
 
     def discover_fields(
         self,
@@ -80,51 +74,56 @@ class FieldDiscoveryTool:
             MCP标准化的响应格式，包含可用字段列表
         """
         try:
-            # 参数类型转换
-            market_enum = self._parse_market(market)
-            query_type_enum = self._parse_query_type(query_type)
+            # 发送HTTP请求到FastAPI字段发现端点
+            response = self.client.get(
+                f"{self.api_base_url}/api/v1/financial/fields/{market}/{query_type}"
+            )
 
-            # 使用字段发现服务
-            discovery_method_map = {
-                # A股
-                FinancialQueryType.A_STOCK_INDICATORS: self.service.discover_a_stock_indicator_fields,
-                FinancialQueryType.A_STOCK_BALANCE_SHEET: self.service.discover_a_stock_balance_sheet_fields,
-                FinancialQueryType.A_STOCK_INCOME_STATEMENT: self.service.discover_a_stock_income_statement_fields,
-                FinancialQueryType.A_STOCK_CASH_FLOW: self.service.discover_a_stock_cash_flow_fields,
+            # 检查HTTP响应状态
+            if response.status_code == 200:
+                api_response = response.json()
 
-                # 港股
-                FinancialQueryType.HK_STOCK_INDICATORS: self.service.discover_hk_stock_indicator_fields,
-                FinancialQueryType.HK_STOCK_STATEMENTS: self.service.discover_hk_stock_statement_fields,
+                # 转换为MCP格式
+                if api_response.get("status") == "success":
+                    # 从FastAPI响应提取字段信息
+                    metadata = api_response.get("metadata", {})
+                    available_fields = metadata.get("available_fields", [])
 
-                # 美股
-                FinancialQueryType.US_STOCK_INDICATORS: self.service.discover_us_stock_indicator_fields,
-                FinancialQueryType.US_STOCK_BALANCE_SHEET: self.service.discover_us_stock_balance_sheet_fields,
-                FinancialQueryType.US_STOCK_INCOME_STATEMENT: self.service.discover_us_stock_income_statement_fields,
-                FinancialQueryType.US_STOCK_CASH_FLOW: self.service.discover_us_stock_cash_flow_fields,
-            }
-
-            discovery_method = discovery_method_map.get(query_type_enum)
-            if not discovery_method:
+                    return {
+                        "success": True,
+                        "available_fields": available_fields,
+                        "field_count": metadata.get("field_count", len(available_fields)),
+                        "market": market,
+                        "query_type": query_type,
+                        "metadata": {
+                            "display_query_type": metadata.get("query_type", query_type),
+                            "market_display_name": self._get_market_display_name(self._parse_market(market))
+                        }
+                    }
+                else:
+                    # FastAPI返回错误
+                    return self._create_mcp_error(
+                        error_type=MCPErrorType.INTERNAL_ERROR,
+                        message=f"字段发现服务返回错误: {api_response}",
+                        details={
+                            "market": market,
+                            "query_type": query_type,
+                            "api_response": api_response
+                        }
+                    )
+            else:
+                # 处理HTTP错误
+                error_detail = response.json() if response.headers.get("content-type", "").startswith("application/json") else {"detail": response.text}
                 return self._create_mcp_error(
-                    error_type=MCPErrorType.INVALID_QUERY_TYPE,
-                    message=f"不支持的查询类型: {query_type}",
-                    details={"query_type": query_type}
+                    error_type=MCPErrorType.INTERNAL_ERROR,
+                    message=f"FastAPI字段发现服务错误 (HTTP {response.status_code}): {error_detail.get('detail', '未知错误')}",
+                    details={
+                        "http_status_code": response.status_code,
+                        "api_response": error_detail,
+                        "market": market,
+                        "query_type": query_type
+                    }
                 )
-
-            # 执行字段发现
-            fields = discovery_method()
-
-            return {
-                "success": True,
-                "available_fields": fields,
-                "field_count": len(fields),
-                "market": market,
-                "query_type": query_type,
-                "metadata": {
-                    "display_query_type": query_type_enum.get_display_name(),
-                    "market_display_name": self._get_market_display_name(market_enum)
-                }
-            }
 
         except ValueError as e:
             return self._create_mcp_error(
@@ -427,3 +426,14 @@ class FieldDiscoveryTool:
             return [qt.value for qt in query_types]
         except ValueError:
             return []
+
+    def __del__(self):
+        """
+        析构函数，确保HTTP客户端正确关闭
+        """
+        try:
+            if hasattr(self, 'client'):
+                self.client.close()
+        except Exception:
+            # 忽略关闭时的异常
+            pass
