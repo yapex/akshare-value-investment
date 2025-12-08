@@ -6,6 +6,30 @@
 
 ## 🏗️ 系统架构成果
 
+### FastAPI Web API系统 🌐
+
+**生产级Web API** - 基于FastAPI的现代Web服务：
+
+- **RESTful API**：10个财务查询端点全覆盖
+- **异步处理**：高性能异步处理能力
+- **自动文档**：OpenAPI/Swagger自动生成
+- **类型安全**：Pydantic模型验证和序列化
+- **依赖注入**：FastAPI Depends与现有容器集成
+
+**核心代码位置**：[`src/akshare_value_investment/api/`](src/akshare_value_investment/api/)
+
+### MCP-HTTP集成系统 🔗
+
+**Model Context Protocol集成** - 基于HTTP的MCP服务：
+
+- **HTTP客户端**：使用httpx进行HTTP调用
+- **错误处理**：完整的HTTP状态码和错误转换
+- **独立运行**：MCP服务器可独立启动
+- **交互式控制台**：用户友好的命令行界面
+- **配置管理**：环境变量和命令行参数支持
+
+**核心代码位置**：[`src/akshare_value_investment/mcp/`](src/akshare_value_investment/mcp/)
+
 ### 跨市场财务数据查询系统 ✅
 
 **生产就绪的架构** - 专注于原始数据访问和智能缓存：
@@ -45,7 +69,6 @@
 ```mermaid
 graph TD
     A["akshare-value-investment"] --> B["src/"]
-    A --> C["examples/"]
     A --> D["tests/"]
     A --> E["doc/"]
 
@@ -54,17 +77,20 @@ graph TD
     B1 --> B1b["core/<br/>核心组件"]
     B1 --> B1c["cache/<br/>SQLite智能缓存"]
     B1 --> B1d["datasource/queryers/<br/>查询器架构"]
-
-    C --> C1["demo.py<br/>系统演示"]
-    C2 --> C1a["README.md<br/>示例说明"]
+    B1 --> B1e["api/<br/>FastAPI Web API"]
+    B1 --> B1f["mcp/<br/>MCP服务器"]
 
     D --> D1["test_*queryers*.py<br/>查询器测试"]
     D2 --> D2a["test_financial_cache_*.py<br/>缓存测试"]
     D3 --> D3a["test_stock_identifier.py<br/>股票识别测试"]
+    D4 --> D4a["test_api/<br/>API测试"]
+    D5 --> D5a["test_mcp_*.py<br/>MCP集成测试"]
 
     E --> E1["SYSTEM_ARCHITECTURE_SUMMARY.md<br/>系统架构"]
     E2 --> E2a["CACHE_SYSTEM_TECHNICAL_GUIDE.md<br/>缓存技术指南"]
-    E3["archived/<br/>归档文档"]
+    E3 --> E3a["MCP_SERVER_SETUP.md<br/>MCP服务器配置"]
+    E4 --> E4a["财报检查清单.md<br/>跨市场字段映射"]
+    E5["archived/<br/>归档文档"]
 ```
 
 ### 核心模块
@@ -76,6 +102,8 @@ graph TD
 | 文件 | 描述 | 状态 |
 |------|------|------|
 | [`container.py`](src/akshare_value_investment/container.py) | **依赖注入容器** - dependency-injector配置 | ✅ 生产就绪 |
+| [`api/main.py`](src/akshare_value_investment/api/main.py) | **FastAPI应用** - Web API入口和路由注册 | ✅ 生产就绪 |
+| [`mcp/server.py`](src/akshare_value_investment/mcp/server.py) | **MCP服务器** - Model Context Protocol服务 | ✅ 生产就绪 |
 | [`core/stock_identifier.py`](src/akshare_value_investment/core/stock_identifier.py) | **股票识别器** - 跨市场股票代码识别 | ✅ 生产就绪 |
 | [`core/models.py`](src/akshare_value_investment/core/models.py) | **数据模型** - 市场类型定义 | ✅ 生产就绪 |
 | [`cache/sqlite_cache.py`](src/akshare_value_investment/cache/sqlite_cache.py) | **SQLite缓存** - 智能缓存实现 | ✅ 生产就绪 |
@@ -96,6 +124,8 @@ graph TD
 |------|------|------|
 | [doc/SYSTEM_ARCHITECTURE_SUMMARY.md](./doc/SYSTEM_ARCHITECTURE_SUMMARY.md) | **系统架构** - 智能财务查询系统架构总结 | ✅ 当前版本 |
 | [doc/CACHE_SYSTEM_TECHNICAL_GUIDE.md](./doc/CACHE_SYSTEM_TECHNICAL_GUIDE.md) | **缓存系统** - SQLite智能缓存技术指南 | ✅ 生产就绪 |
+| [doc/MCP_SERVER_SETUP.md](./doc/MCP_SERVER_SETUP.md) | **MCP配置** - MCP服务器配置和使用指南 | ✅ 生产就绪 |
+| [doc/财报检查清单.md](./doc/财报检查清单.md) | **财报分析** - 跨市场财报检查清单和字段映射 | ✅ 生产就绪 |
 
 ### 🗂️ 归档文档
 | 文档 | 描述 | 状态 |
@@ -123,6 +153,28 @@ graph TD
 - **跨市场统一**：同一接口支持三地市场
 
 ## 🚀 快速开始
+
+### FastAPI Web API使用
+```bash
+# 启动 FastAPI 服务
+poe api
+
+# 访问 API 文档
+# http://localhost:8000/docs
+# http://localhost:8000/redoc
+```
+
+### MCP服务器使用
+```bash
+# 启动 MCP 服务器（交互式）
+poe mcp
+
+# 启动调试模式
+poe mcp-debug
+
+# 或使用启动脚本
+./start_mcp.sh
+```
 
 ### 基本查询模式
 ```python
@@ -179,13 +231,16 @@ data1 = get_financial_data("SH600519", "2023-01-01", "2023-12-31")  # 首次查�
 data2 = get_financial_data("SH600519", "2023-01-01", "2023-12-31")  # 重复查询，使用缓存
 ```
 
-### 运行演示
+### 运行测试
 ```bash
-# 运行系统演示
-uv run python examples/demo.py
-
-# 运行测试
+# 运行所有测试
 uv run pytest tests/
+
+# 运行API测试
+uv run pytest tests/api/
+
+# 运行MCP集成测试
+uv run pytest tests/test_mcp_*.py
 
 # 运行缓存业务场景测试
 uv run pytest tests/test_financial_cache_business_scenarios.py
@@ -194,10 +249,12 @@ uv run pytest tests/test_financial_cache_business_scenarios.py
 ## 📊 技术特性
 
 ### 工程化设计
+- **Web API**：FastAPI异步处理，OpenAPI自动文档
+- **MCP集成**：HTTP客户端，完整错误处理
 - **依赖注入**：dependency-injector容器管理
 - **SOLID架构**：基于设计模式的优雅架构
-- **类型安全**：完整类型注解
-- **测试驱动**：188个测试用例，100%通过
+- **类型安全**：完整类型注解和Pydantic验证
+- **测试驱动**：多层级测试覆盖，包含API和MCP测试
 
 ### SQLite智能缓存优势
 - **API调用减少70%+**：智能增量更新避免重复请求
@@ -213,12 +270,20 @@ uv run pytest tests/test_financial_cache_business_scenarios.py
 - **智能格式转换**：窄表→宽表自动转换
 
 ### 测试覆盖
-- **总测试数**：188个测试用例，100%通过
+- **API测试**：FastAPI路由、模型、依赖注入测试
+- **MCP测试**：HTTP集成、工具类、交互式测试
 - **核心测试**：查询器测试、缓存测试、股票识别测试
 - **集成测试**：缓存系统和API集成测试
 - **业务场景测试**：6大业务场景完整验证
 
 ## 📈 变更记录
+
+### 2025-12-08 (FastAPI与MCP集成) 🚀
+- ✅ **FastAPI Web API**：10个财务查询端点，异步处理能力
+- ✅ **MCP-HTTP集成**：MCP工具改为HTTP调用FastAPI服务
+- ✅ **财报检查清单**：跨市场字段映射，A股、港股、美股支持
+- ✅ **完整测试覆盖**：API测试、MCP集成测试、HTTP客户端测试
+- ✅ **配置完善**：pyproject.toml任务配置，环境变量管理
 
 ### 2025-12-01 (SOLID架构优化) 🔧
 - ✅ **美股查询器重构**：恢复基类架构，消除代码重复
@@ -239,6 +304,6 @@ uv run pytest tests/test_financial_cache_business_scenarios.py
 
 ---
 
-**当前版本**：v2.1.0（SOLID架构优化）
-**下一个里程碑**：Demo程序更新和文档完善
-**技术栈**：Python 3.13, akshare, dependency-injector, SQLite
+**当前版本**：v3.0.0（FastAPI与MCP集成）
+**核心特性**：Web API服务、MCP-HTTP集成、跨市场财报分析
+**技术栈**：Python 3.13, FastAPI, httpx, akshare, dependency-injector, SQLite
