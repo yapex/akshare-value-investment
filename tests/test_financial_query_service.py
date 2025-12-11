@@ -183,6 +183,140 @@ class TestFinancialQueryService:
             assert error_info["type"] == MCPErrorType.FIELD_NOT_FOUND.value
             assert "不存在的字段" in error_info["message"]
 
+        def test_字段不存在时返回详细错误信息(self, service, mock_container, full_data):
+            """测试字段不存在时返回详细错误信息，包含可用字段列表"""
+            mock_container.a_stock_indicators.return_value.query.return_value = full_data
+
+            response = service.query(
+                market=MarketType.A_STOCK,
+                query_type=FinancialQueryType.A_STOCK_INDICATORS,
+                symbol="600519",
+                fields=["报告期", "净利润", "不存在的字段1", "不存在的字段2"]
+            )
+
+            # 验证返回错误响应
+            assert MCPResponse.is_error_response(response)
+            error_info = MCPResponse.get_error_info(response)
+            assert error_info["type"] == MCPErrorType.FIELD_NOT_FOUND.value
+
+            # 验证错误详情包含缺失字段
+            details = error_info.get("details", {})
+            missing_fields = details.get("missing_fields", [])
+            assert "不存在的字段1" in missing_fields
+            assert "不存在的字段2" in missing_fields
+
+            # 验证错误详情包含可用字段列表
+            available_fields = details.get("available_fields", [])
+            assert len(available_fields) == len(full_data.columns)
+            assert "报告期" in available_fields
+            assert "净利润" in available_fields
+            assert "净资产收益率" in available_fields
+
+            # 验证包含建议信息
+            assert "suggestion" in details
+            assert "get_available_fields" in details["suggestion"]
+
+        def test_字段相似性建议功能(self, service, mock_container, full_data):
+            """测试字段相似性建议功能"""
+            mock_container.a_stock_indicators.return_value.query.return_value = full_data
+
+            # 测试相似字段（包含"收益"关键字）
+            response = service.query(
+                market=MarketType.A_STOCK,
+                query_type=FinancialQueryType.A_STOCK_INDICATORS,
+                symbol="600519",
+                fields=["报告期", "净利润", "净资产收益率2"]  # 相似于"净资产收益率"
+            )
+
+            assert MCPResponse.is_error_response(response)
+            error_info = MCPResponse.get_error_info(response)
+            details = error_info.get("details", {})
+
+            # 验证缺失字段被正确识别
+            missing_fields = details.get("missing_fields", [])
+            assert "净资产收益率2" in missing_fields
+
+            # 验证可用字段列表包含相似字段
+            available_fields = details.get("available_fields", [])
+            assert "净资产收益率" in available_fields
+
+        def test_多个缺失字段错误处理(self, service, mock_container, full_data):
+            """测试多个缺失字段错误处理"""
+            mock_container.a_stock_indicators.return_value.query.return_value = full_data
+
+            response = service.query(
+                market=MarketType.A_STOCK,
+                query_type=FinancialQueryType.A_STOCK_INDICATORS,
+                symbol="600519",
+                fields=["不存在的字段1", "不存在的字段2", "不存在的字段3"]
+            )
+
+            assert MCPResponse.is_error_response(response)
+            error_info = MCPResponse.get_error_info(response)
+            details = error_info.get("details", {})
+
+            # 验证所有缺失字段都被识别
+            missing_fields = details.get("missing_fields", [])
+            assert len(missing_fields) == 3
+            assert "不存在的字段1" in missing_fields
+            assert "不存在的字段2" in missing_fields
+            assert "不存在的字段3" in missing_fields
+
+            # 验证错误消息包含所有缺失字段
+            error_message = error_info["message"]
+            assert "不存在的字段1" in error_message
+            assert "不存在的字段2" in error_message
+            assert "不存在的字段3" in error_message
+
+        def test_混合存在和不存在字段(self, service, mock_container, full_data):
+            """测试混合存在和不存在字段的情况"""
+            mock_container.a_stock_indicators.return_value.query.return_value = full_data
+
+            # 部分字段存在，部分不存在
+            response = service.query(
+                market=MarketType.A_STOCK,
+                query_type=FinancialQueryType.A_STOCK_INDICATORS,
+                symbol="600519",
+                fields=["报告期", "净利润", "不存在的字段", "净资产收益率", "另一个不存在的字段"]
+            )
+
+            assert MCPResponse.is_error_response(response)
+            error_info = MCPResponse.get_error_info(response)
+            details = error_info.get("details", {})
+
+            # 验证只有不存在的字段被报告为缺失
+            missing_fields = details.get("missing_fields", [])
+            assert "不存在的字段" in missing_fields
+            assert "另一个不存在的字段" in missing_fields
+            assert "报告期" not in missing_fields  # 存在的字段不应出现在缺失列表中
+            assert "净利润" not in missing_fields
+            assert "净资产收益率" not in missing_fields
+
+        def test_字段错误响应包含查询上下文(self, service, mock_container, full_data):
+            """测试字段错误响应包含查询上下文信息"""
+            mock_container.a_stock_indicators.return_value.query.return_value = full_data
+
+            response = service.query(
+                market=MarketType.A_STOCK,
+                query_type=FinancialQueryType.A_STOCK_INDICATORS,
+                symbol="600519",
+                fields=["不存在的字段"],
+                start_date="2023-01-01",
+                end_date="2023-12-31",
+                frequency=Frequency.ANNUAL
+            )
+
+            # 验证查询信息被包含在错误响应中
+            assert "query_info" in response
+            query_info = response["query_info"]
+            assert query_info["market"] == MarketType.A_STOCK.value
+            assert query_info["query_type"] == FinancialQueryType.A_STOCK_INDICATORS.value
+            assert query_info["symbol"] == "600519"
+            assert query_info["start_date"] == "2023-01-01"
+            assert query_info["end_date"] == "2023-12-31"
+            assert query_info["frequency"] == Frequency.ANNUAL.value
+            assert query_info["fields"] == ["不存在的字段"]
+
         def test_空字段列表返回空数据(self, service, mock_container, full_data):
             """测试空字段列表返回空数据"""
             mock_container.a_stock_indicators.return_value.query.return_value = full_data

@@ -11,11 +11,16 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from models.base_models import ChecklistItem, SubQuestion
-from ui.renderers import (
+from core.data_accessor import format_financial_number
+from .renderers import (
     render_cash_safety_table,
     render_cash_anomaly_table,
     render_notes_receivable_table,
-    render_receivables_table
+    render_receivables_table,
+    render_other_receivables_table,
+    render_bad_debt_provision_table,
+    render_prepaid_expenses_table,
+    render_inventory_risk_table
 )
 
 
@@ -36,6 +41,14 @@ def render_checklist_item(item: ChecklistItem):
             render_notes_receivable_table(item.calculation_details)
         elif item.question_id == "1.1.4":
             render_receivables_table(item.calculation_details)
+        elif item.question_id == "1.1.6":
+            render_other_receivables_table(item.calculation_details)
+        elif item.question_id == "1.1.5":
+            render_prepaid_expenses_table(item.calculation_details)
+        elif item.question_id == "1.1.7":
+            render_bad_debt_provision_table(item.calculation_details)
+        elif item.question_id == "1.1.8":
+            render_inventory_risk_table(item.calculation_details)
 
         # 显示子问题
         for sub_question in item.sub_questions:
@@ -62,6 +75,7 @@ def render_sub_question(sub_question: SubQuestion, detailed_data: List[Dict] = N
         st.markdown(f"    **财报指引**: {sub_question.report_guide}")
 
 
+
 def create_checklist_table(data: List[Dict], title: str = "") -> None:
     """创建检查清单表格 - 年份横向排列，指标纵向排列"""
     if not data:
@@ -79,6 +93,11 @@ def create_checklist_table(data: List[Dict], title: str = "") -> None:
     # 按年份降序排列（最新年份在左边）
     df = df.sort_values("报告期", ascending=False)
 
+    # 格式化所有数值列
+    for col in df.columns:
+        if col != "报告期":
+            df[col] = df[col].apply(format_financial_number)
+
     # 设置报告期为索引并转置
     df_transposed = df.set_index("报告期").T
 
@@ -89,8 +108,6 @@ def create_checklist_table(data: List[Dict], title: str = "") -> None:
     if title:
         st.subheader(title)
 
-    # 确保所有列都是字符串类型
-    df_transposed = df_transposed.astype(str)
     st.dataframe(df_transposed, width='stretch')
 
 

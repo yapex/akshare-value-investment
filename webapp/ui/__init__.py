@@ -16,6 +16,7 @@ from ui.renderers import (
     render_cash_anomaly_table,
     render_notes_receivable_table,
     render_receivables_table,
+    render_other_receivables_table,
     generate_financial_summary
 )
 
@@ -27,5 +28,6 @@ __all__ = [
     'render_cash_anomaly_table',
     'render_notes_receivable_table',
     'render_receivables_table',
+    'render_other_receivables_table',
     'generate_financial_summary'
 ]

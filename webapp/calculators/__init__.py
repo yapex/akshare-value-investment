@@ -10,7 +10,8 @@ from calculators.calculator_registry import (
     register_calculator,
     get_all_calculators,
     get_calculators_by_category,
-    get_calculator
+    get_calculator,
+    get_registry_info
 )
 
 # 导入所有计算器（自动注册）
@@ -19,7 +20,12 @@ from calculators.asset_checklists import (
     CashAnomalyCalculator,
     NotesReceivableCalculator,
     ReceivablesCalculator,
-    PrepaidExpensesCalculator
+    PrepaidExpensesCalculator,
+    OtherReceivablesCalculator,
+    BadDebtProvisionCalculator,
+    InventoryRiskCalculator,
+    FixedAssetDepreciationCalculator,
+    FinancialFraudRiskCalculator
 )
 
 __all__ = [
@@ -27,9 +33,15 @@ __all__ = [
     'get_all_calculators',
     'get_calculators_by_category',
     'get_calculator',
+    'get_registry_info',
     'CashSafetyCalculator',
     'CashAnomalyCalculator',
     'NotesReceivableCalculator',
     'ReceivablesCalculator',
-    'PrepaidExpensesCalculator'
+    'PrepaidExpensesCalculator',
+    'OtherReceivablesCalculator',
+    'BadDebtProvisionCalculator',
+    'InventoryRiskCalculator',
+    'FixedAssetDepreciationCalculator',
+    'FinancialFraudRiskCalculator'
 ]

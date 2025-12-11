@@ -167,6 +167,7 @@ class FinancialQueryService:
                 )
 
             # 3. 执行查询
+            self.logger.info(f"执行查询: {market.value} {query_type.value} {symbol}")
             raw_data = queryer.query(symbol, start_date, end_date)
 
             if raw_data.empty:
@@ -180,22 +181,34 @@ class FinancialQueryService:
             # 4. 时间频率处理
             processed_data = self._process_frequency(raw_data, frequency)
 
-            # 5. 字段裁剪
+            # 5. 字段裁剪（增强错误处理）
             try:
                 final_data = self._apply_field_filter(processed_data, fields)
             except ValueError as e:
-                if "字段不存在" in str(e):
-                    # 提取缺失字段信息
+                if "请求的字段不存在" in str(e) or "字段不存在" in str(e):
+                    # 提取缺失字段和可用字段信息
                     import re
-                    missing_fields_match = re.search(r'字段不存在: \[(.*?)\]', str(e))
-                    if missing_fields_match:
-                        missing_fields_str = missing_fields_match.group(1)
-                        # 清理字段名
+                    
+                    # 尝试从详细错误信息中提取字段
+                    missing_fields = []
+                    available_fields = list(processed_data.columns)
+                    
+                    # 提取缺失字段（多种格式支持）
+                    missing_match = re.search(r'请求的字段不存在: \[(.*?)\]', str(e))
+                    if missing_match:
+                        missing_fields_str = missing_match.group(1)
                         missing_fields = [field.strip().strip("'\"") for field in missing_fields_str.split(',')]
                     else:
-                        missing_fields = []
+                        # 备用提取方式
+                        lines = str(e).split('\n')
+                        for line in lines:
+                            if '请求的字段不存在' in line:
+                                field_match = re.search(r'\[(.*?)\]', line)
+                                if field_match:
+                                    missing_fields = [f.strip().strip("'\"") for f in field_match.group(1).split(',')]
+                                    break
 
-                    available_fields = list(processed_data.columns)
+                    # 构建增强的错误响应
                     return MCPResponse.field_not_found_error(
                         missing_fields=missing_fields,
                         available_fields=available_fields,
@@ -203,9 +216,10 @@ class FinancialQueryService:
                     )
                 else:
                     # 其他ValueError异常
+                    self.logger.error(f"字段处理异常: {e}", exc_info=True)
                     raise
 
-            # 6. 构建响应
+            # 6. 构建成功响应
             metadata = {
                 "market": market.value,
                 "query_type": query_type.get_display_name(),
@@ -222,6 +236,8 @@ class FinancialQueryService:
                     "end_date": end_date
                 }
 
+            self.logger.info(f"查询成功: {len(final_data)} 条记录, {len(final_data.columns)} 个字段")
+            
             return MCPResponse.success(
                 data=final_data,
                 metadata=metadata,
@@ -476,7 +492,7 @@ class FinancialQueryService:
         """
         应用字段过滤器
 
-        严格的字段裁剪：如果请求的字段不存在，抛出错误而不是忽略
+        严格的字段裁剪：如果请求的字段不存在，抛出详细的错误信息而不是忽略
 
         Args:
             data: 原始数据
@@ -486,24 +502,80 @@ class FinancialQueryService:
             过滤后的数据
 
         Raises:
-            ValueError: 当请求的字段不存在时
+            ValueError: 当请求的字段不存在时，包含详细的错误信息和可用字段建议
         """
         if fields is None:
             # 未指定字段，返回所有字段
+            self.logger.debug(f"未指定字段，返回所有 {len(data.columns)} 个字段")
             return data.copy()
 
         if not fields:
             # 空字段列表，返回空DataFrame（保留结构）
+            self.logger.debug("字段列表为空，返回空DataFrame")
             return data.iloc[:0].copy()
 
         # 检查字段是否存在
         missing_fields = [field for field in fields if field not in data.columns]
+        
         if missing_fields:
-            raise ValueError(f"字段不存在: {missing_fields}")
+            # 构建详细的错误信息
+            available_fields = list(data.columns)
+            
+            # 提供字段相似性建议
+            similar_fields = []
+            for missing_field in missing_fields:
+                # 使用简单的字符串相似性查找相似字段
+                suggestions = []
+                missing_lower = missing_field.lower()
+                
+                for available_field in available_fields:
+                    available_lower = available_field.lower()
+                    # 检查包含关系
+                    if missing_lower in available_lower or available_lower in missing_lower:
+                        suggestions.append(available_field)
+                    # 检查编辑距离相近的字段
+                    elif self._calculate_similarity(missing_lower, available_lower) > 0.7:
+                        suggestions.append(available_field)
+                
+                similar_fields.extend(suggestions[:3])  # 最多建议3个相似字段
+            
+            error_msg = (
+                f"请求的字段不存在: {missing_fields}\n"
+                f"当前数据表可用字段 ({len(available_fields)}个): {available_fields[:10]}{'...' if len(available_fields) > 10 else ''}\n"
+                f"相似字段建议: {list(set(similar_fields))[:5] if similar_fields else '无相似字段'}"
+            )
+            
+            self.logger.warning(f"字段过滤失败: {error_msg}")
+            raise ValueError(error_msg)
 
         # 过滤字段
         available_fields = [field for field in fields if field in data.columns]
+        self.logger.debug(f"字段过滤成功，从 {len(data.columns)} 个字段中选择了 {len(available_fields)} 个字段")
+        
         return data[available_fields].copy()
+
+    def _calculate_similarity(self, str1: str, str2: str) -> float:
+        """
+        计算两个字符串的相似度（简单的字符匹配算法）
+
+        Args:
+            str1: 字符串1
+            str2: 字符串2
+
+        Returns:
+            相似度分数 (0-1之间)
+        """
+        if not str1 or not str2:
+            return 0.0
+        
+        # 计算共同的字符比例
+        common_chars = set(str1) & set(str2)
+        total_chars = set(str1) | set(str2)
+        
+        if not total_chars:
+            return 0.0
+        
+        return len(common_chars) / len(total_chars)
 
     def _discover_fields(self, query_type: FinancialQueryType) -> List[str]:
         """

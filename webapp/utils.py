@@ -4,7 +4,7 @@
 
 # 重新导出核心函数，保持向后兼容
 from webapp.core.data_accessor import (
-    format_accounting,
+    format_financial_number,
     parse_amount,
     get_field_value,
     StockAnalyzer
@@ -15,7 +15,7 @@ _parse_amount = parse_amount
 _get_field_value = get_field_value
 
 __all__ = [
-    'format_accounting',
+    'format_financial_number',
     'parse_amount',
     '_parse_amount',
     'get_field_value',

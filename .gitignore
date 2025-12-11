@@ -48,3 +48,5 @@ Thumbs.db
 logs/
 *.log
 test_incremental_single.db
+
+output/

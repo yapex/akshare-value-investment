@@ -10,7 +10,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from models.base_models import ChecklistItem, SubQuestion, ChecklistCategory
-from core.data_accessor import get_field_value, parse_amount, format_accounting
+from core.data_accessor import get_field_value, parse_amount, format_financial_number
 
 
 class BaseCalculator(ABC):

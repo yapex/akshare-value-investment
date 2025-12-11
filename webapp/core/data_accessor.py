@@ -16,30 +16,24 @@ from models.base_models import MarketType
 from models.market_config import get_market_fields
 
 
-def format_accounting(value, unit='百万'):
-    """将数字格式化为会计常用格式"""
-    if pd.isna(value) or value == 0:
+
+
+def format_financial_number(value):
+    """统一的财务数字格式化：小数点后两位，符合财务要求"""
+    if pd.isna(value) or value == 0 or value == "0":
         return "0.00"
 
-    if isinstance(value, str):
-        try:
-            # 如果已经是字符串格式，先转换为数字
-            if '亿' in value:
-                num_value = float(value.replace('亿', '')) * 100
-            elif '万' in value:
-                num_value = float(value.replace('万', '')) * 0.01
-            else:
-                num_value = float(value)
-        except:
-            return value
-    else:
-        num_value = value / 1000000  # 转换为百万
+    try:
+        # 转换为数字
+        num_value = float(value)
 
-    # 会计格式：负数用括号表示，千位分隔，保留两位小数
-    if num_value < 0:
-        return f"({abs(num_value):,.2f})"
-    else:
-        return f"{num_value:,.2f}"
+        # 会计格式：负数用括号表示，千位分隔，保留两位小数
+        if num_value < 0:
+            return f"({abs(num_value):,.2f})"
+        else:
+            return f"{num_value:,.2f}"
+    except (ValueError, TypeError):
+        return str(value)
 
 
 def parse_amount(value) -> float:
@@ -63,7 +57,7 @@ def parse_amount(value) -> float:
 
 
 def get_field_value(row, field_name: str):
-    """获取行中指定字段的值，字段不存在时抛出异常
+    """获取行中指定字段的值，字段不存在或为false时抛出异常
 
     Args:
         row: 数据行（pandas Series 或 dict）
@@ -73,18 +67,26 @@ def get_field_value(row, field_name: str):
         字段值
 
     Raises:
-        KeyError: 当字段不存在时
+        KeyError: 当字段不存在或为false时
     """
     if hasattr(row, 'get'):
         # pandas Series 或 dict
         if field_name in row:
-            return row[field_name]
+            value = row[field_name]
+            # 处理false值，表示数据缺失
+            if value is False:
+                raise KeyError(f"字段 '{field_name}' 数据缺失")
+            return value
         else:
             raise KeyError(f"字段 '{field_name}' 不存在")
     else:
         # 其他类型，尝试通过属性访问
         try:
-            return getattr(row, field_name)
+            value = getattr(row, field_name)
+            # 处理false值，表示数据缺失
+            if value is False:
+                raise KeyError(f"字段 '{field_name}' 数据缺失")
+            return value
         except AttributeError:
             raise KeyError(f"字段 '{field_name}' 不存在")
 
@@ -143,9 +145,19 @@ class StockAnalyzer:
         # 获取所有可用字段
         try:
             # 根据API路由，正确的URL格式为 /api/v1/financial/fields/{market}/{query_type}
+            # 其中query_type需要使用完整格式，如 a_stock_balance_sheet
             market = self.market.value
+
+            # 映射查询类型到API的完整格式
+            query_type_mapping = {
+                "balance_sheet": "a_stock_balance_sheet",
+                "income_statement": "a_stock_income_statement",
+                "cash_flow": "a_stock_cash_flow"
+            }
+            api_query_type = query_type_mapping.get(query_type, query_type)
+
             response = self.client.get(
-                f"{self.api_base_url}/api/v1/financial/fields/{market}/{query_type}"
+                f"{self.api_base_url}/api/v1/financial/fields/{market}/{api_query_type}"
             )
             response.raise_for_status()
             data = response.json()
@@ -178,7 +190,7 @@ class StockAnalyzer:
 
         # 验证字段是否存在，但不中断程序执行
         try:
-            self.validate_fields_exist("a_stock_balance_sheet", fields)
+            self.validate_fields_exist("balance_sheet", fields)
         except:
             # 如果验证失败，仍继续尝试获取数据
             pass
@@ -210,7 +222,7 @@ class StockAnalyzer:
 
         # 验证字段是否存在，但不中断程序执行
         try:
-            self.validate_fields_exist("a_stock_income_statement", fields)
+            self.validate_fields_exist("income_statement", fields)
         except:
             # 如果验证失败，仍继续尝试获取数据
             pass
