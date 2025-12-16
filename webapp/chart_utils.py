@@ -244,6 +244,7 @@ def _show_data_table(indicator_name: str, years: List[str], values: List[float])
             end_value = values[-1]   # 最新的值
             years_count = len(values) - 1
 
+            
             if start_value > 0 and years_count > 0:
                 cagr = ((end_value / start_value) ** (1/years_count) - 1) * 100
                 st.metric("年化增长率", f"{cagr:.2f}%")
