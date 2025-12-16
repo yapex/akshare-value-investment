@@ -30,6 +30,11 @@ async def query_financial_data(
     Returns:
         Dict[str, Any]: 查询结果或错误信息
 
+    Notes:
+        - fields为None时，返回所有可用字段（MCP模式下可能消耗大量token）
+        - start_date和end_date均为None时，返回所有时间范围内的数据
+        - 在MCP场景下，建议根据需要指定字段以减少token消耗
+
     Raises:
         HTTPException: 当参数无效或服务错误时
     """

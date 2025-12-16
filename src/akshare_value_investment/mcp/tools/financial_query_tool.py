@@ -124,6 +124,9 @@ class FinancialQueryTool:
             ... )
         """
         try:
+            # MCP模式下的Token消耗警告
+            self._warn_about_token_usage(fields, start_date, end_date)
+
             # 构建请求体
             request_data = {
                 "market": market,
@@ -331,6 +334,16 @@ class FinancialQueryTool:
         except ValueError:
             valid_values = [freq.value for freq in Frequency]
             raise ValueError(f"无效的时间频率 '{frequency}'，支持的值为: {valid_values}")
+
+    def _warn_about_token_usage(self, fields: Optional[List[str]], start_date: Optional[str], end_date: Optional[str]):
+        """
+        MCP模式下的Token消耗警告
+        """
+        if fields is None:
+            print("⚠️ 警告：未指定字段，将返回所有可用字段，可能会消耗大量token")
+
+        if start_date is None and end_date is None:
+            print("ℹ️ 提示：未指定时间段，将返回所有时间范围内的数据")
 
     def _convert_to_mcp_response(self, response: Dict[str, Any]) -> Dict[str, Any]:
         """
