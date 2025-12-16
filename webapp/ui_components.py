@@ -140,8 +140,7 @@ def render_report(title: str, df: pd.DataFrame, report_type: str) -> None:
                         indicator,
                         key=f"indicator_{report_type}_{i}",
                         type=button_style,
-                        use_container_width=True,
-                        help=f"点击分析 {indicator}"
+                        use_container_width=True
                     ):
                         st.session_state[f"selected_indicator_{report_type}"] = indicator
                         st.rerun()
