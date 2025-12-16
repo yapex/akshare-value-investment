@@ -236,18 +236,30 @@ def _show_data_table(indicator_name: str, years: List[str], values: List[float])
 
     # 显示统计信息
     if len(values) > 1:
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3, col4 = st.columns(4)
 
         with col1:
+            # 计算年化增长率 (CAGR)
+            start_value = values[-1]  # 最早的值
+            end_value = values[0]    # 最新的值
+            years_count = len(values) - 1
+
+            if start_value > 0 and years_count > 0:
+                cagr = ((end_value / start_value) ** (1/years_count) - 1) * 100
+                st.metric("年化增长率", f"{cagr:.2f}%")
+            else:
+                st.metric("年化增长率", "N/A")
+
+        with col2:
             avg_value = sum(values) / len(values)
             st.metric("平均值", f"{avg_value:,.2f} 百万元")
 
-        with col2:
+        with col3:
             max_value = max(values)
             max_year = years[values.index(max_value)]
             st.metric("最高值", f"{max_value:,.2f} 百万元", f"年份: {max_year}")
 
-        with col3:
+        with col4:
             min_value = min(values)
             min_year = years[values.index(min_value)]
             st.metric("最低值", f"{min_value:,.2f} 百万元", f"年份: {min_year}")
