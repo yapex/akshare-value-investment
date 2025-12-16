@@ -13,6 +13,9 @@ import pandas as pd
 import streamlit as st
 from datetime import datetime
 import requests
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 # 添加项目根目录到Python路径
 project_root = Path(__file__).parent.parent
@@ -205,6 +208,254 @@ class FinancialReportApp:
 
         return narrow_df
 
+    def create_charts_for_indicator(self, indicator_name: str, formatted_df: pd.DataFrame, report_type: str):
+        """
+        为选定的指标创建图表
+
+        Args:
+            indicator_name: 指标名称
+            formatted_df: 格式化后的DataFrame
+            report_type: 报表类型
+        """
+        try:
+            if formatted_df.empty:
+                st.warning("没有数据可用于生成图表")
+                return
+
+            # 提取该指标的数据行
+            indicator_row = formatted_df[formatted_df['指标名称'] == indicator_name]
+
+            if indicator_row.empty:
+                st.warning(f"未找到指标 '{indicator_name}' 的数据")
+                return
+
+            # 获取年份列（排除指标名称列）
+            year_columns = [col for col in formatted_df.columns
+                           if col != '指标名称' and col.replace('-', '').isdigit()]
+
+            if not year_columns:
+                st.warning("没有找到年份数据")
+                return
+
+            # 按年份排序（从旧到新）
+            year_columns_sorted = sorted(year_columns, key=lambda x: int(x.replace('-', '')))
+
+            # 提取数值数据
+            values = []
+            years = []
+
+            for year in year_columns_sorted:
+                if len(indicator_row) > 0:
+                    value = indicator_row[year].iloc[0]
+
+                    # 更宽松的数值检查
+                    if pd.notna(value):
+                        try:
+                            # 处理各种格式的数据
+                            if isinstance(value, str):
+                                # 移除常见的格式字符
+                                clean_value = str(value).replace(',', '').replace('，', '').replace('%', '').strip()
+                                if clean_value == '' or clean_value == '-' or clean_value == '--':
+                                    raise ValueError("空字符串或占位符")
+                                numeric_value = float(clean_value)
+                            else:
+                                numeric_value = float(value)
+
+                            values.append(numeric_value)
+                            years.append(year)
+                        except (ValueError, TypeError):
+                            # 如果是字符串，尝试更复杂的解析
+                            if isinstance(value, str):
+                                try:
+                                    import re
+                                    # 尝试提取数字部分
+                                    numbers = re.findall(r'[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?', value)
+                                    if numbers:
+                                        numeric_value = float(numbers[0])
+                                        values.append(numeric_value)
+                                        years.append(year)
+                                except:
+                                    pass  # 静默失败，继续处理下一年份
+
+            if not values:
+                st.warning(f"该指标 '{indicator_name}' 没有有效的数值数据")
+                return
+
+            # 创建单一图表，柱状图和折线图叠加
+            fig = go.Figure()
+
+            # 1. 柱状图 - 显示数值
+            fig.add_trace(
+                go.Bar(
+                    x=years,
+                    y=values,
+                    name='历史数值 (百万元)',
+                    marker=dict(
+                        color='lightblue',
+                        line=dict(color='darkblue', width=1)
+                    ),
+                    text=[f'{v:,.0f}' for v in values],
+                    textposition='outside',
+                    hovertemplate='<b>%{x}</b><br>数值: %{y:,.2f} 百万元<extra></extra>',
+                    textfont=dict(size=10),
+                    yaxis='y'  # 主Y轴
+                )
+            )
+
+            # 2. 折线图 - 显示增长率（叠加在同一图表上）
+            if len(values) > 1:
+                growth_rates = [None]  # 第一年没有增长率
+                growth_years = [years[0]]
+
+                for i in range(1, len(values)):
+                    if values[i-1] != 0:
+                        growth_rate = ((values[i] - values[i-1]) / values[i-1]) * 100
+                        growth_rates.append(growth_rate)
+                        growth_years.append(years[i])
+                    else:
+                        growth_rates.append(None)
+                        growth_years.append(years[i])
+
+                # 添加增长率折线到第二Y轴
+                fig.add_trace(
+                    go.Scatter(
+                        x=growth_years,
+                        y=growth_rates,
+                        mode='lines+markers',
+                        name='同比增长率 (%)',
+                        line=dict(color='#FF6B6B', width=3),
+                        marker=dict(
+                            size=8,
+                            color='#FF6B6B',
+                            line=dict(color='darkred', width=1)
+                        ),
+                        text=[f'{gr:.1f}%' if gr is not None else 'N/A' for gr in growth_rates],
+                        textposition='top center',
+                        textfont=dict(size=10, color='#FF6B6B'),
+                        hovertemplate='<b>%{x}</b><br>增长率: %{y:.2f}%<extra></extra>',
+                        yaxis='y2'  # 第二Y轴
+                    )
+                )
+
+            # 更新布局，创建双Y轴
+            fig.update_layout(
+                height=500,
+                title=dict(
+                    text=f'<b>{indicator_name}</b> 财务指标分析',
+                    x=0.5,
+                    font=dict(size=16, color='#2c3e50')
+                ),
+                showlegend=True,
+                hovermode='x unified',
+                margin=dict(t=80, b=40, l=60, r=60),
+                paper_bgcolor='white',
+                plot_bgcolor='white',
+                font=dict(family="Arial, sans-serif", size=12),
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=1.02,
+                    xanchor="center",
+                    x=0.5,
+                    bgcolor="rgba(255,255,255,0.8)",
+                    bordercolor="gray",
+                    borderwidth=1,
+                    font=dict(size=12, color="black")
+                ),
+                # 设置两个Y轴
+                yaxis=dict(
+                    title=dict(text="数值 (百万元)", font=dict(color='#003366', size=14)),
+                    showgrid=True,
+                    gridwidth=1,
+                    gridcolor='lightgray',
+                    linecolor='black',
+                    linewidth=1,
+                    tickformat=",.0f",
+                    tickfont=dict(color='black', size=12),
+                    side='left'
+                ),
+                yaxis2=dict(
+                    title=dict(text="增长率 (%)", font=dict(color='#CC0000', size=14)),
+                    showgrid=False,  # 第二Y轴不显示网格
+                    linecolor='black',
+                    linewidth=1,
+                    tickformat=".1f",
+                    tickfont=dict(color='black', size=12),
+                    overlaying='y',
+                    side='right',
+                    zeroline=True,
+                    zerolinecolor="gray",
+                    zerolinewidth=2
+                ),
+                xaxis=dict(
+                    title=dict(text="年份", font=dict(color='#003366', size=14)),
+                    showgrid=True,
+                    gridwidth=1,
+                    gridcolor='lightgray',
+                    linecolor='black',
+                    linewidth=1,
+                    tickfont=dict(color='black', size=12)
+                )
+            )
+
+            # 显示图表
+            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": True})
+
+            # 添加数据表格
+            st.subheader(f"📊 {indicator_name} 数据明细")
+
+            # 创建数据摘要表
+            summary_data = []
+            for i, (year, value) in enumerate(zip(years, values)):
+                if i > 0:
+                    growth_rate = ((value - values[i-1]) / values[i-1]) * 100 if values[i-1] != 0 else None
+                    growth_color = "🔺" if growth_rate and growth_rate > 0 else "🔻" if growth_rate and growth_rate < 0 else "➡️"
+                    growth_display = f"{growth_color} {growth_rate:.2f}%" if growth_rate is not None else "基期"
+                else:
+                    growth_rate = None
+                    growth_display = "📍 基期"
+
+                summary_data.append({
+                    '年份': year,
+                    '数值(百万元)': f"{value:,.2f}",
+                    '同比增长率': growth_display,
+                    '变化额(百万元)': f"{value - values[i-1]:+,.2f}" if i > 0 else "—"
+                })
+
+            summary_df = pd.DataFrame(summary_data)
+
+            # 添加统计信息
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                avg_value = sum(values) / len(values)
+                st.metric("平均值", f"{avg_value:,.2f} 百万元")
+            with col2:
+                if len(values) > 1:
+                    cagr = ((values[-1] / values[0]) ** (1/len(years)) - 1) * 100
+                    st.metric("复合增长率", f"{cagr:.2f}%")
+                else:
+                    st.metric("复合增长率", "—")
+            with col3:
+                volatility = (max(values) - min(values)) / avg_value * 100 if avg_value > 0 else 0
+                st.metric("波动率", f"{volatility:.2f}%")
+
+            # 显示数据表格
+            st.dataframe(
+                summary_df,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "年份": st.column_config.TextColumn("年份", width="small"),
+                    "数值(百万元)": st.column_config.TextColumn("数值", width="medium"),
+                    "同比增长率": st.column_config.TextColumn("同比增长率", width="medium"),
+                    "变化额(百万元)": st.column_config.TextColumn("年度变化额", width="medium")
+                }
+            )
+
+        except Exception as e:
+            st.error(f"生成图表时发生错误: {str(e)}")
+            st.write("请尝试选择其他指标或检查数据质量。")
+
     def create_styler(self, df: pd.DataFrame):
         """
         创建财务格式的样式器
@@ -263,11 +514,14 @@ class FinancialReportApp:
             'text-align': 'right'
         })
 
-        # 第一列（指标名称）左对齐
+        # 第一列（指标名称）左对齐，添加可点击样式
         if first_column:
             styler = styler.set_properties(subset=[first_column], **{
                 'text-align': 'left',
-                'font-weight': 'bold'
+                'font-weight': 'bold',
+                'color': '#1f77b4',
+                'cursor': 'pointer',
+                'text-decoration': 'underline'
             })
 
         # 添加表格样式
@@ -284,6 +538,11 @@ class FinancialReportApp:
             {'selector': 'td', 'props': [
                 ('border-bottom', '1px solid #eee'),
                 ('padding', '8px')
+            ]},
+            {'selector': f'td:nth-child(1)', 'props': [
+                ('color', '#1f77b4'),
+                ('cursor', 'pointer'),
+                ('font-weight', 'bold')
             ]}
         ])
 
@@ -379,11 +638,51 @@ class FinancialReportApp:
         # 格式化数据
         formatted_df = self.format_financial_data(df, report_type)
 
-        # 创建样式化的表格
-        styler = self.create_styler(formatted_df)
+        # 首先显示数据表格（原始数据展示）
+        st.subheader("📊 财务数据表格")
 
-        # 显示表格
-        st.dataframe(styler, use_container_width=True, hide_index=True)
+        if not formatted_df.empty and '指标名称' in formatted_df.columns:
+            # 创建样式化的表格（带可点击的指标名称）
+            styler = self.create_styler(formatted_df)
+            st.dataframe(styler, use_container_width=True, hide_index=True)
+
+            # 深度分析部分
+            st.markdown("---")
+            st.subheader("📈 财务指标深度分析")
+            st.info("💡 **点击下方任意指标名称进行深度图表分析**")
+
+            indicators = formatted_df['指标名称'].tolist()
+
+            # 使用按钮创建可点击的指标列表
+            cols = st.columns(4)  # 四列布局，更紧凑
+            for i, indicator in enumerate(indicators):
+                with cols[i % 4]:
+                    button_style = "primary" if indicator == st.session_state.get(f"selected_indicator_{report_type}", "") else "secondary"
+
+                    if st.button(
+                        indicator,
+                        key=f"indicator_{report_type}_{i}",
+                        type=button_style,
+                        use_container_width=True,
+                        help=f"点击分析 {indicator}"
+                    ):
+                        st.session_state[f"selected_indicator_{report_type}"] = indicator
+                        st.rerun()
+
+            # 显示选中指标的图表
+            selected_indicator = st.session_state.get(f"selected_indicator_{report_type}", None)
+            if selected_indicator:
+                st.markdown("---")
+                st.success(f"📊 **{selected_indicator}** - 财务指标分析")
+                try:
+                    self.create_charts_for_indicator(selected_indicator, formatted_df, report_type)
+                except Exception as e:
+                    st.error(f"生成图表时发生错误: {str(e)}")
+                    st.write("请尝试选择其他指标或检查数据质量。")
+        else:
+            # 创建样式化的表格（无数据情况）
+            styler = self.create_styler(formatted_df)
+            st.dataframe(styler, use_container_width=True, hide_index=True)
 
         st.markdown("---")
 

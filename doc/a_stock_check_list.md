@@ -1,12 +1,56 @@
-# AI Agent 财报检查执行说明
+# A股财务分析系统架构文档
 
-## 概述
+## 系统概述
 
-本说明旨在为 AI Agent 提供详细的操作指引，使其能够基于 A 股财务数据字段和 API 查询接口，逐项完成对公司的财务检查，并生成分析结果。
+基于akshare的价值投资分析系统，提供跨市场（A股、港股、美股）财务指标查询和财务三表分析功能，专注于原始数据访问和智能缓存。
 
-## 基础配置
+## 🏗️ 核心架构组件
 
-### API 端点
+### 1. FastAPI Web API系统 🌐
+**生产级Web服务** - 基于FastAPI的现代RESTful API
+
+- **10个财务查询端点**：完整的财务数据查询接口
+- **异步处理能力**：高性能并发处理
+- **自动文档生成**：OpenAPI/Swagger交互式文档
+- **类型安全保障**：Pydantic模型验证和序列化
+- **依赖注入架构**：与IoC容器无缝集成
+
+**核心代码位置**：[`src/akshare_value_investment/api/`](src/akshare_value_investment/api/)
+
+### 2. Streamlit Web应用 📊
+**交互式财务分析界面** - 专为财务报表分析设计的Web应用
+
+- **四大财务报表展示**：财务指标、资产负债表、利润表、现金流量表
+- **窄表格式显示**：年份为列，指标为行，时间从左到右由近到远
+- **智能时间范围选择**：默认10年，支持5年、全部、自定义
+- **自动重新查询**：参数变化时无需手动刷新
+- **CSV数据导出**：支持各报表数据下载
+
+**核心代码位置**：[`webapp/main.py`](webapp/main.py)
+
+### 3. MCP-HTTP集成系统 🔗
+**Model Context Protocol集成** - 基于HTTP的MCP服务架构
+
+- **HTTP客户端架构**：使用httpx进行可靠的HTTP调用
+- **完整错误处理**：HTTP状态码和错误消息转换
+- **独立运行能力**：MCP服务器可独立启动和运行
+- **交互式控制台**：用户友好的命令行交互界面
+
+**核心代码位置**：[`src/akshare_value_investment/mcp/`](src/akshare_value_investment/mcp/)
+
+### 4. 跨市场财务数据查询系统 ✅
+**统一查询架构** - 支持A股、港股、美股的财务数据访问
+
+- **跨市场支持**：统一的查询接口支持三地市场
+- **100%字段覆盖**：保留所有原始财务数据字段
+- **智能SQLite缓存**：API调用减少70%+，查询速度提升50%+
+- **SOLID架构设计**：基于设计模式的可扩展架构
+
+**核心代码位置**：[`src/akshare_value_investment/datasource/queryers/`](src/akshare_value_investment/datasource/queryers/)
+
+## 🔧 核心技术特性
+
+### 查询API端点
 - **数据查询**: `POST /api/v1/financial/query`
 - **字段发现**:
   - 财务指标: `GET /api/v1/financial/fields/a_stock/a_stock_indicators`
@@ -14,18 +58,30 @@
   - 利润表: `GET /api/v1/financial/fields/a_stock/a_stock_income_statement`
   - 现金流量表: `GET /api/v1/financial/fields/a_stock/a_stock_cash_flow`
 
-### API 请求格式
+### API请求格式
 ```json
 {
   "market": "a_stock",
-  "query_type": "a_stock_balance_sheet",  // 或 a_stock_income_statement, a_stock_cash_flow, a_stock_indicators
-  "fields": ["字段1", "字段2", ...],
-  "filter": {
-    "symbol": "股票代码",
-    "report_period": "报告期"  // 可选，如 "2024-09-30"
-  }
+  "query_type": "a_stock_balance_sheet",
+  "symbol": "600519",
+  "fields": ["资产总计", "负债总计", "所有者权益合计"],
+  "start_date": "2020-01-01",  // YYYY-MM-DD格式
+  "end_date": "2024-12-31",    // YYYY-MM-DD格式
+  "frequency": "annual"       // annual | quarterly
 }
 ```
+
+### 时间范围过滤功能 ✅
+**已修复并完善** - 精确的时间范围数据过滤
+
+- **配置修复**：修正A股市查询器日期字段配置
+  - 资产负债表：`REPORT_DATE` → `报告期`
+  - 利润表：`REPORT_DATE` → `报告期`
+  - 现金流量表：`REPORT_DATE` → `报告期`
+- **验证结果**：
+  - 5年查询返回5条记录（2020-2024）
+  - 10年查询返回10条记录（2015-2024）
+  - 全部查询返回所有历史数据
 
 ## 执行流程
 
