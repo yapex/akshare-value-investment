@@ -88,7 +88,7 @@ def render_report(title: str, df: pd.DataFrame, report_type: str) -> None:
     if not formatted_df.empty and '指标名称' in formatted_df.columns:
         # 创建样式化的表格（带可点击的指标名称）
         styler = create_styler(formatted_df)
-        st.dataframe(styler, use_container_width=True, hide_index=True)
+        st.dataframe(styler, use_container_width=True, hide_index=True, height=800)
 
         # 深度分析部分
         st.markdown("---")
@@ -158,7 +158,7 @@ def render_report(title: str, df: pd.DataFrame, report_type: str) -> None:
     else:
         # 创建样式化的表格（无数据情况）
         styler = create_styler(formatted_df)
-        st.dataframe(styler, use_container_width=True, hide_index=True)
+        st.dataframe(styler, use_container_width=True, hide_index=True, height=800)
 
     st.markdown("---")
 

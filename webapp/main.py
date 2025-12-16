@@ -108,25 +108,21 @@ class FinancialReportApp:
         try:
             data = {}
 
-            with st.spinner("正在获取财务指标数据..."):
-                data['indicators'] = self.query_financial_data_via_api(
-                    "a_stock", "a_stock_indicators", symbol, start_date, end_date
-                )
+            data['indicators'] = self.query_financial_data_via_api(
+                "a_stock", "a_stock_indicators", symbol, start_date, end_date
+            )
 
-            with st.spinner("正在获取资产负债表数据..."):
-                data['balance_sheet'] = self.query_financial_data_via_api(
-                    "a_stock", "a_stock_balance_sheet", symbol, start_date, end_date
-                )
+            data['balance_sheet'] = self.query_financial_data_via_api(
+                "a_stock", "a_stock_balance_sheet", symbol, start_date, end_date
+            )
 
-            with st.spinner("正在获取利润表数据..."):
-                data['income_statement'] = self.query_financial_data_via_api(
-                    "a_stock", "a_stock_income_statement", symbol, start_date, end_date
-                )
+            data['income_statement'] = self.query_financial_data_via_api(
+                "a_stock", "a_stock_income_statement", symbol, start_date, end_date
+            )
 
-            with st.spinner("正在获取现金流量表数据..."):
-                data['cash_flow'] = self.query_financial_data_via_api(
-                    "a_stock", "a_stock_cash_flow", symbol, start_date, end_date
-                )
+            data['cash_flow'] = self.query_financial_data_via_api(
+                "a_stock", "a_stock_cash_flow", symbol, start_date, end_date
+            )
 
             return data
 
@@ -170,15 +166,13 @@ class FinancialReportApp:
             st.session_state.current_end_date = end_date
 
             # 显示股票信息
-            st.success(f"🔍 正在查询 **{symbol}** 的财务数据...")
-
-            # 获取数据
-            data = self.get_financial_data(symbol, start_date, end_date)
-            st.session_state.data = data
+            with st.spinner(f"正在查询 **{symbol}** 的财务数据..."):
+                # 获取数据
+                data = self.get_financial_data(symbol, start_date, end_date)
+                st.session_state.data = data
 
             # 显示查询结果
             if data:
-                st.success(f"✅ **{symbol}** 财务数据查询成功！")
                 display_query_results(data)
             else:
                 st.error("❌ 未能获取到财务数据，请检查股票代码或稍后重试")

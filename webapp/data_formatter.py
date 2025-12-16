@@ -190,13 +190,15 @@ def display_metrics_section(df: pd.DataFrame) -> None:
                     try:
                         latest_date_raw = df[date_col].iloc[0]
                         if pd.notna(latest_date_raw):
-                            if pd.api.types.is_datetime64_any_dtype(df[date_col]):
-                                latest_date = pd.to_datetime(latest_date_raw).strftime('%Y-%m-%d')
-                            else:
-                                latest_date = str(latest_date_raw)
+                            # 统一转换为YYYY-MM-DD格式
+                            latest_date = pd.to_datetime(latest_date_raw).strftime('%Y-%m-%d')
                         break
                     except:
-                        latest_date = latest_date_raw
+                        # 转换失败时尝试其他格式或显示原始值
+                        try:
+                            latest_date = str(latest_date_raw)
+                        except:
+                            latest_date = "N/A"
                         break
             st.metric("最新报告期", latest_date)
 
