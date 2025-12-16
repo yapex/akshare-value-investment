@@ -13,26 +13,41 @@ import logging
 class MCPServerConfig:
     """
     MCP服务器配置
+
+    基于HTTP客户端的MCP服务器，作为FastAPI服务的协议适配层。
+    所有数据查询都通过HTTP调用FastAPI服务实现。
     """
     server_name: str = "akshare-value-investment-mcp"
-    server_version: str = "1.0.0"
-    description: str = "AKShare价值投资分析系统 - MCP财务数据查询服务"
+    server_version: str = "3.1.0"
+    description: str = "AKShare价值投资分析系统 - MCP HTTP客户端，通过FastAPI提供财务数据查询服务"
 
-    # 服务器运行配置
+    # MCP服务器运行配置
     host: str = "localhost"
     port: int = 8080
     debug: bool = False
 
-    # 缓存配置
-    enable_cache: bool = True
-    cache_ttl: int = 3600  # 缓存过期时间（秒）
-
-      # FastAPI 集成配置
+    # FastAPI服务配置 (核心数据源)
     fastapi_base_url: str = "http://localhost:8000"
+    fastapi_timeout: int = 30  # HTTP请求超时时间（秒）
+    fastapi_retry_attempts: int = 3  # HTTP请求重试次数
+
+    # HTTP客户端配置
+    http_client_config: dict = None
 
     # 日志配置
     log_level: str = "INFO"
     log_format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+    def __post_init__(self):
+        """初始化后处理"""
+        if self.http_client_config is None:
+            self.http_client_config = {
+                "timeout": self.fastapi_timeout,
+                "limits": {
+                    "max_keepalive_connections": 5,
+                    "max_connections": 10
+                }
+            }
 
 
 class MCPToolRegistry:

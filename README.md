@@ -12,9 +12,10 @@
 
 - 🔍 **跨市场覆盖**: A股、港股、美股财务数据
 - 🤖 **MCP协议**: Model Context Protocol标准化接口
-- 💾 **智能缓存**: SQLite缓存系统，API调用减少70%+
+- 💾 **智能缓存**: DiskCache缓存系统，API调用减少70%+
 - 🏗️ **SOLID架构**: 基于设计模式的可扩展架构
 - ⚡ **严格字段过滤**: 按需返回数据，减少传输开销
+- 📊 **Web交互界面**: Streamlit财务分析应用，支持可视化图表
 
 ## 🚀 快速开始
 
@@ -33,6 +34,26 @@ a_stock_queryer = container.a_stock_indicators()
 data = a_stock_queryer.query("600519", "2023-01-01", "2023-12-31")
 print(f"贵州茅台ROE: {data.iloc[0]['净资产收益率(%)']}")
 ```
+
+### Web应用使用
+
+```bash
+# 启动Streamlit财务分析应用
+poe streamlit
+# 或者
+PYTHONPATH=src:webapp uv run streamlit run webapp/main.py
+
+# 访问应用
+# 浏览器打开 http://localhost:8501
+```
+
+**Web应用功能**:
+- 📈 **四大财务报表**: 财务指标、资产负债表、利润表、现金流量表
+- 🎯 **交互式图表**: 点击任意指标查看深度分析和趋势图
+- 📅 **智能时间选择**: 支持5年、10年、全部历史数据
+- 📊 **窄表格式**: 年份横向排列，便于趋势分析
+- 🔍 **数据过滤**: 自动隐藏空值和无效指标
+- 📱 **响应式设计**: 适配不同屏幕尺寸
 
 ### MCP服务器使用
 
@@ -228,9 +249,14 @@ uv run pytest tests/test_financial_cache_business_scenarios.py
 
 ## 📚 文档
 
+### 用户指南
+- [📊 财报检查清单](./doc/a_stock_check_list.md) - **A股财务分析完整指南**，包含42项详细检查指标和计算方法
+- [📈 Web应用使用](./webapp/) - Streamlit财务分析应用，可视化界面
+
+### 技术文档
 - [MCP集成文档](./src/akshare_value_investment/mcp/README.md) - MCP服务器完整文档
-- [系统架构总结](./doc/SYSTEM_ARCHITECTURE_SUMMARY.md) - 核心架构设计
-- [缓存技术指南](./doc/CACHE_SYSTEM_TECHNICAL_GUIDE.md) - SQLite缓存系统
+- [时间范围过滤修复](./doc/TIME_RANGE_FILTERING_FIX.md) - API时间过滤功能说明
+- [A股字段说明](./doc/a_stock_fields.md) - A股财务数据字段详解
 
 ## 🚀 版本历史
 
@@ -252,6 +278,30 @@ uv run pytest tests/test_financial_cache_business_scenarios.py
 
 ---
 
-**当前版本**: v3.0.0 (MCP集成版)
-**技术栈**: Python 3.13, akshare, dependency-injector, SQLite, MCP
-**最后更新**: 2025-12-03
+## 💡 快速上手
+
+### 🚀 想要快速分析A股财务报表？
+```bash
+# 1. 启动Web应用
+poe streamlit
+
+# 2. 打开浏览器访问 http://localhost:8501
+
+# 3. 输入股票代码（如600519），选择时间范围，点击查询
+
+# 4. 点击任意财务指标查看深度图表分析
+```
+
+### 📚 需要详细的财报分析指导？
+- 阅读 [财报检查清单](./doc/a_stock_check_list.md) - 42项完整财务检查清单
+- 包含详细计算公式、评估标准和实际案例
+
+### 🔧 想要集成到自己的项目？
+- 参考 [基础查询](#基础查询) 代码示例
+- 查阅 [MCP文档](./src/akshare_value_investment/mcp/README.md) 了解协议接口
+
+---
+
+**当前版本**: v3.1.0 (Web应用版)
+**技术栈**: Python 3.13, akshare, Streamlit, Plotly, FastAPI, MCP
+**最后更新**: 2025-12-16

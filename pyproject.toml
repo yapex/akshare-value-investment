@@ -73,9 +73,10 @@ install = "pip install -e ."
 # FastAPI任务
 api = "uvicorn akshare_value_investment.api.main:create_app --reload"
 
-# MCP服务器任务
+# MCP服务器任务 (基于HTTP客户端的MCP协议适配层)
 mcp = "akshare-mcp-server"
 mcp-debug = "akshare-mcp-server --debug"
+mcp-info = "akshare-mcp-server --info"
 
 # Streamlit任务
 streamlit = "sh -c 'PYTHONPATH=src:webapp uv run streamlit run webapp/main.py --server.address localhost --server.port 8501'"
