@@ -95,27 +95,46 @@ def render_report(title: str, df: pd.DataFrame, report_type: str) -> None:
         st.subheader("📈 财务指标深度分析")
         st.info("💡 **点击下方任意指标名称进行深度图表分析**")
 
-        indicators = formatted_df['指标名称'].tolist()
+        # 过滤掉空值或0值的指标
+        valid_indicators = []
+        year_columns = [col for col in formatted_df.columns if col not in ['指标名称', '单位']]
 
-        # 使用按钮创建可点击的指标列表
-        cols = st.columns(4)  # 四列布局，更紧凑
-        for i, indicator in enumerate(indicators):
-            with cols[i % 4]:
-                button_style = "primary" if indicator == st.session_state.get(f"selected_indicator_{report_type}", "") else "secondary"
+        for _, row in formatted_df.iterrows():
+            indicator = row['指标名称']
+            # 检查该指标是否有有效数据（非空且非0）
+            has_valid_data = False
+            for year_col in year_columns:
+                value = row[year_col]
+                if pd.notna(value) and float(value) != 0:
+                    has_valid_data = True
+                    break
 
-                if st.button(
-                    indicator,
-                    key=f"indicator_{report_type}_{i}",
-                    type=button_style,
-                    use_container_width=True,
-                    help=f"点击分析 {indicator}"
-                ):
-                    st.session_state[f"selected_indicator_{report_type}"] = indicator
-                    st.rerun()
+            if has_valid_data:
+                valid_indicators.append(indicator)
 
-        # 显示选中指标的图表
-        selected_indicator = st.session_state.get(f"selected_indicator_{report_type}", None)
-        if selected_indicator:
+        # 显示有效指标或提示信息
+        if not valid_indicators:
+            st.warning("⚠️ 该报表暂无有效的财务指标数据进行分析")
+        else:
+            # 使用按钮创建可点击的指标列表
+            cols = st.columns(4)  # 四列布局，更紧凑
+            for i, indicator in enumerate(valid_indicators):
+                with cols[i % 4]:
+                    button_style = "primary" if indicator == st.session_state.get(f"selected_indicator_{report_type}", "") else "secondary"
+
+                    if st.button(
+                        indicator,
+                        key=f"indicator_{report_type}_{i}",
+                        type=button_style,
+                        use_container_width=True,
+                        help=f"点击分析 {indicator}"
+                    ):
+                        st.session_state[f"selected_indicator_{report_type}"] = indicator
+                        st.rerun()
+
+            # 显示选中指标的图表
+            selected_indicator = st.session_state.get(f"selected_indicator_{report_type}", None)
+            if selected_indicator:
             st.markdown("---")
             st.success(f"📊 **{selected_indicator}** - 财务指标分析")
             try:
