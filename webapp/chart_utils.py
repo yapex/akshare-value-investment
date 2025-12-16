@@ -240,8 +240,8 @@ def _show_data_table(indicator_name: str, years: List[str], values: List[float])
 
         with col1:
             # 计算年化增长率 (CAGR)
-            start_value = values[-1]  # 最早的值
-            end_value = values[0]    # 最新的值
+            start_value = values[0]   # 最早的值
+            end_value = values[-1]   # 最新的值
             years_count = len(values) - 1
 
             if start_value > 0 and years_count > 0:
