@@ -104,7 +104,7 @@ def _create_dual_axis_chart(indicator_name: str, years: List[str], values: List[
             text=[f'{v:,.0f}' for v in values],
             textposition='outside',
             hovertemplate='<b>%{x}</b><br>数值: %{y:,.2f} 百万元<extra></extra>',
-            textfont=dict(size=10),
+            textfont=dict(size=12, color='#000000'),
             yaxis='y'
         )
     )
@@ -138,7 +138,7 @@ def _create_dual_axis_chart(indicator_name: str, years: List[str], values: List[
                 ),
                 text=[f'{gr:.1f}%' if gr is not None else 'N/A' for gr in growth_rates],
                 textposition='top center',
-                textfont=dict(size=10, color='#FF6B6B'),
+                textfont=dict(size=12, color='#CC0000', weight='bold'),
                 hovertemplate='<b>%{x}</b><br>增长率: %{y:.2f}%<extra></extra>',
                 yaxis='y2'
             )
