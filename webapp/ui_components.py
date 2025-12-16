@@ -135,13 +135,13 @@ def render_report(title: str, df: pd.DataFrame, report_type: str) -> None:
             # 显示选中指标的图表
             selected_indicator = st.session_state.get(f"selected_indicator_{report_type}", None)
             if selected_indicator:
-            st.markdown("---")
-            st.success(f"📊 **{selected_indicator}** - 财务指标分析")
-            try:
-                create_financial_chart(selected_indicator, formatted_df, report_type)
-            except Exception as e:
-                st.error(f"生成图表时发生错误: {str(e)}")
-                st.write("请尝试选择其他指标或检查数据质量。")
+                st.markdown("---")
+                st.success(f"📊 **{selected_indicator}** - 财务指标分析")
+                try:
+                    create_financial_chart(selected_indicator, formatted_df, report_type)
+                except Exception as e:
+                    st.error(f"生成图表时发生错误: {str(e)}")
+                    st.write("请尝试选择其他指标或检查数据质量。")
     else:
         # 创建样式化的表格（无数据情况）
         styler = create_styler(formatted_df)
