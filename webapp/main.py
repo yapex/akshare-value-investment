@@ -161,7 +161,8 @@ class FinancialReportApp:
         # 如果没有数据且没有查询，显示欢迎页面
         if not hasattr(st.session_state, 'data') or st.session_state.data is None:
             render_main_content()
-            should_query = False
+            if not query_button:
+                should_query = False
 
         # 执行查询
         if should_query:

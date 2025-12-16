@@ -78,6 +78,6 @@ mcp = "akshare-mcp-server"
 mcp-debug = "akshare-mcp-server --debug"
 
 # Streamlit任务
-streamlit = "sh -c 'PYTHONPATH=src:webapp uv run streamlit run webapp/main.py --server.address 0.0.0.0 --server.port 8501'"
+streamlit = "sh -c 'PYTHONPATH=src:webapp uv run streamlit run webapp/main.py --server.address localhost --server.port 8501'"
 
 
