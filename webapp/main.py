@@ -158,13 +158,7 @@ class FinancialReportApp:
             st.session_state.current_end_date != end_date
         )
 
-        # 如果没有数据且没有查询，显示欢迎页面
-        if not hasattr(st.session_state, 'data') or st.session_state.data is None:
-            render_main_content()
-            if not query_button:
-                should_query = False
-
-        # 执行查询
+  # 执行查询（优先级最高，避免显示欢迎页面）
         if should_query:
             if not symbol:
                 st.error("请输入股票代码")
@@ -195,6 +189,10 @@ class FinancialReportApp:
             if current_symbol:
                 st.info(f"当前显示: **{current_symbol}** 的财务数据")
             display_query_results(st.session_state.data)
+
+        # 显示欢迎页面（没有任何数据时）
+        else:
+            render_main_content()
 
 
 def main():
