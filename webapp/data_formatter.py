@@ -123,13 +123,16 @@ def create_styler(df: pd.DataFrame) -> pd.DataFrame.style:
     styler = styler.set_properties(**{
         'text-align': 'right',
         'padding': '8px',
-        'border': '1px solid #dddddd'
+        'border': '1px solid #dddddd',
+        'color': '#000000',
+        'font-size': '14px'
     })
 
     # 设置指标名称列左对齐
     styler = styler.set_properties(subset=['指标名称'], **{
         'text-align': 'left',
-        'font-weight': 'bold'
+        'font-weight': 'bold',
+        'color': '#1f77b4'
     })
 
     # 设置表格样式
@@ -141,13 +144,22 @@ def create_styler(df: pd.DataFrame) -> pd.DataFrame.style:
                 ('font-weight', 'bold'),
                 ('text-align', 'center'),
                 ('padding', '8px'),
-                ('border', '1px solid #dddddd')
+                ('border', '1px solid #dddddd'),
+                ('color', '#333333'),
+                ('font-size', '14px')
             ]
         },
         {
             'selector': 'tbody tr:hover',
             'props': [
-                ('background-color', '#f5f5f5')
+                ('background-color', '#f5f5f5'),
+                ('color', '#000000')
+            ]
+        },
+        {
+            'selector': 'td',
+            'props': [
+                ('border-bottom', '1px solid #eeeeee')
             ]
         }
     ])
