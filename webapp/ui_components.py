@@ -105,9 +105,23 @@ def render_report(title: str, df: pd.DataFrame, report_type: str) -> None:
             has_valid_data = False
             for year_col in year_columns:
                 value = row[year_col]
-                if pd.notna(value) and float(value) != 0:
-                    has_valid_data = True
-                    break
+                if pd.notna(value):
+                    try:
+                        # 清理单位并转换为浮点数
+                        if isinstance(value, str):
+                            clean_value = value.replace(',', '').replace('，', '').replace('亿', '').replace('万', '').strip()
+                            if clean_value and clean_value not in ['-', '--', 'N/A', '']:
+                                numeric_value = float(clean_value)
+                                if numeric_value != 0:
+                                    has_valid_data = True
+                                    break
+                        else:
+                            numeric_value = float(value)
+                            if numeric_value != 0:
+                                has_valid_data = True
+                                break
+                    except (ValueError, TypeError):
+                        pass
 
             if has_valid_data:
                 valid_indicators.append(indicator)
