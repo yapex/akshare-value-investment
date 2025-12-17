@@ -11,20 +11,32 @@ from data_formatter import format_financial_data, create_styler, display_metrics
 from chart_utils import create_financial_chart
 
 
-def render_sidebar() -> tuple[str, str, str, bool]:
+def render_sidebar() -> tuple[str, str, str, str, bool]:
     """
     渲染侧边栏
 
     Returns:
-        tuple: (symbol, start_date, end_date, query_button)
+        tuple: (market, symbol, start_date, end_date, query_button)
     """
-    st.sidebar.title("📊 A股财务报表分析")
+    st.sidebar.title("📊 跨市场财务报表分析")
+
+    # 市场选择
+    market = st.sidebar.selectbox("选择市场", ["A股", "港股", "美股"], index=0)
+
+    # 根据市场设置默认值和提示
+    market_configs = {
+        "A股": {"placeholder": "600519", "example": "600519（贵州茅台）", "length": 6},
+        "港股": {"placeholder": "00700", "example": "00700（腾讯控股）", "length": 5},
+        "美股": {"placeholder": "AAPL", "example": "AAPL（苹果公司）", "length": None}
+    }
+
+    config = market_configs[market]
 
     # 股票代码输入
     symbol = st.sidebar.text_input(
         "股票代码",
-        value="600519",
-        help="请输入6位A股代码，如600519（贵州茅台）"
+        value=config["placeholder"],
+        help=f"请输入{market}代码，如{config['example']}"
     )
 
     # 时间范围选择
@@ -58,10 +70,10 @@ def render_sidebar() -> tuple[str, str, str, bool]:
     # 查询按钮
     query_button = st.sidebar.button("🔍 查询财务数据", type="primary", use_container_width=True)
 
-    return symbol, start_date, end_date, query_button
+    return market, symbol, start_date, end_date, query_button
 
 
-def render_report(title: str, df: pd.DataFrame, report_type: str) -> None:
+def render_report(title: str, df: pd.DataFrame, report_type: str, market: str = "A股") -> None:
     """
     渲染单个报表
 
@@ -70,7 +82,7 @@ def render_report(title: str, df: pd.DataFrame, report_type: str) -> None:
         df: 报表数据
         report_type: 报表类型
     """
-    if df.empty:
+    if df is None or df.empty:
         st.warning(f"⚠️ {title}暂无数据")
         return
 
@@ -80,7 +92,7 @@ def render_report(title: str, df: pd.DataFrame, report_type: str) -> None:
     display_metrics_section(df)
 
     # 格式化数据
-    formatted_df = format_financial_data(df, report_type)
+    formatted_df = format_financial_data(df, report_type, market)
 
     # 首先显示数据表格（原始数据展示）
     st.subheader("📊 财务数据表格")
@@ -88,7 +100,7 @@ def render_report(title: str, df: pd.DataFrame, report_type: str) -> None:
     if not formatted_df.empty and '指标名称' in formatted_df.columns:
         # 创建样式化的表格（带可点击的指标名称）
         styler = create_styler(formatted_df)
-        st.dataframe(styler, use_container_width=True, hide_index=True, height=800)
+        st.dataframe(styler, width='stretch', hide_index=True, height=800)
 
         # 深度分析部分
         st.markdown("---")
@@ -158,7 +170,7 @@ def render_report(title: str, df: pd.DataFrame, report_type: str) -> None:
     else:
         # 创建样式化的表格（无数据情况）
         styler = create_styler(formatted_df)
-        st.dataframe(styler, use_container_width=True, hide_index=True, height=800)
+        st.dataframe(styler, width='stretch', hide_index=True, height=800)
 
     st.markdown("---")
 
@@ -168,18 +180,19 @@ def render_main_content() -> None:
     st.info("👈 请在左侧输入股票代码开始查询")
 
 
-def display_query_results(data: dict[str, pd.DataFrame]) -> None:
+def display_query_results(data: dict[str, pd.DataFrame], market: str = "A股") -> None:
     """
     显示查询结果
 
     Args:
         data: 包含四大报表数据的字典
+        market: 市场类型
     """
     if not data:
         st.error("❌ 未能获取到任何财务数据，请检查股票代码或稍后重试")
         return
 
-    # 创建选项卡
+    # 所有市场都使用四个页签的统一格式
     tab_titles = [
         "📈 财务指标",
         "🏦 资产负债表",
@@ -191,13 +204,13 @@ def display_query_results(data: dict[str, pd.DataFrame]) -> None:
 
     # 定义报表映射
     report_mapping = [
-        (tabs[0], "财务指标", data.get('indicators'), "indicators"),
-        (tabs[1], "资产负债表", data.get('balance_sheet'), "balance_sheet"),
-        (tabs[2], "利润表", data.get('income_statement'), "income_statement"),
-        (tabs[3], "现金流量表", data.get('cash_flow'), "cash_flow")
+        (tabs[0], "财务指标", data.get('indicators'), market.lower() + "_stock_indicators"),
+        (tabs[1], "资产负债表", data.get('balance_sheet'), market.lower() + "_stock_balance_sheet"),
+        (tabs[2], "利润表", data.get('income_statement'), market.lower() + "_stock_income_statement"),
+        (tabs[3], "现金流量表", data.get('cash_flow'), market.lower() + "_stock_cash_flow")
     ]
 
     # 渲染各个报表
     for tab, title, df_data, report_type in report_mapping:
         with tab:
-            render_report(title, df_data, report_type)
+            render_report(title, df_data, report_type, market)

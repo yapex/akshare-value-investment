@@ -96,14 +96,14 @@ def _create_dual_axis_chart(indicator_name: str, years: List[str], values: List[
         go.Bar(
             x=years,
             y=values,
-            name='历史数值 (百万元)',
+            name='历史数值 (亿元)',
             marker=dict(
                 color='lightblue',
                 line=dict(color='darkblue', width=1)
             ),
             text=[f'{v:,.0f}' for v in values],
             textposition='outside',
-            hovertemplate='<b>%{x}</b><br>数值: %{y:,.2f} 百万元<extra></extra>',
+            hovertemplate='<b>%{x}</b><br>数值: %{y:,.2f} 亿元<extra></extra>',
             textfont=dict(size=12, color='#000000'),
             yaxis='y'
         )
@@ -170,7 +170,7 @@ def _create_dual_axis_chart(indicator_name: str, years: List[str], values: List[
             font=dict(size=12, color="black")
         ),
         yaxis=dict(
-            title=dict(text="数值 (百万元)", font=dict(color='#003366', size=14)),
+            title=dict(text="数值 (亿元)", font=dict(color='#003366', size=14)),
             showgrid=True,
             gridwidth=1,
             gridcolor='lightgray',
@@ -227,7 +227,7 @@ def _show_data_table(indicator_name: str, years: List[str], values: List[float])
 
         summary_data.append({
             '年份': year,
-            '数值 (百万元)': f"{value:,.2f}",
+            '数值 (亿元)': f"{value:,.2f}",
             '同比增长率 (%)': f"{growth_rate:.2f}%" if growth_rate is not None else "N/A"
         })
 
@@ -253,14 +253,14 @@ def _show_data_table(indicator_name: str, years: List[str], values: List[float])
 
         with col2:
             avg_value = sum(values) / len(values)
-            st.metric("平均值", f"{avg_value:,.2f} 百万元")
+            st.metric("平均值", f"{avg_value:,.2f} 亿元")
 
         with col3:
             max_value = max(values)
             max_year = years[values.index(max_value)]
-            st.metric("最高值", f"{max_value:,.2f} 百万元", f"年份: {max_year}")
+            st.metric("最高值", f"{max_value:,.2f} 亿元", f"年份: {max_year}")
 
         with col4:
             min_value = min(values)
             min_year = years[values.index(min_value)]
-            st.metric("最低值", f"{min_value:,.2f} 百万元", f"年份: {min_year}")
+            st.metric("最低值", f"{min_value:,.2f} 亿元", f"年份: {min_year}")

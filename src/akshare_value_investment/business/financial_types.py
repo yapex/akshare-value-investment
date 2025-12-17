@@ -23,9 +23,14 @@ class FinancialQueryType(Enum):
     A_STOCK_INCOME_STATEMENT = "a_stock_income_statement"  # A股利润表
     A_STOCK_CASH_FLOW = "a_stock_cash_flow"            # A股现金流量表
 
-    # 港股查询类型 (2个接口)
+    # 港股查询类型 (4个接口)
     HK_STOCK_INDICATORS = "hk_stock_indicators"        # 港股财务指标
-    HK_STOCK_STATEMENTS = "hk_stock_statements"        # 港股财务三表
+    HK_STOCK_BALANCE_SHEET = "hk_stock_balance_sheet"  # 港股资产负债表
+    HK_STOCK_INCOME_STATEMENT = "hk_stock_income_statement"  # 港股利润表
+    HK_STOCK_CASH_FLOW = "hk_stock_cash_flow"          # 港股现金流量表
+
+    # 保留原有的三表合一类型作为备用
+    HK_STOCK_STATEMENTS = "hk_stock_statements"        # 港股财务三表（备用）
 
     # 美股查询类型 (4个接口)
     US_STOCK_INDICATORS = "us_stock_indicators"        # 美股财务指标
@@ -53,7 +58,9 @@ class FinancialQueryType(Enum):
             ],
             MarketType.HK_STOCK: [
                 cls.HK_STOCK_INDICATORS,
-                cls.HK_STOCK_STATEMENTS,
+                cls.HK_STOCK_BALANCE_SHEET,
+                cls.HK_STOCK_INCOME_STATEMENT,
+                cls.HK_STOCK_CASH_FLOW,
             ],
             MarketType.US_STOCK: [
                 cls.US_STOCK_INDICATORS,
@@ -107,7 +114,10 @@ class FinancialQueryType(Enum):
 
             # 港股
             FinancialQueryType.HK_STOCK_INDICATORS: "港股财务指标",
-            FinancialQueryType.HK_STOCK_STATEMENTS: "港股财务三表",
+            FinancialQueryType.HK_STOCK_BALANCE_SHEET: "港股资产负债表",
+            FinancialQueryType.HK_STOCK_INCOME_STATEMENT: "港股利润表",
+            FinancialQueryType.HK_STOCK_CASH_FLOW: "港股现金流量表",
+            FinancialQueryType.HK_STOCK_STATEMENTS: "港股财务三表（备用）",
 
             # 美股
             FinancialQueryType.US_STOCK_INDICATORS: "美股财务指标",

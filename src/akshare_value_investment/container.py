@@ -19,7 +19,10 @@ from .datasource.queryers.a_stock_queryers import (
     AStockIndicatorQueryer, AStockBalanceSheetQueryer,
     AStockIncomeStatementQueryer, AStockCashFlowQueryer
 )
-from .datasource.queryers.hk_stock_queryers import HKStockIndicatorQueryer, HKStockStatementQueryer
+from .datasource.queryers.hk_stock_queryers import (
+    HKStockIndicatorQueryer, HKStockStatementQueryer,
+    HKStockBalanceSheetQueryer, HKStockIncomeStatementQueryer, HKStockCashFlowQueryer
+)
 from .datasource.queryers.us_stock_queryers import (
     USStockIndicatorQueryer, USStockBalanceSheetQueryer,
     USStockIncomeStatementQueryer, USStockCashFlowQueryer
@@ -106,7 +109,10 @@ class ProductionContainer(containers.DeclarativeContainer):
 
     # 港股Queryers
     hk_stock_indicators = providers.Singleton(HKStockIndicatorQueryer, cache=diskcache)
-    hk_stock_statement = providers.Singleton(HKStockStatementQueryer, cache=diskcache)
+    hk_stock_balance_sheet = providers.Singleton(HKStockBalanceSheetQueryer, cache=diskcache)
+    hk_stock_income_statement = providers.Singleton(HKStockIncomeStatementQueryer, cache=diskcache)
+    hk_stock_cash_flow = providers.Singleton(HKStockCashFlowQueryer, cache=diskcache)
+    hk_stock_statement = providers.Singleton(HKStockStatementQueryer, cache=diskcache)  # 备用
 
     # 美股Queryers
     us_stock_indicators = providers.Singleton(USStockIndicatorQueryer, cache=diskcache)

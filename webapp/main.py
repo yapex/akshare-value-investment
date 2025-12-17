@@ -2,7 +2,7 @@
 A股财务报表Streamlit应用
 
 四大财务报表（指标、资产负债、利润、现金流）合并展示
-支持窄表形式，财务格式显示，小数点后2位，百万元单位
+支持窄表形式，财务格式显示，小数点后2位，亿元单位
 """
 
 import sys
@@ -90,10 +90,10 @@ class FinancialReportApp:
         except Exception as e:
             st.error(f"查询数据失败: {str(e)}")
 
-        return pd.DataFrame()
+        return None  # 返回None而不是空DataFrame，以便区分API调用失败
 
     def get_financial_data(self, symbol: str, start_date: Optional[str] = None,
-                           end_date: Optional[str] = None) -> Dict[str, pd.DataFrame]:
+                           end_date: Optional[str] = None, market: str = "A股") -> Dict[str, pd.DataFrame]:
         """
         获取四大财务报表数据
 
@@ -101,6 +101,7 @@ class FinancialReportApp:
             symbol: 股票代码
             start_date: 开始日期
             end_date: 结束日期
+            market: 市场类型 (A股, 港股, 美股)
 
         Returns:
             包含四大报表的字典
@@ -108,21 +109,59 @@ class FinancialReportApp:
         try:
             data = {}
 
-            data['indicators'] = self.query_financial_data_via_api(
-                "a_stock", "a_stock_indicators", symbol, start_date, end_date
-            )
+            if market == "A股":
+                # A股：四大报表分别查询
+                data['indicators'] = self.query_financial_data_via_api(
+                    "a_stock", "a_stock_indicators", symbol, start_date, end_date
+                )
 
-            data['balance_sheet'] = self.query_financial_data_via_api(
-                "a_stock", "a_stock_balance_sheet", symbol, start_date, end_date
-            )
+                data['balance_sheet'] = self.query_financial_data_via_api(
+                    "a_stock", "a_stock_balance_sheet", symbol, start_date, end_date
+                )
 
-            data['income_statement'] = self.query_financial_data_via_api(
-                "a_stock", "a_stock_income_statement", symbol, start_date, end_date
-            )
+                data['income_statement'] = self.query_financial_data_via_api(
+                    "a_stock", "a_stock_income_statement", symbol, start_date, end_date
+                )
 
-            data['cash_flow'] = self.query_financial_data_via_api(
-                "a_stock", "a_stock_cash_flow", symbol, start_date, end_date
-            )
+                data['cash_flow'] = self.query_financial_data_via_api(
+                    "a_stock", "a_stock_cash_flow", symbol, start_date, end_date
+                )
+
+            elif market == "港股":
+                # 港股：财务指标 + 三个独立报表
+                data['indicators'] = self.query_financial_data_via_api(
+                    "hk_stock", "hk_stock_indicators", symbol, start_date, end_date
+                )
+
+                data['balance_sheet'] = self.query_financial_data_via_api(
+                    "hk_stock", "hk_stock_balance_sheet", symbol, start_date, end_date
+                )
+
+                data['income_statement'] = self.query_financial_data_via_api(
+                    "hk_stock", "hk_stock_income_statement", symbol, start_date, end_date
+                )
+
+                data['cash_flow'] = self.query_financial_data_via_api(
+                    "hk_stock", "hk_stock_cash_flow", symbol, start_date, end_date
+                )
+
+            elif market == "美股":
+                # 美股：四大报表分别查询
+                data['indicators'] = self.query_financial_data_via_api(
+                    "us_stock", "us_stock_indicators", symbol, start_date, end_date
+                )
+
+                data['balance_sheet'] = self.query_financial_data_via_api(
+                    "us_stock", "us_stock_balance_sheet", symbol, start_date, end_date
+                )
+
+                data['income_statement'] = self.query_financial_data_via_api(
+                    "us_stock", "us_stock_income_statement", symbol, start_date, end_date
+                )
+
+                data['cash_flow'] = self.query_financial_data_via_api(
+                    "us_stock", "us_stock_cash_flow", symbol, start_date, end_date
+                )
 
             return data
 
@@ -133,10 +172,10 @@ class FinancialReportApp:
     def run(self):
         """运行应用"""
         # 渲染侧边栏
-        symbol, start_date, end_date, query_button = render_sidebar()
+        market, symbol, start_date, end_date, query_button = render_sidebar()
 
         # 主标题
-        st.title("📊 A股财务报表分析系统")
+        st.title(f"📊 {market}财务报表分析系统")
         st.markdown("---")
 
         # 初始化会话状态
@@ -164,16 +203,17 @@ class FinancialReportApp:
             st.session_state.current_symbol = symbol
             st.session_state.current_start_date = start_date
             st.session_state.current_end_date = end_date
+            st.session_state.current_market = market
 
             # 显示股票信息
             with st.spinner(f"正在查询 **{symbol}** 的财务数据..."):
                 # 获取数据
-                data = self.get_financial_data(symbol, start_date, end_date)
+                data = self.get_financial_data(symbol, start_date, end_date, market)
                 st.session_state.data = data
 
             # 显示查询结果
             if data:
-                display_query_results(data)
+                display_query_results(data, market)
             else:
                 st.error("❌ 未能获取到财务数据，请检查股票代码或稍后重试")
 
@@ -182,7 +222,9 @@ class FinancialReportApp:
             current_symbol = st.session_state.current_symbol
             if current_symbol:
                 st.info(f"当前显示: **{current_symbol}** 的财务数据")
-            display_query_results(st.session_state.data)
+            # 从session state中获取当前市场信息，如果没有则使用默认值
+                current_market = getattr(st.session_state, 'current_market', 'A股')
+                display_query_results(st.session_state.data, current_market)
 
         # 显示欢迎页面（没有任何数据时）
         else:

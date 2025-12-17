@@ -78,7 +78,10 @@ class FinancialQueryService:
 
             # 港股查询器
             FinancialQueryType.HK_STOCK_INDICATORS: self.container.hk_stock_indicators(),
-            FinancialQueryType.HK_STOCK_STATEMENTS: self.container.hk_stock_statement(),
+            FinancialQueryType.HK_STOCK_BALANCE_SHEET: self.container.hk_stock_balance_sheet(),
+            FinancialQueryType.HK_STOCK_INCOME_STATEMENT: self.container.hk_stock_income_statement(),
+            FinancialQueryType.HK_STOCK_CASH_FLOW: self.container.hk_stock_cash_flow(),
+            FinancialQueryType.HK_STOCK_STATEMENTS: self.container.hk_stock_statement(),  # 备用
 
             # 美股查询器
             FinancialQueryType.US_STOCK_INDICATORS: self.container.us_stock_indicators(),
@@ -422,8 +425,14 @@ class FinancialQueryService:
             return data.copy()
 
         if frequency == Frequency.ANNUAL:
-            # 年度数据，取每年最后一份报告
-            return self._convert_to_annual_data(data)
+            # 检查是否已经是年度数据（通过记录数判断，通常年度数据记录数较少）
+            # 如果记录数少于30条，假设已经是处理过的年度数据
+            if len(data) <= 30:
+                # 已经是年度数据，直接返回
+                return data.copy()
+            else:
+                # 可能是季度数据，需要转换为年度数据
+                return self._convert_to_annual_data(data)
 
         return data.copy()
 
