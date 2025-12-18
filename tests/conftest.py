@@ -60,7 +60,8 @@ class MockDataLoader:
 
     def load_hk_stock_statements(self) -> pd.DataFrame:
         """加载港股财务三表样本数据（窄表格式）"""
-        return self._load_csv("hk_stock_statements_sample.csv")
+        # 使用最新的00700数据
+        return self._load_csv("hk_00700_balance_sheet_20251218.csv")
 
     def load_us_stock_indicators(self) -> pd.DataFrame:
         """加载美股财务指标样本数据"""
@@ -68,7 +69,57 @@ class MockDataLoader:
 
     def load_us_stock_statements(self) -> pd.DataFrame:
         """加载美股财务三表样本数据（窄表格式）"""
-        return self._load_csv("us_stock_statements_sample.csv")
+        # 使用最新的AAPL数据
+        return self._load_csv("us_AAPL_balance_sheet_20251218.csv")
+
+    # 新增：港股财务三表分别加载方法
+    def load_hk_balance_sheet(self, symbol: str = "00700") -> pd.DataFrame:
+        """加载港股资产负债表样本数据"""
+        latest_date = self._get_latest_date_for_symbol("hk", symbol, "balance_sheet")
+        return self._load_csv(f"hk_{symbol}_balance_sheet_{latest_date}.csv")
+
+    def load_hk_income_statement(self, symbol: str = "00700") -> pd.DataFrame:
+        """加载港股利润表样本数据"""
+        latest_date = self._get_latest_date_for_symbol("hk", symbol, "income_statement")
+        return self._load_csv(f"hk_{symbol}_income_statement_{latest_date}.csv")
+
+    def load_hk_cash_flow(self, symbol: str = "00700") -> pd.DataFrame:
+        """加载港股现金流量表样本数据"""
+        latest_date = self._get_latest_date_for_symbol("hk", symbol, "cash_flow")
+        return self._load_csv(f"hk_{symbol}_cash_flow_{latest_date}.csv")
+
+    # 新增：美股财务三表分别加载方法
+    def load_us_balance_sheet(self, symbol: str = "AAPL") -> pd.DataFrame:
+        """加载美股资产负债表样本数据"""
+        latest_date = self._get_latest_date_for_symbol("us", symbol, "balance_sheet")
+        return self._load_csv(f"us_{symbol}_balance_sheet_{latest_date}.csv")
+
+    def load_us_income_statement(self, symbol: str = "AAPL") -> pd.DataFrame:
+        """加载美股利润表样本数据"""
+        latest_date = self._get_latest_date_for_symbol("us", symbol, "income_statement")
+        return self._load_csv(f"us_{symbol}_income_statement_{latest_date}.csv")
+
+    def load_us_cash_flow(self, symbol: str = "AAPL") -> pd.DataFrame:
+        """加载美股现金流量表样本数据"""
+        latest_date = self._get_latest_date_for_symbol("us", symbol, "cash_flow")
+        return self._load_csv(f"us_{symbol}_cash_flow_{latest_date}.csv")
+
+    def _get_latest_date_for_symbol(self, market: str, symbol: str, statement_type: str) -> str:
+        """获取指定股票和报表类型的最新日期文件"""
+        import glob
+
+        pattern = f"{market}_{symbol}_{statement_type}_*.csv"
+        files = glob.glob(f"{self.sample_data_dir}/{pattern}")
+
+        if not files:
+            raise FileNotFoundError(f"未找到匹配的样本数据文件: {pattern}")
+
+        # 提取日期并选择最新文件
+        latest_file = max(files)
+        filename = os.path.basename(latest_file)
+        # 提取日期部分，例如从 hk_00700_balance_sheet_20251218.csv 中提取 20251218
+        date_part = filename.split('_')[-1].replace('.csv', '')
+        return date_part
 
     def _load_csv(self, filename: str) -> pd.DataFrame:
         """
