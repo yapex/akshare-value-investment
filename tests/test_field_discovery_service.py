@@ -258,7 +258,9 @@ class TestFieldDiscoveryService:
         hk_statement_data = mock_loader.load_hk_stock_statements()
 
         self.mock_container.hk_stock_indicators.return_value.query.return_value = hk_indicator_data
-        self.mock_container.hk_stock_statement.return_value.query.return_value = hk_statement_data
+        self.mock_container.hk_stock_balance_sheet.return_value.query.return_value = hk_statement_data
+        self.mock_container.hk_stock_income_statement.return_value.query.return_value = hk_statement_data
+        self.mock_container.hk_stock_cash_flow.return_value.query.return_value = hk_statement_data
 
         # 执行测试
         result = self.service.discover_hk_stock_all_fields()
@@ -266,7 +268,9 @@ class TestFieldDiscoveryService:
         # 验证结果 - 使用实际样本数据的字段
         assert result == {
             'indicators': list(hk_indicator_data.columns),
-            'statement': list(hk_statement_data.columns)
+            'balance_sheet': list(hk_statement_data.columns),
+            'income_statement': list(hk_statement_data.columns),
+            'cash_flow': list(hk_statement_data.columns)
         }
 
     def test_discover_us_stock_all_fields_success(self, mock_loader):
@@ -308,6 +312,9 @@ class TestFieldDiscoveryService:
         self.mock_container.a_stock_income_statement.return_value.query.return_value = a_income_data
         self.mock_container.a_stock_cash_flow.return_value.query.return_value = a_cash_flow_data
         self.mock_container.hk_stock_indicators.return_value.query.return_value = hk_indicator_data
+        self.mock_container.hk_stock_balance_sheet.return_value.query.return_value = hk_statement_data
+        self.mock_container.hk_stock_income_statement.return_value.query.return_value = hk_statement_data
+        self.mock_container.hk_stock_cash_flow.return_value.query.return_value = hk_statement_data
         self.mock_container.hk_stock_statement.return_value.query.return_value = hk_statement_data
         self.mock_container.us_stock_indicators.return_value.query.return_value = us_indicator_data
         self.mock_container.us_stock_balance_sheet.return_value.query.return_value = us_statement_data
@@ -332,7 +339,9 @@ class TestFieldDiscoveryService:
         # 验证港股接口
         hk_stock_interfaces = result['HK_STOCK']
         assert 'indicators' in hk_stock_interfaces
-        assert 'statement' in hk_stock_interfaces
+        assert 'balance_sheet' in hk_stock_interfaces
+        assert 'income_statement' in hk_stock_interfaces
+        assert 'cash_flow' in hk_stock_interfaces
 
         # 验证美股接口
         us_stock_interfaces = result['US_STOCK']
@@ -439,6 +448,9 @@ class TestFieldDiscoveryService:
         self.mock_container.a_stock_income_statement.return_value.query.return_value = a_income_data
         self.mock_container.a_stock_cash_flow.return_value.query.return_value = a_cash_flow_data
         self.mock_container.hk_stock_indicators.return_value.query.return_value = hk_indicator_data
+        self.mock_container.hk_stock_balance_sheet.return_value.query.return_value = hk_statement_data
+        self.mock_container.hk_stock_income_statement.return_value.query.return_value = hk_statement_data
+        self.mock_container.hk_stock_cash_flow.return_value.query.return_value = hk_statement_data
         self.mock_container.hk_stock_statement.return_value.query.return_value = hk_statement_data
         self.mock_container.us_stock_indicators.return_value.query.return_value = us_indicator_data
         self.mock_container.us_stock_balance_sheet.return_value.query.return_value = us_statement_data
@@ -450,7 +462,7 @@ class TestFieldDiscoveryService:
 
         # 验证统计日志
         assert "开始发现所有市场的接口字段" in caplog.text
-        assert "字段发现完成: 3个市场, 10个接口" in caplog.text
+        assert "字段发现完成: 3个市场, 12个接口" in caplog.text
 
     # ==================== 代表股票配置测试 ====================
 

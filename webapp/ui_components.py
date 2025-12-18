@@ -202,12 +202,20 @@ def display_query_results(data: dict[str, pd.DataFrame], market: str = "A股") -
 
     tabs = st.tabs(tab_titles)
 
+    # 映射市场名称到API格式
+    market_api_mapping = {
+        "A股": "a",
+        "港股": "hk",
+        "美股": "us"
+    }
+    api_market = market_api_mapping.get(market, market.lower())
+
     # 定义报表映射
     report_mapping = [
-        (tabs[0], "财务指标", data.get('indicators'), market.lower() + "_stock_indicators"),
-        (tabs[1], "资产负债表", data.get('balance_sheet'), market.lower() + "_stock_balance_sheet"),
-        (tabs[2], "利润表", data.get('income_statement'), market.lower() + "_stock_income_statement"),
-        (tabs[3], "现金流量表", data.get('cash_flow'), market.lower() + "_stock_cash_flow")
+        (tabs[0], "财务指标", data.get('indicators'), f"{api_market}_stock_indicators"),
+        (tabs[1], "资产负债表", data.get('balance_sheet'), f"{api_market}_stock_balance_sheet"),
+        (tabs[2], "利润表", data.get('income_statement'), f"{api_market}_stock_income_statement"),
+        (tabs[3], "现金流量表", data.get('cash_flow'), f"{api_market}_stock_cash_flow")
     ]
 
     # 渲染各个报表

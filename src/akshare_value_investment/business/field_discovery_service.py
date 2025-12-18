@@ -204,6 +204,81 @@ class FieldDiscoveryService:
             self.logger.error(f"港股基本面字段发现失败: {e}")
             raise Exception(f"港股基本面字段发现失败: {e}")
 
+    def discover_hk_stock_balance_sheet_fields(self) -> List[str]:
+        """
+        发现港股资产负债表字段
+
+        Returns:
+            港股资产负债表字段列表
+
+        Raises:
+            Exception: 当查询失败时直接报错
+        """
+        symbol = self.representative_stocks[MarketType.HK_STOCK]
+        self.logger.info(f"发现港股资产负债表字段，使用股票: {symbol}")
+
+        try:
+            data = self.container.hk_stock_balance_sheet().query(symbol)
+            if data is not None and not data.empty and len(data) > 0:
+                fields = list(data.columns)
+                self.logger.info(f"发现港股资产负债表字段: {len(fields)}个")
+                return fields
+            else:
+                raise Exception(f"港股资产负债表数据为空: {symbol}")
+        except Exception as e:
+            self.logger.error(f"港股资产负债表字段发现失败: {e}")
+            raise Exception(f"港股资产负债表字段发现失败: {e}")
+
+    def discover_hk_stock_income_statement_fields(self) -> List[str]:
+        """
+        发现港股利润表字段
+
+        Returns:
+            港股利润表字段列表
+
+        Raises:
+            Exception: 当查询失败时直接报错
+        """
+        symbol = self.representative_stocks[MarketType.HK_STOCK]
+        self.logger.info(f"发现港股利润表字段，使用股票: {symbol}")
+
+        try:
+            data = self.container.hk_stock_income_statement().query(symbol)
+            if data is not None and not data.empty and len(data) > 0:
+                fields = list(data.columns)
+                self.logger.info(f"发现港股利润表字段: {len(fields)}个")
+                return fields
+            else:
+                raise Exception(f"港股利润表数据为空: {symbol}")
+        except Exception as e:
+            self.logger.error(f"港股利润表字段发现失败: {e}")
+            raise Exception(f"港股利润表字段发现失败: {e}")
+
+    def discover_hk_stock_cash_flow_fields(self) -> List[str]:
+        """
+        发现港股现金流量表字段
+
+        Returns:
+            港股现金流量表字段列表
+
+        Raises:
+            Exception: 当查询失败时直接报错
+        """
+        symbol = self.representative_stocks[MarketType.HK_STOCK]
+        self.logger.info(f"发现港股现金流量表字段，使用股票: {symbol}")
+
+        try:
+            data = self.container.hk_stock_cash_flow().query(symbol)
+            if data is not None and not data.empty and len(data) > 0:
+                fields = list(data.columns)
+                self.logger.info(f"发现港股现金流量表字段: {len(fields)}个")
+                return fields
+            else:
+                raise Exception(f"港股现金流量表数据为空: {symbol}")
+        except Exception as e:
+            self.logger.error(f"港股现金流量表字段发现失败: {e}")
+            raise Exception(f"港股现金流量表字段发现失败: {e}")
+
     # ==================== 美股细粒度接口 ====================
 
     def discover_us_stock_indicator_fields(self) -> List[str]:
@@ -331,7 +406,9 @@ class FieldDiscoveryService:
         """
         return {
             'indicators': self.discover_hk_stock_indicator_fields(),
-            'statement': self.discover_hk_stock_statement_fields()
+            'balance_sheet': self.discover_hk_stock_balance_sheet_fields(),
+            'income_statement': self.discover_hk_stock_income_statement_fields(),
+            'cash_flow': self.discover_hk_stock_cash_flow_fields(),
         }
 
     def discover_us_stock_all_fields(self) -> dict:

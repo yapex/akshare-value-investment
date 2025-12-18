@@ -30,14 +30,17 @@ class USStockStatementQueryerBase(BaseDataQueryer):
     def _query_raw(self, symbol: str) -> pd.DataFrame:
         """查询美股财务报表原始数据
 
-        使用年报数据以获取完整的年度财务数据
-        年报数据包含每个财年的完整财务指标
+        美股财务三表使用年报数据，akshare已返回纯年报数据
         """
-        df = ak.stock_financial_us_report_em(stock=symbol, symbol=self._get_statement_name(), indicator="年报")
+        df = ak.stock_financial_us_report_em(
+            stock=symbol,
+            symbol=self._get_statement_name(),
+            indicator="年报"
+        )
         if df is None or df.empty:
             return self._create_empty_wide_format()
 
-        # 直接转换为宽表，年报数据已经是按年份组织的
+        # 转换为宽表格式
         return self._process_narrow_table(df)
 
     def _process_fiscal_year_data_narrow(self, df: pd.DataFrame) -> pd.DataFrame:

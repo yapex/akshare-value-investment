@@ -426,6 +426,15 @@ class FinancialQueryService:
             return data.copy()
 
         if frequency == Frequency.ANNUAL:
+            # 美股财务三表硬编码使用年报数据，直接返回
+            us_financial_statements = [
+                FinancialQueryType.US_STOCK_BALANCE_SHEET,
+                FinancialQueryType.US_STOCK_INCOME_STATEMENT,
+                FinancialQueryType.US_STOCK_CASH_FLOW
+            ]
+            if query_type in us_financial_statements:
+                return data.copy()
+
             # 检查是否已经是年度数据
             if self._is_already_annual_data(data):
                 # 已经是年度数据，直接返回
@@ -441,8 +450,9 @@ class FinancialQueryService:
         检查数据是否已经是年度数据
 
         通过检查日期字段的月份分布来判断：
-        - 如果大部分日期都是12月31日，则认为是年度数据
-        - 否则认为是季度数据
+        - A股/港股：如果大部分日期都是12月31日，则认为是年度数据
+        - 美股财务三表：如果大部分日期是9月30日（财年结束），则认为是年度数据
+        - 美股财务指标：通过REPORT_TYPE字段中的Q4判断
 
         Args:
             data: 数据DataFrame
@@ -470,13 +480,20 @@ class FinancialQueryService:
         if data_copy.empty:
             return True
 
-        # 检查12月31日的记录占比
+        # 检查是否有REPORT_TYPE字段 - 主要用于美股财务指标
+        if 'REPORT_TYPE' in data_copy.columns:
+            # 美股财务指标：检查Q4占比（单季报数据混合）
+            q4_count = len(data_copy[data_copy['REPORT_TYPE'].str.contains('/Q4', na=False)])
+            if q4_count > 0:
+                return q4_count / len(data_copy) > 0.6  # 如果超过60%是Q4，认为是年度数据
+
+        # A股/港股：检查12月31日占比
         dec_31_count = len(data_copy[
             (data_copy[date_field].dt.month == 12) &
             (data_copy[date_field].dt.day == 31)
         ])
 
-        # 如果超过70%的记录都是12月31日，认为是年度数据
+        # A股/港股标准：如果超过70%是12月31日，认为是年度数据
         return dec_31_count / len(data_copy) > 0.7
 
     def _convert_to_annual_data(self, data: pd.DataFrame, query_type: Optional[FinancialQueryType] = None) -> pd.DataFrame:
@@ -515,7 +532,7 @@ class FinancialQueryService:
         # 过滤掉无效日期
         data_copy = data_copy.dropna(subset=[date_field])
 
-        # 过滤出年度报告（12月31日）
+        # 过滤出年度报告（12月31日，适用于A股/港股）
         annual_data = data_copy[
             (data_copy[date_field].dt.month == 12) &
             (data_copy[date_field].dt.day == 31)
@@ -708,7 +725,9 @@ class FinancialQueryService:
 
                 # 港股
                 FinancialQueryType.HK_STOCK_INDICATORS: self.field_discovery.discover_hk_stock_indicator_fields,
-                FinancialQueryType.HK_STOCK_STATEMENTS: self.field_discovery.discover_hk_stock_statement_fields,
+                FinancialQueryType.HK_STOCK_BALANCE_SHEET: self.field_discovery.discover_hk_stock_balance_sheet_fields,
+                FinancialQueryType.HK_STOCK_INCOME_STATEMENT: self.field_discovery.discover_hk_stock_income_statement_fields,
+                FinancialQueryType.HK_STOCK_CASH_FLOW: self.field_discovery.discover_hk_stock_cash_flow_fields,
 
                 # 美股
                 FinancialQueryType.US_STOCK_INDICATORS: self.field_discovery.discover_us_stock_indicator_fields,

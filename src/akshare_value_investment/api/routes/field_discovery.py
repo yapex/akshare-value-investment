@@ -36,7 +36,9 @@ def _get_fields_from_service(field_service, query_type: FinancialQueryType) -> l
 
         # 港股
         FinancialQueryType.HK_STOCK_INDICATORS: field_service.discover_hk_stock_indicator_fields,
-        FinancialQueryType.HK_STOCK_STATEMENTS: field_service.discover_hk_stock_statement_fields,
+        FinancialQueryType.HK_STOCK_BALANCE_SHEET: field_service.discover_hk_stock_balance_sheet_fields,
+        FinancialQueryType.HK_STOCK_INCOME_STATEMENT: field_service.discover_hk_stock_income_statement_fields,
+        FinancialQueryType.HK_STOCK_CASH_FLOW: field_service.discover_hk_stock_cash_flow_fields,
 
         # 美股
         FinancialQueryType.US_STOCK_INDICATORS: field_service.discover_us_stock_indicator_fields,
