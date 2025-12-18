@@ -182,7 +182,7 @@ class FinancialQueryService:
                 )
 
             # 4. 时间频率处理
-            processed_data = self._process_frequency(raw_data, frequency)
+            processed_data = self._process_frequency(raw_data, frequency, query_type)
 
             # 5. 字段裁剪（增强错误处理）
             try:
@@ -409,13 +409,14 @@ class FinancialQueryService:
         """
         return self.queryer_mapping.get(query_type)
 
-    def _process_frequency(self, data: pd.DataFrame, frequency: Frequency) -> pd.DataFrame:
+    def _process_frequency(self, data: pd.DataFrame, frequency: Frequency, query_type: Optional[FinancialQueryType] = None) -> pd.DataFrame:
         """
         处理时间频率
 
         Args:
             data: 原始数据
             frequency: 时间频率
+            query_type: 查询类型（用于特殊处理美股数据）
 
         Returns:
             处理后的数据
@@ -425,31 +426,79 @@ class FinancialQueryService:
             return data.copy()
 
         if frequency == Frequency.ANNUAL:
-            # 检查是否已经是年度数据（通过记录数判断，通常年度数据记录数较少）
-            # 如果记录数少于30条，假设已经是处理过的年度数据
-            if len(data) <= 30:
+            # 检查是否已经是年度数据
+            if self._is_already_annual_data(data):
                 # 已经是年度数据，直接返回
                 return data.copy()
             else:
-                # 可能是季度数据，需要转换为年度数据
-                return self._convert_to_annual_data(data)
+                # 需要转换为年度数据
+                return self._convert_to_annual_data(data, query_type)
 
         return data.copy()
 
-    def _convert_to_annual_data(self, data: pd.DataFrame) -> pd.DataFrame:
+    def _is_already_annual_data(self, data: pd.DataFrame) -> bool:
+        """
+        检查数据是否已经是年度数据
+
+        通过检查日期字段的月份分布来判断：
+        - 如果大部分日期都是12月31日，则认为是年度数据
+        - 否则认为是季度数据
+
+        Args:
+            data: 数据DataFrame
+
+        Returns:
+            True表示已经是年度数据，False表示需要转换
+        """
+        if data.empty:
+            return True
+
+        # 查找日期字段
+        date_field = self._find_date_field(data)
+        if date_field is None:
+            # 找不到日期字段，无法判断，假设已经是年度数据
+            return True
+
+        # 确保日期字段是datetime类型
+        data_copy = data.copy()
+        if not pd.api.types.is_datetime64_any_dtype(data_copy[date_field]):
+            data_copy[date_field] = pd.to_datetime(data_copy[date_field], errors='coerce')
+
+        # 过滤掉无效日期
+        data_copy = data_copy.dropna(subset=[date_field])
+
+        if data_copy.empty:
+            return True
+
+        # 检查12月31日的记录占比
+        dec_31_count = len(data_copy[
+            (data_copy[date_field].dt.month == 12) &
+            (data_copy[date_field].dt.day == 31)
+        ])
+
+        # 如果超过70%的记录都是12月31日，认为是年度数据
+        return dec_31_count / len(data_copy) > 0.7
+
+    def _convert_to_annual_data(self, data: pd.DataFrame, query_type: Optional[FinancialQueryType] = None) -> pd.DataFrame:
         """
         将报告期数据转换为年度数据
 
         过滤出财报日期为12月31日的年度报告。
+        对于美股财务指标，使用财年数据处理逻辑。
 
         Args:
             data: 原始报告期数据
+            query_type: 查询类型（用于识别美股财务指标）
 
         Returns:
             年度数据
         """
         if data.empty:
             return data.copy()
+
+        # 美股财务指标特殊处理
+        if query_type == FinancialQueryType.US_STOCK_INDICATORS:
+            return self._process_us_fiscal_year_data(data)
 
         # 查找日期字段
         date_field = self._find_date_field(data)
@@ -473,6 +522,58 @@ class FinancialQueryService:
         ]
 
         return annual_data.reset_index(drop=True)
+
+    def _process_us_fiscal_year_data(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        处理美股财务指标财年数据，优先选择Q4数据作为年度代表
+
+        Args:
+            df: 美股财务指标原始数据
+
+        Returns:
+            处理后的年度数据
+        """
+        if df is None or df.empty:
+            return df
+
+        # 确保REPORT_TYPE字段存在
+        if 'REPORT_TYPE' not in df.columns:
+            self.logger.warning("美股财务指标数据缺少REPORT_TYPE字段，无法进行财年处理")
+            return df
+
+        # 创建财年字段，处理NaN值
+        df_processed = df.copy()
+        df_processed['FISCAL_YEAR'] = df_processed['REPORT_TYPE'].str.extract(r'(\d{4})')
+        df_processed['FISCAL_YEAR'] = pd.to_numeric(df_processed['FISCAL_YEAR'], errors='coerce').astype('Int64')
+
+        df_processed['QUARTER'] = df_processed['REPORT_TYPE'].str.extract(r'Q(\d)')
+        df_processed['QUARTER'] = pd.to_numeric(df_processed['QUARTER'], errors='coerce').astype('Int64')
+
+        # 过滤掉无法解析财年或季度的记录
+        df_processed = df_processed.dropna(subset=['FISCAL_YEAR', 'QUARTER'])
+
+        # 按财年和季度排序
+        df_processed = df_processed.sort_values(['FISCAL_YEAR', 'QUARTER'], ascending=[False, False])
+
+        # 为每个财年标记Q4数据
+        df_processed['IS_Q4'] = df_processed['QUARTER'] == 4
+
+        # 为每个财年选择优先级最高的数据（Q4 > Q3 > Q2 > Q1）
+        df_processed['QUARTER_PRIORITY'] = 5 - df_processed['QUARTER'].fillna(5)  # Q4=1, Q3=2, Q2=3, Q1=4, 无季度=0
+
+        # 为每个财年选择最佳记录
+        df_best = df_processed.loc[df_processed.groupby('FISCAL_YEAR')['QUARTER_PRIORITY'].idxmin()]
+
+        # 按财年降序排列
+        df_best = df_best.sort_values('FISCAL_YEAR', ascending=False)
+
+        # 保留原始REPORT_DATE格式，但更新其含义为财年结束日期
+        # 将REPORT_DATE更新为STD_REPORT_DATE（财年结束日期）
+        if 'STD_REPORT_DATE' in df_best.columns:
+            df_best['REPORT_DATE'] = df_best['STD_REPORT_DATE']
+
+        self.logger.info(f"美股财年数据处理完成：从 {len(df)} 条记录处理为 {len(df_best)} 条年度数据")
+        return df_best
 
     def _find_date_field(self, data: pd.DataFrame) -> Optional[str]:
         """

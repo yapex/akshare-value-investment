@@ -358,7 +358,7 @@ class TestFinancialQueryService:
             )
 
             assert MCPResponse.is_success_response(response)
-            assert response["metadata"]["record_count"] == 8
+            assert response["metadata"]["processed_record_count"] == 8
             assert response["metadata"]["frequency"] == "报告期数据"
 
         def test_年度数据取每年最后报告(self, service, mock_container, quarterly_data):
@@ -373,16 +373,60 @@ class TestFinancialQueryService:
             )
 
             assert MCPResponse.is_success_response(response)
-            assert response["metadata"]["record_count"] == 2  # 2023年和2022年
+            assert response["metadata"]["processed_record_count"] == 2  # 2023年和2022年
             assert response["metadata"]["frequency"] == "年度数据"
             assert response["metadata"]["original_record_count"] == 8
-            assert response["metadata"]["processed_record_count"] == 2
 
             # 验证是每年最后一条记录（12月31日）
             data_records = response["data"]["records"]
             dates = [pd.to_datetime(record["报告期"]) for record in data_records]
             assert pd.Timestamp('2023-12-31') in dates
             assert pd.Timestamp('2022-12-31') in dates
+
+        def test_美股财年数据处理(self, service, mock_container):
+            """测试美股财年数据处理功能"""
+            # 模拟美股季度数据
+            us_quarterly_data = pd.DataFrame({
+                'REPORT_TYPE': ['2023Q4', '2023Q3', '2023Q2', '2023Q1', '2022Q4', '2022Q3'],
+                'REPORT_DATE': ['2023-12-31', '2023-09-30', '2023-06-30', '2023-03-31', '2022-12-31', '2022-09-30'],
+                'STD_REPORT_DATE': ['2023-12-31', '2023-09-30', '2023-06-30', '2023-03-31', '2022-12-31', '2022-09-30'],
+                'NET_PROFIT': [100, 80, 60, 40, 90, 70]
+            })
+
+            mock_container.us_stock_indicators.return_value.query.return_value = us_quarterly_data
+
+            # 测试季度数据（应该返回原始数据）
+            quarterly_response = service.query(
+                market=MarketType.US_STOCK,
+                query_type=FinancialQueryType.US_STOCK_INDICATORS,
+                symbol="AAPL",
+                frequency=Frequency.QUARTERLY
+            )
+
+            assert MCPResponse.is_success_response(quarterly_response)
+            assert quarterly_response["metadata"]["processed_record_count"] == 6
+            assert quarterly_response["metadata"]["frequency"] == "报告期数据"
+            assert quarterly_response["metadata"]["original_record_count"] == 6
+
+            # 测试年度数据（应该选择Q4数据）
+            annual_response = service.query(
+                market=MarketType.US_STOCK,
+                query_type=FinancialQueryType.US_STOCK_INDICATORS,
+                symbol="AAPL",
+                frequency=Frequency.ANNUAL
+            )
+
+            assert MCPResponse.is_success_response(annual_response)
+            assert annual_response["metadata"]["processed_record_count"] == 2  # 2023Q4 和 2022Q4
+            assert annual_response["metadata"]["frequency"] == "年度数据"
+            assert annual_response["metadata"]["original_record_count"] == 6
+
+            # 验证选择了Q4数据
+            annual_data = pd.DataFrame(annual_response["data"]["records"])
+            report_types = annual_data["REPORT_TYPE"].tolist()
+            assert "2023Q4" in report_types
+            assert "2022Q4" in report_types
+            assert len(report_types) == 2
 
     class Test日期范围过滤:
         """测试日期范围过滤"""
@@ -572,7 +616,7 @@ class TestFinancialQueryServiceIntegration:
         """测试真实容器初始化成功"""
         assert real_service.container is not None
         assert real_service.field_discovery is not None
-        assert len(real_service.queryer_mapping) == 10  # 4+2+4个查询器
+        assert len(real_service.queryer_mapping) == 13  # 4+4+4+1个查询器（包含港股备用查询器）
 
     def test_查询器映射完整性(self, real_service):
         """测试查询器映射完整性"""
