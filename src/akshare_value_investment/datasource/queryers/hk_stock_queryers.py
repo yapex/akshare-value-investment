@@ -129,7 +129,7 @@ class HKStockStatementQueryer(HKStockStatementQueryerBase):
     def _query_raw(self, symbol: str) -> pd.DataFrame:
         """查询港股财务三表原始数据"""
         # 调用akshare API获取港股财务报表数据
-        raw_data = ak.stock_financial_hk_report_em(stock=symbol)
+        raw_data = ak.stock_financial_hk_report_em(stock=symbol, indicator="年度")
 
         if raw_data.empty:
             return pd.DataFrame()

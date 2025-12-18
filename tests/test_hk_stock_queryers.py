@@ -294,7 +294,7 @@ class TestHKStockQueryersIntegration:
 
             # 验证API调用参数名正确
             mock_indicator.assert_called_once_with(symbol=symbol, indicator="年度")
-            mock_report.assert_called_once_with(stock=symbol)
+            mock_report.assert_called_once_with(stock=symbol, indicator="年度")
 
     def test_hk_vs_other_markets_difference(self):
         """测试港股与其他市场的API差异"""
