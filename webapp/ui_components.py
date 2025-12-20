@@ -241,16 +241,42 @@ def render_basic_check(data: dict[str, pd.DataFrame], market: str = "A股") -> N
         formatted_indicators = format_financial_data(indicators_df, f"{market.lower()}_stock_indicators", market)
 
         if not formatted_indicators.empty:
-            # 选择关键指标进行展示
+            # 选择关键指标进行展示，包括ROE、ROIC、净现比、毛利率
             key_indicators = []
 
-            # 根据市场选择关键指标
+            # 根据市场选择关键指标，确保包含核心指标
             if market == "A股":
-                key_names = ["净资产收益率(%)", "净利润(亿元)", "营业收入(亿元)", "资产负债率(%)", "毛利率(%)", "基本每股收益(元)"]
+                key_names = [
+                    "净资产收益率(%)",  # ROE
+                    "毛利率(%)",        # 毛利率
+                    "经营活动现金流/营业收入(%)",  # 净现比
+                    "年度投入资本回报率(%)",  # ROIC (如果有的话)
+                    "净利润(亿元)",
+                    "营业收入(亿元)",
+                    "资产负债率(%)",
+                    "基本每股收益(元)"
+                ]
             elif market == "港股":
-                key_names = ["平均净资产收益率(%)", "股东净利润(亿港元)", "营业收入(亿港元)", "资产负债率(%)", "毛利率(%)", "基本每股收益(港元)"]
+                key_names = [
+                    "平均净资产收益率(%)",  # ROE
+                    "毛利率(%)",        # 毛利率
+                    "经营活动现金流/营业收入(%)",  # 净现比
+                    "年度投入资本回报率(%)",  # ROIC
+                    "股东净利润(亿港元)",
+                    "营业收入(亿港元)",
+                    "资产负债率(%)",
+                    "基本每股收益(港元)"
+                ]
             else:  # 美股
-                key_names = ["净资产收益率(%)", "归母净利润(亿美元)", "营业收入(亿美元)", "资产负债率(%)", "毛利率(%)", "基本每股收益(美元)"]
+                key_names = [
+                    "净资产收益率(%)",  # ROE
+                    "毛利率(%)",        # 毛利率
+                    "经营现金流/流动负债",  # 净现比（美股可能字段名不同）
+                    "归母净利润(亿美元)",
+                    "营业收入(亿美元)",
+                    "资产负债率(%)",
+                    "基本每股收益(美元)"
+                ]
 
             # 提取关键指标数据
             for name in key_names:
@@ -261,26 +287,66 @@ def render_basic_check(data: dict[str, pd.DataFrame], market: str = "A股") -> N
             if key_indicators:
                 key_df = pd.DataFrame(key_indicators)
 
-                # 展示关键指标
+                # 创建两行展示，第一行展示核心指标（ROE、毛利率、净现比等）
+                st.markdown("**🎯 核心盈利指标**")
                 col1, col2, col3 = st.columns(3)
 
-                for i, (_, row) in enumerate(key_df.iterrows()):
-                    if i < 6:  # 只显示前6个指标
-                        col = [col1, col2, col3][i % 3]
-                        indicator_name = row['指标名称']
+                # 优先展示前3个最重要的指标（ROE、毛利率、净现比）
+                priority_indicators = key_indicators[:3]
+                for i, row in enumerate(priority_indicators):
+                    col = [col1, col2, col3][i]
+                    indicator_name = row['指标名称']
 
-                        # 获取最新年份的数据
-                        year_cols = [col for col in key_df.columns if col not in ['指标名称']]
-                        if year_cols:
-                            latest_year = year_cols[0]  # 格式化后已按年份降序排列
-                            latest_value = row[latest_year]
+                    # 获取最新年份的数据
+                    year_cols = [col for col in key_df.columns if col not in ['指标名称']]
+                    if year_cols:
+                        latest_year = year_cols[0]  # 格式化后已按年份降序排列
+                        latest_value = row[latest_year]
 
-                            if pd.notna(latest_value) and latest_value != '':
-                                col.metric(
-                                    indicator_name,
-                                    latest_value,
-                                    help=f"最新{latest_year}年数据"
-                                )
+                        if pd.notna(latest_value) and latest_value != '':
+                            # 为核心指标添加特别样式
+                            if "ROE" in indicator_name or "净资产收益率" in indicator_name:
+                                delta_style = f"ROE > 15% 为优秀"
+                                if isinstance(latest_value, str) and '%' in latest_value:
+                                    try:
+                                        roe_value = float(latest_value.replace('%', ''))
+                                        if roe_value > 15:
+                                            col.metric(f"🔥 {indicator_name}", latest_value, delta=delta_style, help=f"最新{latest_year}年数据 | {delta_style}")
+                                        else:
+                                            col.metric(indicator_name, latest_value, help=f"最新{latest_year}年数据")
+                                    except:
+                                        col.metric(indicator_name, latest_value, help=f"最新{latest_year}年数据")
+                                else:
+                                    col.metric(indicator_name, latest_value, help=f"最新{latest_year}年数据")
+                            elif "毛利率" in indicator_name:
+                                col.metric(f"📈 {indicator_name}", latest_value, help=f"最新{latest_year}年数据 | 毛利率反映产品定价能力")
+                            elif "现金流" in indicator_name or "净现比" in indicator_name:
+                                col.metric(f"💰 {indicator_name}", latest_value, help=f"最新{latest_year}年数据 | 现金流健康度指标")
+                            else:
+                                col.metric(indicator_name, latest_value, help=f"最新{latest_year}年数据")
+
+                # 第二行展示其他重要指标
+                if len(key_indicators) > 3:
+                    st.markdown("**📊 其他财务指标**")
+                    remaining_indicators = key_indicators[3:9]  # 最多显示6个额外指标
+                    for i in range(0, len(remaining_indicators), 3):
+                        cols = st.columns(3)
+                        for j in range(3):
+                            if i + j < len(remaining_indicators):
+                                with cols[j]:
+                                    row = remaining_indicators[i + j]
+                                    indicator_name = row['指标名称']
+                                    year_cols = [col for col in key_df.columns if col not in ['指标名称']]
+                                    if year_cols:
+                                        latest_year = year_cols[0]
+                                        latest_value = row[latest_year]
+
+                                        if pd.notna(latest_value) and latest_value != '':
+                                            st.metric(
+                                                indicator_name,
+                                                latest_value,
+                                                help=f"最新{latest_year}年数据"
+                                            )
             else:
                 st.warning("⚠️ 未找到关键财务指标数据")
         else:
@@ -295,17 +361,158 @@ def render_basic_check(data: dict[str, pd.DataFrame], market: str = "A股") -> N
 
     health_checks = []
 
-    # 检查盈利能力
+    # 检查数据完整性
     if indicators_df is not None and not indicators_df.empty:
-        # 这里可以添加更多健康检查逻辑
-        health_checks.append(("✅ 数据完整性", "四大报表数据齐全"))
-        health_checks.append(("✅ 最新数据", "包含最新财务年度数据"))
+        # 格式化指标数据用于健康检查
+        formatted_indicators = format_financial_data(indicators_df, f"{market.lower()}_stock_indicators", market)
 
+        if not formatted_indicators.empty:
+            health_checks.append(("✅ 数据完整性", "四大报表数据齐全"))
+            health_checks.append(("✅ 最新数据", "包含最新财务年度数据"))
+
+            # ROE健康检查
+            roe_found = False
+            for _, row in formatted_indicators.iterrows():
+                if "ROE" in row['指标名称'] or "净资产收益率" in row['指标名称']:
+                    roe_found = True
+                    year_cols = [col for col in formatted_indicators.columns if col not in ['指标名称']]
+                    if year_cols:
+                        latest_value = row[year_cols[0]]
+                        try:
+                            if isinstance(latest_value, str) and '%' in latest_value:
+                                roe_value = float(latest_value.replace('%', ''))
+                                if roe_value > 15:
+                                    health_checks.append(("🔥 优秀ROE", f"净资产收益率 {roe_value:.1f}%，超过15%优秀标准"))
+                                elif roe_value > 10:
+                                    health_checks.append(("✅ 良好ROE", f"净资产收益率 {roe_value:.1f}%，表现良好"))
+                                else:
+                                    health_checks.append(("⚠️ 一般ROE", f"净资产收益率 {roe_value:.1f}%，有待提升"))
+                        except:
+                            pass
+                    break
+
+            if not roe_found:
+                health_checks.append(("⚠️ ROE数据", "净资产收益率数据缺失"))
+
+            # 毛利率健康检查
+            margin_found = False
+            for _, row in formatted_indicators.iterrows():
+                if "毛利率" in row['指标名称']:
+                    margin_found = True
+                    year_cols = [col for col in formatted_indicators.columns if col not in ['指标名称']]
+                    if year_cols:
+                        latest_value = row[year_cols[0]]
+                        try:
+                            if isinstance(latest_value, str) and '%' in latest_value:
+                                margin_value = float(latest_value.replace('%', ''))
+                                if margin_value > 50:
+                                    health_checks.append(("🔥 高毛利率", f"毛利率 {margin_value:.1f}%，产品竞争力强"))
+                                elif margin_value > 30:
+                                    health_checks.append(("✅ 健康毛利率", f"毛利率 {margin_value:.1f}%，水平良好"))
+                                elif margin_value > 15:
+                                    health_checks.append(("⚠️ 一般毛利率", f"毛利率 {margin_value:.1f}%，行业中等水平"))
+                                else:
+                                    health_checks.append(("📉 低毛利率", f"毛利率 {margin_value:.1f}%，关注盈利能力"))
+                        except:
+                            pass
+                    break
+
+            if not margin_found:
+                health_checks.append(("⚠️ 毛利率数据", "毛利率数据缺失"))
+
+            # 现金流健康检查（净现比）
+            cash_flow_found = False
+            for _, row in formatted_indicators.iterrows():
+                if "现金流" in row['指标名称'] or "净现比" in row['指标名称']:
+                    cash_flow_found = True
+                    health_checks.append(("✅ 现金流数据", "经营现金流指标正常"))
+                    break
+
+            if not cash_flow_found:
+                health_checks.append(("⚠️ 现金流数据", "现金流相关指标缺失"))
+
+            # 资产负债率健康检查
+            debt_ratio_found = False
+            for _, row in formatted_indicators.iterrows():
+                if "资产负债率" in row['指标名称']:
+                    debt_ratio_found = True
+                    year_cols = [col for col in formatted_indicators.columns if col not in ['指标名称']]
+                    if year_cols:
+                        latest_value = row[year_cols[0]]
+                        try:
+                            if isinstance(latest_value, str) and '%' in latest_value:
+                                debt_ratio = float(latest_value.replace('%', ''))
+                                if debt_ratio < 30:
+                                    health_checks.append(("🛡️ 低负债", f"资产负债率 {debt_ratio:.1f}%，财务稳健"))
+                                elif debt_ratio < 60:
+                                    health_checks.append(("✅ 合理负债", f"资产负债率 {debt_ratio:.1f}%，负债水平合理"))
+                                elif debt_ratio < 80:
+                                    health_checks.append(("⚠️ 偏高负债", f"资产负债率 {debt_ratio:.1f}%，需要关注"))
+                                else:
+                                    health_checks.append(("📈 高负债", f"资产负债率 {debt_ratio:.1f}%，财务风险较高"))
+                        except:
+                            pass
+                    break
+
+            if not debt_ratio_found:
+                health_checks.append(("⚠️ 负债率数据", "资产负债率数据缺失"))
+
+    # 显示健康检查结果
     if health_checks:
-        for status, description in health_checks:
-            st.write(f"{status} {description}")
+        # 按重要性和状态排序显示
+        priority_order = ["🔥", "✅", "⚠️", "📉", "📈", "🛡️"]
+
+        sorted_checks = []
+        for priority in priority_order:
+            for check in health_checks:
+                if check[0].startswith(priority):
+                    sorted_checks.append(check)
+
+        # 按列显示健康检查结果
+        col1, col2 = st.columns(2)
+        for i, (status, description) in enumerate(sorted_checks):
+            if i % 2 == 0:
+                with col1:
+                    st.write(f"{status} {description}")
+            else:
+                with col2:
+                    st.write(f"{status} {description}")
     else:
-        st.info("📋 财务健康检查需要完整的财务数据")
+        st.info("📋 财务健康检查需要完整的财务指标数据")
+
+    # 添加投资建议
+    st.markdown("---")
+    st.subheader("💡 投资参考建议")
+
+    suggestions = []
+
+    # 根据健康检查结果给出建议
+    if health_checks:
+        high_roe = any("优秀ROE" in check[1] for check in health_checks)
+        high_margin = any("高毛利率" in check[1] for check in health_checks)
+        low_debt = any("低负债" in check[1] for check in health_checks)
+        cash_good = any("现金流数据正常" in check[1] for check in health_checks)
+
+        if high_roe and high_margin:
+            suggestions.append("🌟 **优质企业**：高ROE+高毛利率，具备强大的盈利能力和产品竞争力")
+        elif high_roe:
+            suggestions.append("📈 **盈利能力强**：ROE表现优秀，股东回报水平高")
+        elif high_margin:
+            suggestions.append("🏭 **产品竞争力强**：高毛利率显示有定价权和护城河")
+
+        if low_debt:
+            suggestions.append("🛡️ **财务稳健**：负债率低，抗风险能力强")
+
+        if cash_good:
+            suggestions.append("💰 **现金充沛**：经营现金流健康，运营质量高")
+
+        if not suggestions:
+            suggestions.append("📊 **基本面分析**：建议结合行业特点进行综合分析")
+    else:
+        suggestions.append("⚠️ **数据不足**：请确保财务数据完整以获得准确的投资建议")
+
+    for suggestion in suggestions:
+        st.info(suggestion)
 
 
 def display_query_results(data: dict[str, pd.DataFrame], market: str = "A股") -> None:
