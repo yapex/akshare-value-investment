@@ -175,7 +175,7 @@ class FinancialReportApp:
         market, symbol, start_date, end_date, query_button = render_sidebar()
 
         # 主标题
-        st.title(f"📊 {market}财务报表分析系统")
+        st.title(f"📊 跨市场财务报表分析系统")
         st.markdown("---")
 
         # 初始化会话状态

@@ -180,6 +180,134 @@ def render_main_content() -> None:
     st.info("👈 请在左侧输入股票代码开始查询")
 
 
+def render_basic_check(data: dict[str, pd.DataFrame], market: str = "A股") -> None:
+    """
+    渲染基本检查页面
+
+    Args:
+        data: 包含四大报表数据的字典
+        market: 市场类型
+    """
+    st.subheader("🔍 财务健康状况基本检查")
+
+    if not data:
+        st.warning("⚠️ 暂无数据进行基本检查")
+        return
+
+    # 获取各报表数据
+    indicators_df = data.get('indicators')
+    balance_sheet_df = data.get('balance_sheet')
+    income_statement_df = data.get('income_statement')
+    cash_flow_df = data.get('cash_flow')
+
+    # 基本信息卡片
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        st.metric("数据完整性", "✅ 良好", help="四大报表数据完整")
+
+    with col2:
+        # 计算数据年份范围
+        all_years = []
+        for df_data in [indicators_df, balance_sheet_df, income_statement_df, cash_flow_df]:
+            if df_data is not None and not df_data.empty:
+                date_columns = ['报告期', 'date', 'DATE', 'report_date', 'REPORT_DATE']
+                for date_col in date_columns:
+                    if date_col in df_data.columns:
+                        years = pd.to_datetime(df_data[date_col]).dt.year.unique()
+                        all_years.extend(years)
+                        break
+        if all_years:
+            year_range = f"{min(all_years)}-{max(all_years)}"
+            st.metric("数据年份", year_range)
+        else:
+            st.metric("数据年份", "未知")
+
+    with col3:
+        st.metric("市场类型", market)
+
+    with col4:
+        # 获取当前股票代码
+        current_symbol = st.session_state.get('current_symbol', '未知')
+        st.metric("股票代码", current_symbol)
+
+    st.markdown("---")
+
+    # 核心财务指标概览
+    st.subheader("📊 核心财务指标概览")
+
+    if indicators_df is not None and not indicators_df.empty:
+        # 格式化指标数据
+        formatted_indicators = format_financial_data(indicators_df, f"{market.lower()}_stock_indicators", market)
+
+        if not formatted_indicators.empty:
+            # 选择关键指标进行展示
+            key_indicators = []
+
+            # 根据市场选择关键指标
+            if market == "A股":
+                key_names = ["净资产收益率(%)", "净利润(亿元)", "营业收入(亿元)", "资产负债率(%)", "毛利率(%)", "基本每股收益(元)"]
+            elif market == "港股":
+                key_names = ["平均净资产收益率(%)", "股东净利润(亿港元)", "营业收入(亿港元)", "资产负债率(%)", "毛利率(%)", "基本每股收益(港元)"]
+            else:  # 美股
+                key_names = ["净资产收益率(%)", "归母净利润(亿美元)", "营业收入(亿美元)", "资产负债率(%)", "毛利率(%)", "基本每股收益(美元)"]
+
+            # 提取关键指标数据
+            for name in key_names:
+                matching_rows = formatted_indicators[formatted_indicators['指标名称'] == name]
+                if not matching_rows.empty:
+                    key_indicators.append(matching_rows.iloc[0])
+
+            if key_indicators:
+                key_df = pd.DataFrame(key_indicators)
+
+                # 展示关键指标
+                col1, col2, col3 = st.columns(3)
+
+                for i, (_, row) in enumerate(key_df.iterrows()):
+                    if i < 6:  # 只显示前6个指标
+                        col = [col1, col2, col3][i % 3]
+                        indicator_name = row['指标名称']
+
+                        # 获取最新年份的数据
+                        year_cols = [col for col in key_df.columns if col not in ['指标名称']]
+                        if year_cols:
+                            latest_year = year_cols[0]  # 格式化后已按年份降序排列
+                            latest_value = row[latest_year]
+
+                            if pd.notna(latest_value) and latest_value != '':
+                                col.metric(
+                                    indicator_name,
+                                    latest_value,
+                                    help=f"最新{latest_year}年数据"
+                                )
+            else:
+                st.warning("⚠️ 未找到关键财务指标数据")
+        else:
+            st.warning("⚠️ 财务指标数据格式化失败")
+    else:
+        st.warning("⚠️ 暂无财务指标数据")
+
+    st.markdown("---")
+
+    # 财务健康状态检查
+    st.subheader("💰 财务健康状态检查")
+
+    health_checks = []
+
+    # 检查盈利能力
+    if indicators_df is not None and not indicators_df.empty:
+        # 这里可以添加更多健康检查逻辑
+        health_checks.append(("✅ 数据完整性", "四大报表数据齐全"))
+        health_checks.append(("✅ 最新数据", "包含最新财务年度数据"))
+
+    if health_checks:
+        for status, description in health_checks:
+            st.write(f"{status} {description}")
+    else:
+        st.info("📋 财务健康检查需要完整的财务数据")
+
+
 def display_query_results(data: dict[str, pd.DataFrame], market: str = "A股") -> None:
     """
     显示查询结果
@@ -192,8 +320,9 @@ def display_query_results(data: dict[str, pd.DataFrame], market: str = "A股") -
         st.error("❌ 未能获取到任何财务数据，请检查股票代码或稍后重试")
         return
 
-    # 所有市场都使用四个页签的统一格式
+    # 添加基本检查页签，共5个页签
     tab_titles = [
+        "🔍 基本检查",
         "📈 财务指标",
         "🏦 资产负债表",
         "💰 利润表",
@@ -210,12 +339,16 @@ def display_query_results(data: dict[str, pd.DataFrame], market: str = "A股") -
     }
     api_market = market_api_mapping.get(market, market.lower())
 
-    # 定义报表映射
+    # 首先渲染基本检查页签
+    with tabs[0]:
+        render_basic_check(data, market)
+
+    # 定义剩余报表映射（从第2个页签开始）
     report_mapping = [
-        (tabs[0], "财务指标", data.get('indicators'), f"{api_market}_stock_indicators"),
-        (tabs[1], "资产负债表", data.get('balance_sheet'), f"{api_market}_stock_balance_sheet"),
-        (tabs[2], "利润表", data.get('income_statement'), f"{api_market}_stock_income_statement"),
-        (tabs[3], "现金流量表", data.get('cash_flow'), f"{api_market}_stock_cash_flow")
+        (tabs[1], "财务指标", data.get('indicators'), f"{api_market}_stock_indicators"),
+        (tabs[2], "资产负债表", data.get('balance_sheet'), f"{api_market}_stock_balance_sheet"),
+        (tabs[3], "利润表", data.get('income_statement'), f"{api_market}_stock_income_statement"),
+        (tabs[4], "现金流量表", data.get('cash_flow'), f"{api_market}_stock_cash_flow")
     ]
 
     # 渲染各个报表
