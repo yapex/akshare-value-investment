@@ -194,6 +194,16 @@ def render_basic_check(data: dict[str, pd.DataFrame], market: str = "A股") -> N
         st.warning("⚠️ 暂无数据进行基本检查")
         return
 
+    # 检查数据字典是否为空或所有值都是None
+    valid_data_count = sum(1 for key, df in data.items() if df is not None and not df.empty)
+    if valid_data_count == 0:
+        st.warning("⚠️ 暂无有效财务数据进行分析")
+        st.info("💡 请检查：")
+        st.info("1. 股票代码是否正确")
+        st.info("2. FastAPI服务是否正常运行 (http://localhost:8000)")
+        st.info("3. 网络连接是否正常")
+        return
+
     # 获取各报表数据
     indicators_df = data.get('indicators')
     balance_sheet_df = data.get('balance_sheet')
@@ -204,7 +214,27 @@ def render_basic_check(data: dict[str, pd.DataFrame], market: str = "A股") -> N
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        st.metric("数据完整性", "✅ 良好", help="四大报表数据完整")
+        # 计算实际的数据完整性
+        data_types = {
+            'indicators': '财务指标',
+            'balance_sheet': '资产负债表',
+            'income_statement': '利润表',
+            'cash_flow': '现金流量表'
+        }
+
+        available_reports = []
+        for key, name in data_types.items():
+            df = data.get(key)
+            if df is not None and not df.empty:
+                available_reports.append(name)
+
+        completeness_ratio = len(available_reports) / 4
+        if completeness_ratio == 1:
+            st.metric("数据完整性", f"✅ {len(available_reports)}/4", help="四大报表数据完整")
+        elif completeness_ratio >= 0.5:
+            st.metric("数据完整性", f"⚠️ {len(available_reports)}/4", help=f"已有{', '.join(available_reports)}")
+        else:
+            st.metric("数据完整性", f"❌ {len(available_reports)}/4", help=f"仅有{', '.join(available_reports) if available_reports else '无数据'}")
 
     with col2:
         # 计算数据年份范围

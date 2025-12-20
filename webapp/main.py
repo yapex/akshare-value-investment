@@ -110,22 +110,38 @@ class FinancialReportApp:
             data = {}
 
             if market == "A股":
-                # A股：四大报表分别查询
-                data['indicators'] = self.query_financial_data_via_api(
-                    "a_stock", "a_stock_indicators", symbol, start_date, end_date
-                )
+                # A股：四大报表分别查询（即使部分失败也继续）
+                try:
+                    data['indicators'] = self.query_financial_data_via_api(
+                        "a_stock", "a_stock_indicators", symbol, start_date, end_date
+                    )
+                except Exception as e:
+                    st.warning(f"⚠️ 财务指标查询失败: {str(e)}")
+                    data['indicators'] = None
 
-                data['balance_sheet'] = self.query_financial_data_via_api(
-                    "a_stock", "a_stock_balance_sheet", symbol, start_date, end_date
-                )
+                try:
+                    data['balance_sheet'] = self.query_financial_data_via_api(
+                        "a_stock", "a_stock_balance_sheet", symbol, start_date, end_date
+                    )
+                except Exception as e:
+                    st.warning(f"⚠️ 资产负债表查询失败: {str(e)}")
+                    data['balance_sheet'] = None
 
-                data['income_statement'] = self.query_financial_data_via_api(
-                    "a_stock", "a_stock_income_statement", symbol, start_date, end_date
-                )
+                try:
+                    data['income_statement'] = self.query_financial_data_via_api(
+                        "a_stock", "a_stock_income_statement", symbol, start_date, end_date
+                    )
+                except Exception as e:
+                    st.warning(f"⚠️ 利润表查询失败: {str(e)}")
+                    data['income_statement'] = None
 
-                data['cash_flow'] = self.query_financial_data_via_api(
-                    "a_stock", "a_stock_cash_flow", symbol, start_date, end_date
-                )
+                try:
+                    data['cash_flow'] = self.query_financial_data_via_api(
+                        "a_stock", "a_stock_cash_flow", symbol, start_date, end_date
+                    )
+                except Exception as e:
+                    st.warning(f"⚠️ 现金流量表查询失败: {str(e)}")
+                    data['cash_flow'] = None
 
             elif market == "港股":
                 # 港股：财务指标 + 三个独立报表
@@ -213,7 +229,15 @@ class FinancialReportApp:
 
             # 显示查询结果
             if data:
-                display_query_results(data, market)
+                # 检查是否有有效数据
+                valid_data_count = sum(1 for key, df in data.items() if df is not None and not df.empty)
+                if valid_data_count > 0:
+                    display_query_results(data, market)
+                else:
+                    st.error("❌ 获取的财务数据为空，请检查：")
+                    st.info("1. 股票代码是否正确")
+                    st.info("2. FastAPI服务是否正常运行 (http://localhost:8000)")
+                    st.info("3. 查询的时间范围是否合适")
             else:
                 st.error("❌ 未能获取到财务数据，请检查股票代码或稍后重试")
 
