@@ -76,36 +76,9 @@ def format_financial_data(df: pd.DataFrame, report_type: str, market: str = "A�
                     # 判断指标类型
                     indicator_type = get_financial_indicator_type(indicator_name)
 
-                    # 美股特殊处理：美元转换为亿美元
-                    if 'us_stock' in report_type:
-                        # 美股的绝对金额类指标需要转换为亿美元
-                        if indicator_type == 'amount':
-                            if isinstance(value, str):
-                                clean_value = value.replace(',', '').replace('，', '').strip()
-                                try:
-                                    float_val = float(clean_value)
-                                except ValueError:
-                                    row_data[str(year)] = None
-                                    continue
-                            elif isinstance(value, (int, float)):
-                                float_val = float(value)
-                            else:
-                                row_data[str(year)] = None
-                                continue
-
-                            # 转换为亿美元
-                            billions_val = float_val / 100_000_000
-                            row_data[str(year)] = f"{billions_val:.2f}"
-                        else:
-                            # 美股非金额类指标：使用通用格式化，但移除百分比符号
-                            formatted_value = format_financial_value_by_type(value, indicator_type, indicator_name, market)
-                            if formatted_value and '%' in formatted_value:
-                                formatted_value = formatted_value.replace('%', '')
-                            row_data[str(year)] = formatted_value
-                    else:
-                        # A股和港股：使用智能格式化函数
-                        formatted_value = format_financial_value_by_type(value, indicator_type, indicator_name, market)
-                        row_data[str(year)] = formatted_value
+                    # 统一使用智能格式化函数处理所有市场
+                    formatted_value = format_financial_value_by_type(value, indicator_type, indicator_name, market)
+                    row_data[str(year)] = formatted_value
                 else:
                     # 非数值数据保持None，避免类型混合
                     row_data[str(year)] = None
@@ -353,17 +326,19 @@ def format_financial_value_by_type(value, indicator_type: str, indicator_name: s
         except (ValueError, TypeError):
             return None
 
-        # 根据指标类型和市场进行格式化
-        if indicator_type == 'amount':
+        # 港股和美股财务三表：所有数值字段统一按亿为单位显示
+        if market in ["港股", "美股"]:
+            # 港股：港元转换为亿港元
+            # 美股：美元转换为亿美元
             if market == "港股":
-                # 港股金额：港元转换为亿港元，所有数据都转换为亿港元显示（不带单位标识）
-                billions_val = float_val / 100_000_000
-                return f"{billions_val:.2f}"
-            elif market == "美股":
-                # 美股金额：美元转换为亿美元，所有数据都转换为亿美元显示（不带单位标识）
-                billions_val = float_val / 1_000_000_000
-                return f"{billions_val:.2f}"
-            else:  # A股
+                billions_val = float_val / 100_000_000  # 港股：港元→亿港元
+            else:  # 美股
+                billions_val = float_val / 1_000_000_000  # 美股：美元→亿美元
+            return f"{billions_val:.2f}"
+
+        # A股市场根据指标类型进行格式化
+        if market == "A股":
+            if indicator_type == 'amount':
                 # A股金额：不带"亿"单位，直接显示数值
                 if float_val >= 1_000_000_000:  # 10亿以上
                     # 转换为亿元但不带单位标识
@@ -371,21 +346,19 @@ def format_financial_value_by_type(value, indicator_type: str, indicator_name: s
                     return f"{billions_val:.2f}"
                 else:
                     return f"{float_val:.2f}"
-        elif indicator_type == 'percentage':
-            return f"{float_val:.2f}%"
-        elif indicator_type == 'multiplier':
-            return f"{float_val:.2f}"
-        elif indicator_type == 'per_share':
-            if market == "港股":
-                return f"{float_val:.2f}"  # 港元
-            elif market == "美股":
-                return f"{float_val:.2f}"  # 美元
-            else:
+            elif indicator_type == 'percentage':
+                return f"{float_val:.2f}%"
+            elif indicator_type == 'multiplier':
+                return f"{float_val:.2f}"
+            elif indicator_type == 'per_share':
                 return f"{float_val:.2f}"  # 人民币
-        elif indicator_type == 'days':
-            return f"{float_val:.2f}"
-        else:
-            return f"{float_val:.2f}"
+            elif indicator_type == 'days':
+                return f"{float_val:.2f}"
+            else:
+                return f"{float_val:.2f}"
+
+        # 港股和美股已在上面统一处理，不应该到达这里
+        return f"{float_val:.2f}"
 
     # 其他类型
     else:
