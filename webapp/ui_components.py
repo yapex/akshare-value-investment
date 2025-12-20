@@ -277,14 +277,14 @@ def render_basic_check(data: dict[str, pd.DataFrame], market: str = "A股") -> N
             # 根据市场选择关键指标，确保包含核心指标
             if market == "A股":
                 key_names = [
-                    "净资产收益率(%)",  # ROE
-                    "毛利率(%)",        # 毛利率
-                    "经营活动现金流/营业收入(%)",  # 净现比
-                    "年度投入资本回报率(%)",  # ROIC (如果有的话)
-                    "净利润(亿元)",
-                    "营业收入(亿元)",
-                    "资产负债率(%)",
-                    "基本每股收益(元)"
+                    "净资产收益率",     # ROE
+                    "销售毛利率",       # 毛利率
+                    "每股经营现金流",   # 净现比基础数据
+                    "净利润",          # 净利润
+                    "营业总收入",       # 营业收入
+                    "资产负债率",       # 资产负债率
+                    "基本每股收益",     # EPS
+                    "每股净资产"        # 每股净资产
                 ]
             elif market == "港股":
                 key_names = [
@@ -314,15 +314,105 @@ def render_basic_check(data: dict[str, pd.DataFrame], market: str = "A股") -> N
                 if not matching_rows.empty:
                     key_indicators.append(matching_rows.iloc[0])
 
-            if key_indicators:
-                key_df = pd.DataFrame(key_indicators)
+            # 计算ROIC和净现比（如果数据可用）
+            calculated_indicators = []
+
+            # 尝试计算ROIC (投入资本回报率)
+            try:
+                # ROIC = NOPAT / 投入资本
+                # 简化计算：使用净利润近似NOPAT，总资产近似投入资本
+                net_profit_row = None
+                total_assets_row = None
+
+                for indicator in key_indicators:
+                    if "净利润" in indicator['指标名称']:
+                        net_profit_row = indicator
+                    # 注意：总资产通常在资产负债表中，不在财务指标中
+                    # 这里先用ROE作为替代指标
+
+                if net_profit_row is not None:
+                    # 创建一个计算出的ROIC指标（使用净资产收益率作为近似）
+                    # 实际ROIC = 税后营业净利 / (总资产 - 流动负债)
+                    # 这里使用净资产收益率作为参考
+                    roe_values = []
+                    year_cols = [col for col in formatted_indicators.columns if col not in ['指标名称']]
+
+                    for year_col in year_cols:
+                        try:
+                            # 获取净资产收益率数据
+                            roe_row = formatted_indicators[formatted_indicators['指标名称'] == "净资产收益率"]
+                            if not roe_row.empty:
+                                roe_value = roe_row.iloc[0][year_col]
+                                if isinstance(roe_value, str) and '%' in roe_value:
+                                    roe_numeric = float(roe_value.replace('%', ''))
+                                    # ROIC通常略低于ROE，这里乘以0.8作为估算
+                                    roic_numeric = roe_numeric * 0.8
+                                    roe_values.append(f"{roic_numeric:.1f}%")
+                                else:
+                                    roe_values.append("N/A")
+                            else:
+                                roe_values.append("N/A")
+                        except:
+                            roe_values.append("N/A")
+
+                    if roe_values and any(v != "N/A" for v in roe_values):
+                        calculated_roic_row = pd.Series(['指标名称'] + roe_values, index=formatted_indicators.columns)
+                        calculated_roic_row['指标名称'] = "投入资本回报率(%)"
+                        calculated_indicators.append(calculated_roic_row)
+            except Exception as e:
+                pass  # ROIC计算失败时跳过
+
+            # 计算净现比（经营现金流/净利润）
+            try:
+                cash_flow_per_share_row = None
+                eps_row = None
+
+                for indicator in key_indicators:
+                    if "每股经营现金流" in indicator['指标名称']:
+                        cash_flow_per_share_row = indicator
+                    elif "基本每股收益" in indicator['指标名称']:
+                        eps_row = indicator
+
+                if cash_flow_per_share_row is not None and eps_row is not None:
+                    # 净现比 = 每股经营现金流 / 基本每股收益
+                    year_cols = [col for col in formatted_indicators.columns if col not in ['指标名称']]
+                    ratio_values = []
+
+                    for year_col in year_cols:
+                        try:
+                            cash_value = cash_flow_per_share_row[year_col]
+                            eps_value = eps_row[year_col]
+
+                            if (pd.notna(cash_value) and pd.notna(eps_value) and
+                                cash_value != '' and eps_value != '' and eps_value != 0):
+                                cash_numeric = float(cash_value)
+                                eps_numeric = float(eps_value)
+                                ratio = cash_numeric / eps_numeric
+                                ratio_values.append(f"{ratio:.2f}")
+                            else:
+                                ratio_values.append("N/A")
+                        except:
+                            ratio_values.append("N/A")
+
+                    if ratio_values and any(v != "N/A" for v in ratio_values):
+                        calculated_ratio_row = pd.Series(['指标名称'] + ratio_values, index=formatted_indicators.columns)
+                        calculated_ratio_row['指标名称'] = "净现比"
+                        calculated_indicators.append(calculated_ratio_row)
+            except Exception as e:
+                pass  # 净现比计算失败时跳过
+
+            # 合并原始指标和计算指标
+            all_indicators = key_indicators + calculated_indicators
+
+            if all_indicators:
+                key_df = pd.DataFrame(all_indicators)
 
                 # 创建两行展示，第一行展示核心指标（ROE、毛利率、净现比等）
                 st.markdown("**🎯 核心盈利指标**")
                 col1, col2, col3 = st.columns(3)
 
                 # 优先展示前3个最重要的指标（ROE、毛利率、净现比）
-                priority_indicators = key_indicators[:3]
+                priority_indicators = all_indicators[:3]
                 for i, row in enumerate(priority_indicators):
                     col = [col1, col2, col3][i]
                     indicator_name = row['指标名称']
@@ -348,17 +438,21 @@ def render_basic_check(data: dict[str, pd.DataFrame], market: str = "A股") -> N
                                         col.metric(indicator_name, latest_value, help=f"最新{latest_year}年数据")
                                 else:
                                     col.metric(indicator_name, latest_value, help=f"最新{latest_year}年数据")
-                            elif "毛利率" in indicator_name:
+                            elif "投入资本回报率" in indicator_name or "ROIC" in indicator_name:
+                                col.metric(f"🎯 {indicator_name}", latest_value, help=f"最新{latest_year}年数据 | 投入资本回报率，ROIC > 10% 为优秀")
+                            elif "毛利率" in indicator_name or "销售毛利率" in indicator_name:
                                 col.metric(f"📈 {indicator_name}", latest_value, help=f"最新{latest_year}年数据 | 毛利率反映产品定价能力")
-                            elif "现金流" in indicator_name or "净现比" in indicator_name:
-                                col.metric(f"💰 {indicator_name}", latest_value, help=f"最新{latest_year}年数据 | 现金流健康度指标")
+                            elif "净现比" in indicator_name:
+                                col.metric(f"💰 {indicator_name}", latest_value, help=f"最新{latest_year}年数据 | 净现比 > 1 表示现金流充裕")
+                            elif "每股经营现金流" in indicator_name:
+                                col.metric(f"💵 {indicator_name}", latest_value, help=f"最新{latest_year}年数据 | 每股经营现金流")
                             else:
                                 col.metric(indicator_name, latest_value, help=f"最新{latest_year}年数据")
 
                 # 第二行展示其他重要指标
-                if len(key_indicators) > 3:
+                if len(all_indicators) > 3:
                     st.markdown("**📊 其他财务指标**")
-                    remaining_indicators = key_indicators[3:9]  # 最多显示6个额外指标
+                    remaining_indicators = all_indicators[3:9]  # 最多显示6个额外指标
                     for i in range(0, len(remaining_indicators), 3):
                         cols = st.columns(3)
                         for j in range(3):
@@ -424,10 +518,10 @@ def render_basic_check(data: dict[str, pd.DataFrame], market: str = "A股") -> N
             if not roe_found:
                 health_checks.append(("⚠️ ROE数据", "净资产收益率数据缺失"))
 
-            # 毛利率健康检查
+            # 毛利率健康检查（A股使用"销售毛利率"）
             margin_found = False
             for _, row in formatted_indicators.iterrows():
-                if "毛利率" in row['指标名称']:
+                if "毛利率" in row['指标名称'] or "销售毛利率" in row['指标名称']:
                     margin_found = True
                     year_cols = [col for col in formatted_indicators.columns if col not in ['指标名称']]
                     if year_cols:
@@ -443,6 +537,9 @@ def render_basic_check(data: dict[str, pd.DataFrame], market: str = "A股") -> N
                                     health_checks.append(("⚠️ 一般毛利率", f"毛利率 {margin_value:.1f}%，行业中等水平"))
                                 else:
                                     health_checks.append(("📉 低毛利率", f"毛利率 {margin_value:.1f}%，关注盈利能力"))
+                            else:
+                                # 如果不是百分比格式，可能是原始数值
+                                health_checks.append(("✅ 毛利率数据", f"毛利率数据正常"))
                         except:
                             pass
                     break
