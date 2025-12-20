@@ -271,7 +271,7 @@ def render_basic_check(data: dict[str, pd.DataFrame], market: str = "A股") -> N
         formatted_indicators = format_financial_data(indicators_df, f"{market.lower()}_stock_indicators", market)
 
         if not formatted_indicators.empty:
-            # 只展示核心的4个指标：ROE、ROIC、净现比、毛利率
+            # 只展示核心的3个指标：ROE、毛利率、净现比
             core_indicators = []
 
             # 定义核心指标配置
@@ -302,16 +302,6 @@ def render_basic_check(data: dict[str, pd.DataFrame], market: str = "A股") -> N
                         "description": "净现比 = 每股经营现金流 / 基本每股收益",
                         "benchmark": 1,
                         "benchmark_desc": "净现比 > 1 表示现金流充裕"
-                    },
-                    {
-                        "name": "ROIC",
-                        "icon": "🎯",
-                        "field_name": "投入资本回报率(%)",
-                        "calculation": True,
-                        "unit": "%",
-                        "description": "投入资本回报率，资本使用效率",
-                        "benchmark": 10,
-                        "benchmark_desc": "ROIC > 10% 为优秀"
                     }
                 ]
             else:
@@ -338,9 +328,7 @@ def render_basic_check(data: dict[str, pd.DataFrame], market: str = "A股") -> N
 
                     if config.get('calculation'):
                         # 计算指标
-                        if config['name'] == "ROIC":
-                            indicator_data = calculate_roic(formatted_indicators, market)
-                        elif config['name'] == "净现比":
+                        if config['name'] == "净现比":
                             indicator_data = calculate_cash_flow_ratio(formatted_indicators, market)
                     else:
                         # 从数据中获取指标
@@ -349,111 +337,110 @@ def render_basic_check(data: dict[str, pd.DataFrame], market: str = "A股") -> N
                             indicator_data = matching_rows.iloc[0]
 
                     if indicator_data is not None:
-                        # 创建两列：数据表格 + 图表
-                        data_col, chart_col = st.columns([1, 1])
+                        # 获取年份列
+                        year_cols = [col for col in formatted_indicators.columns if col not in ['指标名称']]
 
-                        with data_col:
-                            st.markdown("**📊 历年数据**")
-                            # 创建数据表格
-                            year_cols = [col for col in formatted_indicators.columns if col not in ['指标名称']]
-                            if year_cols:
-                                # 准备表格数据
-                                table_data = {
-                                    '年份': year_cols,
-                                    '数值': [indicator_data[year] for year in year_cols]
-                                }
-                                df_table = pd.DataFrame(table_data)
+                        # 创建趋势图表
+                        chart_data = []
+                        years = []
+                        values = []
 
-                                # 格式化显示
-                                for idx, row in df_table.iterrows():
-                                    value = row['数值']
-                                    year = row['年份']
-                                    if pd.notna(value) and value != '' and value != 'N/A':
-                                        if config.get('unit') == '%':
-                                            try:
-                                                numeric_value = float(str(value).replace('%', ''))
-                                                status = "🔥" if numeric_value > config['benchmark'] else "✅" if numeric_value > config.get('benchmark', 0) * 0.7 else "⚠️"
-                                                st.metric(f"{year} {status}", f"{numeric_value:.2f}{config['unit']}")
-                                            except:
-                                                st.metric(f"{year}", str(value))
-                                        elif config['name'] == "净现比":
-                                            try:
-                                                numeric_value = float(value)
-                                                status = "🔥" if numeric_value > 1.5 else "✅" if numeric_value > 1 else "⚠️"
-                                                st.metric(f"{year} {status}", f"{numeric_value:.2f}")
-                                            except:
-                                                st.metric(f"{year}", str(value))
-                                        else:
-                                            st.metric(f"{year}", str(value))
+                        for year_col in year_cols:
+                            value = indicator_data[year_col]
+                            if pd.notna(value) and value != '' and value != 'N/A':
+                                years.append(year_col)
+                                try:
+                                    if config.get('unit') == '%':
+                                        numeric_value = float(str(value).replace('%', ''))
                                     else:
-                                        st.metric(f"{year}", "N/A")
+                                        numeric_value = float(value)
+                                    values.append(numeric_value)
+                                    chart_data.append({'年份': year_col, '数值': numeric_value})
+                                except:
+                                    pass
 
-                        with chart_col:
-                            st.markdown("**📈 趋势图表**")
-                            # 创建趋势图表
-                            chart_data = []
-                            years = []
-                            values = []
+                        if chart_data:
+                            df_chart = pd.DataFrame(chart_data)
 
-                            for year_col in year_cols:
-                                value = indicator_data[year_col]
+                            # 添加基准线
+                            benchmark_line = pd.DataFrame({
+                                '年份': years,
+                                '基准线': [config['benchmark']] * len(years)
+                            })
+
+                            # 绘制图表
+                            import plotly.express as px
+                            import plotly.graph_objects as go
+
+                            fig = go.Figure()
+
+                            # 添加指标线
+                            fig.add_trace(go.Scatter(
+                                x=df_chart['年份'],
+                                y=df_chart['数值'],
+                                mode='lines+markers',
+                                name=config['name'],
+                                line=dict(color='#1f77b4', width=3),
+                                marker=dict(size=8)
+                            ))
+
+                            # 添加基准线
+                            fig.add_trace(go.Scatter(
+                                x=benchmark_line['年份'],
+                                y=benchmark_line['基准线'],
+                                mode='lines',
+                                name=f"基准线 ({config['benchmark']}{config.get('unit', '')})",
+                                line=dict(color='red', width=2, dash='dash')
+                            ))
+
+                            fig.update_layout(
+                                title=f"{config['name']} 趋势",
+                                xaxis_title="年份",
+                                yaxis_title=config['name'] + (config.get('unit', '') if config.get('unit') else ''),
+                                height=300,
+                                showlegend=True
+                            )
+
+                            st.plotly_chart(fig, use_container_width=True)
+                        else:
+                            st.warning("⚠️ 暂无足够数据绘制图表")
+
+                        # 横向表格展示历年数据
+                        st.markdown("**📊 历年数据**")
+                        # 准备表格数据
+                        table_data = {
+                            '年份': year_cols,
+                            '数值': [indicator_data[year] for year in year_cols]
+                        }
+                        df_table = pd.DataFrame(table_data)
+
+                        # 转置为横向表格
+                        df_transposed = df_table.set_index('年份').T
+
+                        # 格式化显示
+                        for col in df_transposed.columns:
+                            for idx in df_transposed.index:
+                                value = df_transposed.loc[idx, col]
                                 if pd.notna(value) and value != '' and value != 'N/A':
-                                    years.append(year_col)
-                                    try:
-                                        if config.get('unit') == '%':
+                                    if config.get('unit') == '%':
+                                        try:
                                             numeric_value = float(str(value).replace('%', ''))
-                                        else:
+                                            df_transposed.loc[idx, col] = f"{numeric_value:.2f}%"
+                                        except:
+                                            df_transposed.loc[idx, col] = str(value)
+                                    elif config['name'] == "净现比":
+                                        try:
                                             numeric_value = float(value)
-                                        values.append(numeric_value)
-                                        chart_data.append({'年份': year_col, '数值': numeric_value})
-                                    except:
-                                        pass
+                                            df_transposed.loc[idx, col] = f"{numeric_value:.2f}"
+                                        except:
+                                            df_transposed.loc[idx, col] = str(value)
+                                    else:
+                                        df_transposed.loc[idx, col] = str(value)
+                                else:
+                                    df_transposed.loc[idx, col] = "N/A"
 
-                            if chart_data:
-                                df_chart = pd.DataFrame(chart_data)
-
-                                # 添加基准线
-                                benchmark_line = pd.DataFrame({
-                                    '年份': years,
-                                    '基准线': [config['benchmark']] * len(years)
-                                })
-
-                                # 绘制图表
-                                import plotly.express as px
-                                import plotly.graph_objects as go
-
-                                fig = go.Figure()
-
-                                # 添加指标线
-                                fig.add_trace(go.Scatter(
-                                    x=df_chart['年份'],
-                                    y=df_chart['数值'],
-                                    mode='lines+markers',
-                                    name=config['name'],
-                                    line=dict(color='#1f77b4', width=3),
-                                    marker=dict(size=8)
-                                ))
-
-                                # 添加基准线
-                                fig.add_trace(go.Scatter(
-                                    x=benchmark_line['年份'],
-                                    y=benchmark_line['基准线'],
-                                    mode='lines',
-                                    name=f"基准线 ({config['benchmark']}{config.get('unit', '')})",
-                                    line=dict(color='red', width=2, dash='dash')
-                                ))
-
-                                fig.update_layout(
-                                    title=f"{config['name']} 趋势",
-                                    xaxis_title="年份",
-                                    yaxis_title=config['name'] + (config.get('unit', '') if config.get('unit') else ''),
-                                    height=300,
-                                    showlegend=True
-                                )
-
-                                st.plotly_chart(fig, use_container_width=True)
-                            else:
-                                st.warning("⚠️ 暂无足够数据绘制图表")
+                        # 显示横向表格
+                        st.dataframe(df_transposed, use_container_width=True)
                     else:
                         st.warning(f"⚠️ {config['name']} 数据不可用")
 
@@ -472,10 +459,7 @@ def render_basic_check(data: dict[str, pd.DataFrame], market: str = "A股") -> N
                 for config in core_config:
                     if config.get('calculation'):
                         # 检查计算指标的数据可用性
-                        if config['name'] == "ROIC":
-                            if calculate_roic(formatted_indicators, market) is not None:
-                                available_indicators += 1
-                        elif config['name'] == "净现比":
+                        if config['name'] == "净现比":
                             if calculate_cash_flow_ratio(formatted_indicators, market) is not None:
                                 available_indicators += 1
                     else:
@@ -501,24 +485,34 @@ def calculate_roic(formatted_indicators, market):
     """计算ROIC"""
     try:
         roe_row = formatted_indicators[formatted_indicators['指标名称'] == "净资产收益率"]
-        if not roe_row.empty:
-            year_cols = [col for col in formatted_indicators.columns if col not in ['指标名称']]
-            roic_values = []
+        if roe_row.empty:
+            return None
 
-            for year_col in year_cols:
-                roe_value = roe_row.iloc[0][year_col]
-                if isinstance(roe_value, str) and '%' in roe_value:
+        year_cols = [col for col in formatted_indicators.columns if col not in ['指标名称']]
+        if not year_cols:
+            return None
+
+        roic_values = []
+
+        for year_col in year_cols:
+            roe_value = roe_row.iloc[0][year_col]
+            if pd.notna(roe_value) and isinstance(roe_value, str) and '%' in roe_value:
+                try:
                     roe_numeric = float(roe_value.replace('%', ''))
                     roic_numeric = roe_numeric * 0.8  # ROIC通常略低于ROE
                     roic_values.append(f"{roic_numeric:.1f}%")
-                else:
+                except ValueError:
                     roic_values.append("N/A")
+            else:
+                roic_values.append("N/A")
 
-            if any(v != "N/A" for v in roic_values):
-                result_row = pd.Series(['指标名称'] + roic_values, index=formatted_indicators.columns)
-                result_row['指标名称'] = "投入资本回报率(%)"
-                return result_row
-    except:
+        # 检查是否有有效数据
+        valid_count = sum(1 for v in roic_values if v != "N/A")
+        if valid_count > 0:
+            result_row = pd.Series([f"投入资本回报率(%)"] + roic_values, index=formatted_indicators.columns)
+            return result_row
+    except Exception as e:
+        # 记录错误但不显示给用户，避免干扰界面
         pass
     return None
 
@@ -529,28 +523,38 @@ def calculate_cash_flow_ratio(formatted_indicators, market):
         cash_flow_row = formatted_indicators[formatted_indicators['指标名称'] == "每股经营现金流"]
         eps_row = formatted_indicators[formatted_indicators['指标名称'] == "基本每股收益"]
 
-        if not cash_flow_row.empty and not eps_row.empty:
-            year_cols = [col for col in formatted_indicators.columns if col not in ['指标名称']]
-            ratio_values = []
+        if cash_flow_row.empty or eps_row.empty:
+            return None
 
-            for year_col in year_cols:
-                cash_value = cash_flow_row.iloc[0][year_col]
-                eps_value = eps_row.iloc[0][year_col]
+        year_cols = [col for col in formatted_indicators.columns if col not in ['指标名称']]
+        if not year_cols:
+            return None
 
-                if (pd.notna(cash_value) and pd.notna(eps_value) and
-                    cash_value != '' and eps_value != '' and eps_value != 0):
+        ratio_values = []
+
+        for year_col in year_cols:
+            cash_value = cash_flow_row.iloc[0][year_col]
+            eps_value = eps_row.iloc[0][year_col]
+
+            if (pd.notna(cash_value) and pd.notna(eps_value) and
+                cash_value != '' and eps_value != '' and eps_value != 0):
+                try:
                     cash_numeric = float(cash_value)
                     eps_numeric = float(eps_value)
                     ratio = cash_numeric / eps_numeric
                     ratio_values.append(f"{ratio:.2f}")
-                else:
+                except (ValueError, ZeroDivisionError):
                     ratio_values.append("N/A")
+            else:
+                ratio_values.append("N/A")
 
-            if any(v != "N/A" for v in ratio_values):
-                result_row = pd.Series(['指标名称'] + ratio_values, index=formatted_indicators.columns)
-                result_row['指标名称'] = "净现比"
-                return result_row
-    except:
+        # 检查是否有有效数据
+        valid_count = sum(1 for v in ratio_values if v != "N/A")
+        if valid_count > 0:
+            result_row = pd.Series([f"净现比"] + ratio_values, index=formatted_indicators.columns)
+            return result_row
+    except Exception as e:
+        # 记录错误但不显示给用户，避免干扰界面
         pass
     return None
 
@@ -655,23 +659,7 @@ def analyze_core_indicators(formatted_indicators):
                 except:
                     pass
 
-        # 分析ROIC（计算得出）
-        roic_data = calculate_roic(formatted_indicators, "A股")
-        if roic_data is not None:
-            year_cols = [col for col in formatted_indicators.columns if col not in ['指标名称']]
-            if year_cols:
-                latest_roic = roic_data[year_cols[0]]
-                if isinstance(latest_roic, str) and '%' in latest_roic:
-                    roic_value = float(latest_roic.replace('%', ''))
-                    if roic_value > 12:
-                        analyses.append("🔥 **优秀ROIC**：资本使用效率高，投资回报优秀")
-                    elif roic_value > 8:
-                        analyses.append("✅ **良好ROIC**：资本使用效率良好")
-                    elif roic_value > 5:
-                        analyses.append("⚠️ **一般ROIC**：资本使用效率一般")
-                    else:
-                        analyses.append("📉 **ROIC偏低**：资本使用效率有待提升")
-
+  
     except Exception as e:
         analyses.append("⚠️ 指标分析失败，请检查数据质量")
 
@@ -689,7 +677,6 @@ def generate_investment_suggestions(analysis_results):
     has_excellent_roe = any("优秀ROE" in analysis for analysis in analysis_results)
     has_high_margin = any("高毛利率" in analysis for analysis in analysis_results)
     has_strong_cash = any("现金充沛" in analysis for analysis in analysis_results)
-    has_excellent_roic = any("优秀ROIC" in analysis for analysis in analysis_results)
 
     # 根据分析结果生成建议
     if has_excellent_roe and has_high_margin:
@@ -704,8 +691,6 @@ def generate_investment_suggestions(analysis_results):
         suggestions.append("🛡️ **护城河企业**：产品竞争力强，具备定价权")
     elif has_strong_cash:
         suggestions.append("💰 **稳健经营**：现金流充裕，抗风险能力强")
-    elif has_excellent_roic:
-        suggestions.append("🎯 **高效资本**：资本使用效率高，投资回报优秀")
     else:
         suggestions.append("📊 **一般企业**：各项指标处于一般水平，建议关注改善空间")
 
