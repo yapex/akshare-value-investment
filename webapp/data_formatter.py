@@ -62,8 +62,14 @@ def format_financial_data(df: pd.DataFrame, report_type: str, market: str = "A�
         # 获取友好的指标名称
         indicator_name = indicator_mapping.get(indicator, indicator)
 
-        # 跳过说明性行，只处理实际数据
-        if indicator in ['报表核心指标', 'SECURITY_CODE', 'SECURITY_NAME_ABBR', 'SECUCODE', 'ORG_CODE', 'DATE_TYPE_CODE', 'REPORT_DATE', 'START_DATE', 'FISCAL_YEAR', 'CURRENCY', 'IS_CNY_CODE', 'ORGTYPE']:
+        # 跳过说明性行和元数据字段，只处理实际财务数据
+        metadata_fields = [
+            '报表核心指标', 'SECURITY_CODE', 'SECURITY_NAME_ABBR', 'SECUCODE', 'ORG_CODE',
+            'DATE_TYPE_CODE', 'REPORT_DATE', 'START_DATE', 'FISCAL_YEAR', 'CURRENCY', 'IS_CNY_CODE', 'ORGTYPE',
+            'SECURITY_INNER_CODE', 'ACCOUNTING_STANDARDS', 'NOTICE_DATE', 'FINANCIAL_DATE',
+            'STD_REPORT_DATE', 'DATE_TYPE', 'REPORT_TYPE', 'REPORT_DATA_TYPE', 'CURRENCY_ABBR'
+        ]
+        if indicator in metadata_fields:
             continue
 
         row_data = {'指标名称': indicator_name}
