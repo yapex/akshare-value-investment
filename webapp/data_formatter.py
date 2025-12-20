@@ -282,21 +282,19 @@ def format_financial_value_by_type(value, indicator_type: str, indicator_name: s
                     except ValueError:
                         return value
                 else:
-                    # 非A股市场（港股、美股）：保持"亿"格式，但确保两位小数
-                    if '.' in value:
-                        parts = value.split('亿')
-                        number_part = parts[0]
-                        try:
-                            formatted_number = f"{float(number_part):.2f}"
-                            return f"{formatted_number}亿"
-                        except ValueError:
-                            return value
-                    else:
-                        try:
-                            formatted_number = f"{float(value.replace('亿', '')):.2f}"
-                            return f"{formatted_number}亿"
-                        except ValueError:
-                            return value
+                    # 非A股市场（港股、美股）：去除"亿"单位，只显示数字
+                    try:
+                        float_val = float(value.replace('亿', '').strip())
+                        if market == "港股":
+                            # 港股：数值当作亿为单位显示（实际就是数字本身）
+                            return f"{float_val:.2f}"
+                        elif market == "美股":
+                            # 美股：数值当作亿为单位显示（实际就是数字本身）
+                            return f"{float_val:.2f}"
+                        else:
+                            return f"{float_val:.2f}"
+                    except ValueError:
+                        return value
             else:
                 # 非金额类的"亿"单位，转换为数值
                 try:
@@ -358,17 +356,13 @@ def format_financial_value_by_type(value, indicator_type: str, indicator_name: s
         # 根据指标类型和市场进行格式化
         if indicator_type == 'amount':
             if market == "港股":
-                # 港股金额：不带"亿"单位，直接显示数值
-                if float_val >= 1_000_000_000:  # 10亿以上
-                    # 转换为亿元但不带单位标识
-                    billions_val = float_val / 100_000_000
-                    return f"{billions_val:.2f}"
-                else:
-                    return f"{float_val:.2f}"
+                # 港股金额：港元转换为亿港元，所有数据都转换为亿港元显示（不带单位标识）
+                billions_val = float_val / 100_000_000
+                return f"{billions_val:.2f}"
             elif market == "美股":
-                # 美股金额：美元转换为亿美元，所有数据都转换为亿美元显示
+                # 美股金额：美元转换为亿美元，所有数据都转换为亿美元显示（不带单位标识）
                 billions_val = float_val / 1_000_000_000
-                return f"{billions_val:.2f}亿"
+                return f"{billions_val:.2f}"
             else:  # A股
                 # A股金额：不带"亿"单位，直接显示数值
                 if float_val >= 1_000_000_000:  # 10亿以上

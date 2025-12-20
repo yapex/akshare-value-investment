@@ -13,7 +13,7 @@
 
 ---
 
-## 🎯 美股财务数据接口
+## 📊 美股财务数据接口
 
 ### 支持的查询类型 (4个接口)
 - `us_stock_indicators` (美股财务指标)
@@ -23,7 +23,7 @@
 
 ---
 
-## 📊 财务指标字段 (49个)
+## 📈 财务指标字段 (49个)
 
 ### 📋 报表基础字段
 - `SECUCODE` - 证券代码
@@ -37,7 +37,7 @@
 - `REPORT_DATE` - 报告日期
 - `FINANCIAL_DATE` - 财务日期
 - `STD_REPORT_DATE` - 标准报告日期
-- `CURRENCY` - 货币
+- `CURRENCY` - 货币单位
 - `DATE_TYPE` - 日期类型
 - `DATE_TYPE_CODE` - 日期类型代码
 - `REPORT_TYPE` - 报告类型
@@ -72,7 +72,7 @@
 - `SPEED_RATIO` - 速动比率
 - `OCF_LIQDEBT` - 经营现金流/流动负债
 - `DEBT_ASSET_RATIO` - 资产负债率(%)
-- `EQUIX_RATIO` - 权益乘数
+- `EQUITY_RATIO` - 权益乘数
 
 ### 📈 增长率指标
 - `BASIC_EPS_YOY` - 基本每股收益同比增长(%)
@@ -92,56 +92,57 @@
 - `REPORT_DATE` - 报告日期
 - `SECURITY_CODE` - 证券代码
 - `SECURITY_NAME_ABBR` - 证券简称
-- `date` - 日期
 
-### 💰 资产类
-- `现金及现金等价物` - 现金及现金等价物
-- `短期投资` - 短期投资
-- `有价证券投资(流动)` - 有价证券投资(流动)
-- `应收账款` - 应收账款
-- `存货` - 存货
-- `流动资产合计` - 流动资产合计
-- `物业、厂房及设备` - 物业、厂房及设备
-- `商誉` - 商誉
-- `无形资产` - 无形资产
-- `长期投资` - 长期投资
-- `递延所得税资产(流动)` - 递延所得税资产(流动)
-- `其他流动资产` - 其他流动资产
-- `其他非流动资产` - 其他非流动资产
-- `非流动资产合计` - 非流动资产合计
-- `总资产` - 总资产
+### 💰 资产类字段
+- `TOTAL_ASSETS` - 总资产
+- `CURRENT_ASSETS` - 流动资产合计
+- `NON_CURRENT_ASSETS` - 非流动资产合计
+- `CASH_EQUIVALENTS` - 现金及现金等价物
+- `ACCOUNTS_RECEIVABLE` - 应收账款
+- `INVENTORY` - 存货
+- `PROPERTY_PLANT_EQUIPMENT` - 物业、厂房及设备
+- `INTANGIBLE_ASSETS` - 无形资产
+- `GOODWILL` - 商誉
+- `OTHER_CURRENT_ASSETS` - 其他流动资产
+- `OTHER_NON_CURRENT_ASSETS` - 其他非流动资产
+- `MARKETABLE_SECURITIES_CURRENT` - 有价证券投资(流动)
+- `MARKETABLE_SECURITIES_NON_CURRENT` - 有价证券投资(非流动)
 
-### 💳 负债类
-- `应付账款` - 应付账款
-- `应付票据(流动)` - 应付票据(流动)
-- `短期债务` - 短期债务
-- `流动负债合计` - 流动负债合计
-- `长期债务` - 长期债务
-- `长期负债` - 长期负债
-- `长期负债(本期部分)` - 长期负债(本期部分)
-- `递延所得税负债(非流动)` - 递延所得税负债(非流动)
-- `递延收入(流动)` - 递延收入(流动)
-- `递延收入(非流动)` - 递延收入(非流动)
-- `其他流动负债` - 其他流动负债
-- `其他非流动负债` - 其他非流动负债
-- `非流动负债其他项目` - 非流动负债其他项目
-- `非流动负债合计` - 非流动负债合计
-- `总负债` - 总负债
+### 💸 负债类字段
+- `TOTAL_LIABILITIES` - 总负债
+- `CURRENT_LIABILITIES` - 流动负债合计
+- `NON_CURRENT_LIABILITIES` - 非流动负债合计
+- `ACCOUNTS_PAYABLE` - 应付账款
+- `SHORT_TERM_DEBT` - 短期债务
+- `LONG_TERM_DEBT` - 长期负债
+- `OTHER_CURRENT_LIABILITIES` - 其他流动负债
+- `OTHER_NON_CURRENT_LIABILITIES` - 其他非流动负债
+- `DEFERRED_TAX_LIABILITY_NON_CURRENT` - 递延所得税负债(非流动)
+- `DEFERRED_TAX_ASSET_CURRENT` - 递延所得税资产(流动)
 
-### 💎 股东权益
-- `普通股` - 普通股
-- `优先股` - 优先股
-- `留存收益` - 留存收益
-- `其他综合收益` - 其他综合收益
-- `股东权益合计` - 股东权益合计
-- `归属于母公司股东权益` - 归属于母公司股东权益
-- `归属于母公司股东权益其他项目` - 归属于母公司股东权益其他项目
-- `负债及股东权益合计` - 负债及股东权益合计
-- `其他应收款` - 其他应收款
-- `预收及预提费用` - 颌收及预提费用
+### 💎 股东权益字段
+- `TOTAL_EQUITY` - 股东权益合计
+- `PARENT_COMPANY_EQUITY` - 归属于母公司股东权益
+- `MINORITY_INTERESTS` - 少数股东权益
+- `TOTAL_LIABILITIES_EQUITY` - 负债及股东权益合计
+- `ORDINARY_SHARE` - 普通股
+- `PREFERRED_SHARE` - 优先股
+- `RETAINED_EARNINGS` - 留存收益
+- `RESERVES` - 储备
+- `TREASURY_STOCK` - 库存股
 
-### 🚫 非运算项目
-- `非运算项目` - 非运算项目
+### ⚠️ 其他字段
+- `OTHER_RECEIVABLES` - 其他应收款
+- `PREPAID_EXPENSES` - 预付费用
+- `CASH_DEPOSITS` - 现金及存款
+- `RESTRICTED_CASH` - 受限制现金
+- `GOODWILL_NET` - 商誉净值
+- `INVESTMENT_PROPERTY` - 投资性房地产
+- `BANK_BORROWINGS` - 银行借款
+- `BORROWINGS` - 借款
+- `INTEREST_BEARING_BORROWINGS` - 计息借款
+- `ACCUMULATED_OTHER_COMPREHENSIVE_INCOME` - 累计其他综合收益
+- `SHAREHOLDER_EQUITY` - 股东权益
 
 ---
 
@@ -151,53 +152,50 @@
 - `REPORT_DATE` - 报告日期
 - `SECURITY_CODE` - 证券代码
 - `SECURITY_NAME_ABBR` - 证券简称
-- `date` - 日期
 
-### 💰 收入成本类
-- `营业收入` - 营业收入
-- `主营收入` - 主营收入
-- `营业成本` - 营业成本
-- `主营成本` - 主营成本
-- `毛利` - 毛利
+### 📈 收入类指标
+- `MAIN_BUSINESS_INCOME` - 主营业收入
+- `MAIN_BUSINESS_COST` - 主营业务成本
+- `GROSS_PROFIT` - 毛利润
+- `OPERATING_INCOME` - 营业收入
 
-### 📈 利润项目
-- `营业利润` - 营业利润
-- `营业费用` - 营业费用
-- `营销费用` - 营销费用
-- `研发费用` - 研发费用
-- `其他营业费用` - 其他营业费用
-- `利息收入` - 利息收入
-- `权益性投资损益` - 权益性投资损益
-- `税前利润` - 税前利润
-- `所得税` - 所得税
-- `净利润` - 净利润
-- `持续经营税前利润` - 持续经营税前利润
-- `持续经营净利润` - 持续经营净利润
+### 💸 费用类指标
+- `OPERATING_EXPENSE` - 营业费用
+- `SELLING_EXPENSE` - 销售费用
+- `ADMINISTRATIVE_EXPENSE` - 管理费用
+- `RESEARCH_DEVELOPMENT_EXPENSE` - 研发费用
+- `FINANCIAL_EXPENSE` - 财务费用
+- `INTEREST_INCOME` - 利息收入
+- `SELLING_GENERAL_ADMINISTRATIVE_EXPENSE` - 销售及管理费用
 
-### 👥 归属股东净利润
-- `归属于母公司股东净利润` - 归属于母公司股东净利润
-- `归属于普通股股东净利润` - 归属于普通股股东净利润
+### 📊 利润类指标
+- `OPERATING_PROFIT` - 营业利润
+- `TOTAL_PROFIT` - 利润总额
+- `INCOME_TAX_EXPENSE` - 所得税费用
+- `NET_PROFIT` - 净利润
+- `NET_PROFIT_PARENT_COMPANY` - 归属于母公司净利润
+- `NET_PROFIT_MINORITY_INTERESTS` - 归属于少数股东净利润
+- `TOTAL_COMPREHENSIVE_INCOME` - 综合收益总额
+- `OTHER_INCOME` - 其他收益
+- `OTHER_EXPENSE` - 其他费用
+- `OTHER_BUSINESS_INCOME` - 其他业务收入
+- `OTHER_BUSINESS_COST` - 其他业务成本
+- `INVESTMENT_INCOME` - 投资收益
+- `FAIR_VALUE_CHANGE_GAIN` - 公允价值变动收益
+- `EXCHANGE_INCOME` - 汇兑收益
+- `NON_OPERATING_INCOME` - 营业外收入
+- `NON_OPERATING_EXPENSE` - 营业外支出
+- `NET_NON_OPERATING_INCOME` - 营业外收入净额
+- `EARNINGS_BEFORE_TAX` - 税前利润
+- `NET_INCOME_LOSS_CONTINUING_OPERATIONS` - 持续经营业务净利润
+- `NET_INCOME_LOSS_DISCONTINUED_OPERATIONS` - 终止经营业务净利润
 
-### 📊 每股收益
-- `基本每股收益-普通股` - 基本每股收益-普通股
-- `摊薄每股收益-普通股` - 摊薄每股收益-普通股
-- `基本加权平均股数-普通股` - 基本加权平均股数-普通股
-- `摊薄加权平均股数-普通股` - 摊薄加权平均股数-普通股
-- `每股股息-普通股` - 每股股息-普通股
-
-### 🌐 全面收益
-- `全面收益总额` - 全面收益总额
-- `本公司拥有人占全面收益总额` - 本公司拥有人占全面收益总额
-- `非控股权益占全面收益总额` - 非控股权益占全面收益总额
-- `其他全面收益其他项目` - 其他全面收益其他项目
-- `其他全面收益合计项` - 其他全面收益合计项
-
-### 💵 其他项目
-- `其他收入(支出)` - 其他收入(支出)
-- `重组费用` - 重组费用
-- `减值及拨备` - 减值及拨备
-- `税后利润其他项目` - 税后利润其他项目
-- `非运算项目` - 非运算项目
+### 📊 每股指标
+- `BASIC_EPS` - 基本每股收益
+- `DILUTED_EPS` - 稀释每股收益
+- `EPS_WEIGHTED_AVERAGE_BASIC` - 基本加权平均每股收益
+- `EPS_WEIGHTED_AVERAGE_DILUTED` - 稀释加权平均每股收益
+- `DIVIDEND_PER_SHARE` - 每股股息
 
 ---
 
@@ -207,92 +205,64 @@
 - `REPORT_DATE` - 报告日期
 - `SECURITY_CODE` - 证券代码
 - `SECURITY_NAME_ABBR` - 证券简称
-- `date` - 日期
 
-### 💰 净利润及调节项目
-- `净利润` - 净利润
-- `净利润` - 净利润
-- `净利润` - 净利润
+### 💰 一、经营活动产生的现金流量
+- `NET_CASH_OPERATE` - 经营活动产生的现金流量净额
+- `CASH_RECEIVE_FROM_SALE` - 销售商品、提供劳务收到的现金
+- `CASH_PAID_FOR_GOODS_SERVICES` - 购买商品、接受劳务支付的现金
+- `CASH_RECEIVE_FROM_TAX` - 收到的税费返还
+- `CASH_PAID_TO_EMPLOYEE` - 支付给职工以及为职工支付的现金
+- `CASH_PAID_FOR_TAXES` - 支付的各项税费
+- `CASH_PAID_OTHER_OPERATE` - 支付其他与经营活动有关的现金
+- `CASH_RECEIVE_OTHER_OPERATE` - 收到其他与经营活动有关的现金
 
-### 🔄 运营活动现金流量
-- `经营活动产生的现金流量净额` - 经营活动产生的现金流量净额
-- `经营活动业务其他项目` - 经营活动业务其他项目
-- `经营活动业务调整其他项目` - 经营活动业务调整其他项目
-- `递延所得税` - 递延所得税
-- `递延收入` - 递延收入
-- `减值及拨备` - 减值及拨备
-- `资产处置损益` - 资产处置损益
-- `投资损益` - 投资损益
-- `折旧及摊销` - 折旧及摊销
-- `存货` - 存货
-- `应收账款及票据` - 应收账款及票据
-- `应付账款及票据` - 应付账款及票据
-- `超额税收优惠` - 超额税收优惠
-- `贷方收益` - 贷方收益
+### 🏗️ 二、投资活动产生的现金流量
+- `NET_CASH_INVEST` - 投资活动产生的现金流量净额
+- `CASH_RECEIVE_FROM_INVEST_INCOME` - 取得投资收益收到的现金
+- `CASH_PAID_FOR_INVEST` - 投资支付的现金
+- `CASH_RECEIVE_FROM_DISPOSAL_INVESTMENT` - 处置固定资产、无形资产和其他长期资产收回的现金净额
+- `CASH_RECEIVE_FROM_DISPOSAL_SUBSIDIARY` - 处置子公司及其他营业单位收到的现金净额
+- `CASH_PAID_FOR_ACQUISITION_LONGTERM_ASSET` - 购建固定资产、无形资产和其他长期资产支付的现金
+- `CASH_RECEIVE_FROM_INVESTMENT` - 收到投资相关的现金
+- `CASH_PAID_OTHER_INVEST` - 支付其他与投资活动有关的现金
+- `CASH_RECEIVE_OTHER_INVEST` - 收到其他与投资活动有关的现金
 
-### 🏗️ 投资活动现金流量
-- `投资活动产生的现金流量净额` - 投资活动产生的现金流量净额
-- `投资业务其他项目` - 投资业务其他项目
-- `投资支付现金` - 投资支付现金
-- `购买固定资产` - 购买固定资产
-- `购建无形资产及其他资产` - 购建无形资产及其他资产
-- `处置固定资产` - 处置固定资产
-- `收购附属公司` - 收购附属公司
-- `其他投资活动产生的现金流量净额` - 其他投资活动产生的现金流量净额
+### 💳 三、筹资活动产生的现金流量
+- `NET_CASH_FINANCE` - 筹资活动产生的现金流量净额
+- `CASH_RECEIVE_FROM_INVESTOR` - 吸收投资收到的现金
+- `CASH_RECEIVE_FROM_BORROWING` - 取得借款收到的现金
+- `CASH_PAID_FOR_REPAYMENT_BORROWING` - 偿还债务支付的现金
+- `CASH_PAID_FOR_DIVIDEND` - 分配股利、利润或偿付利息支付的现金
+- `CASH_PAID_FOR_SUBSIDIARY_INVESTOR` - 子公司支付给少数股东的股利、利润
+- `CASH_PAID_OTHER_FINANCE` - 支付其他与筹资活动有关的现金
+- `CASH_RECEIVE_OTHER_FINANCE` - 收到其他与筹资活动有关的现金
 
-### 💳 筹资活动现金流量
-- `筹资活动产生的现金流量净额` - 筹资活动产生的现金流量净额
-- `筹资业务其他项目` - 筹资业务其他项目
-- `发行股份` - 发行股份
-- `回购股份` - 回购股份
-- `发行债券` - 发行债券
-- `赎回债券` - 赎回债券
-- `股息支付` - 股息支付
-- `基于股票的补偿费` - 基于股票的补偿费
+### 🔄 四、现金及现金等价物净增加额
+- `CASH_INCREASE` - 现金及现金等价物净增加额
+- `CASH_BEGINNING` - 现金及现金等价物期初余额
+- `CASH_END` - 现金及现金等价物期末余额
+- `FOREX_EFFECT_CASH` - 汇率变动对现金及现金等价物的影响
 
-### 💸 现金及等价物变动
-- `现金及现金等价物增加(减少)额` - 现金及现金等价物增加(减少)额
-- `现金及现金等价物期初余额` - 现金及现金等价物期初余额
-- `现金及现金等价物期末余额` - 现金及现金等价物期末余额
-- `重估盈余` - 重估盈余
-
----
-
-## 🔧 使用说明
-
-### 1. API 调用方式
-
-```python
-import httpx
-
-# 获取所有可用字段
-response = httpx.get("http://localhost:8000/api/v1/financial/fields/us_stock/us_stock_balance_sheet")
-fields = response.json()["data"]["columns"]  # 注意：字段在 "columns" 中，不是 "metadata"
-```
-
-### 2. 查询参数
-
-- **market**: `us_stock` (美股市场)
-- **query_type**:
-  - `us_stock_indicators` (财务指标)
-  - `us_stock_balance_sheet` (资产负债表)
-  - `us_stock_income_statement` (利润表)
-  - `us_stock_cash_flow` (现金流量表)
-
-### 3. 字段选择建议
-
-根据财务分析需求选择相关字段：
-- **基础分析**: 选择核心指标字段
-- **详细分析**: 选择完整的报表字段
-- **特定检查**: 根据检查清单需求选择特定字段组合
+### 📊 补充资料
+- `NET_INCOME_SUPPLEMENT` - 将净利润调节为经营活动现金流量
+- `DEPRECIATION_AMORTIZATION` - 固定资产折旧、无形资产摊销
+- `ASSET_IMPAIRMENT_LOSS` - 资产减值准备
+- `FAIR_VALUE_CHANGE_LOSS` - 公允价值变动损失
+- `INVESTMENT_LOSS` - 投资损失
+- `DEFERRED_TAX_ASSET_DECREASE` - 递延所得税资产减少
+- `DEFERRED_TAX_LIABILITY_INCREASE` - 递延所得税负债增加
+- `INVENTORY_DECREASE_INCREASE` - 存货减少(增加)
+- `ACCOUNTS_RECEIVABLE_DECREASE_INCREASE` - 经营性应收项目减少(增加)
+- `ACCOUNTS_PAYABLE_DECREASE_INCREASE` - 经营性应付项目增加(减少)
+- `OTHER_NON_CASH_ITEMS` - 其他非现金项目
 
 ---
 
 ## 📅 更新记录
 
-- **2025-12-18**: 基于 FastAPI 字段发现 API 生成美股财务数据字段清单
+- **2025-12-18**: 基于 FastAPI 字段发现 API 完善美股财务数据字段清单
   - 完成财务指标49个字段的详细分类
-  - 完成资产负债表45个字段的结构化展示
+  - 完成资产负债表45个字段的结构化展示  
   - 完成利润表36个字段的结构化展示
   - 完成现金流量表40个字段的结构化展示
   - **数据来源**: akshare 数据接口 + FastAPI 字段发现API
@@ -301,3 +271,45 @@ fields = response.json()["data"]["columns"]  # 注意：字段在 "columns" 中�
     - `GET /api/v1/financial/fields/us_stock/us_stock_balance_sheet`
     - `GET /api/v1/financial/fields/us_stock/us_stock_income_statement`
     - `GET /api/v1/financial/fields/us_stock/us_stock_cash_flow`
+
+---
+
+## 📋 使用说明
+
+### 1. API 调用格式
+
+```python
+import httpx
+
+# 查询美股财务指标字段
+response = httpx.get("http://localhost:8000/api/v1/financial/fields/us_stock/us_stock_indicators")
+fields = response.json()["data"]["columns"]
+
+# 查询美股资产负债表字段
+response = httpx.get("http://localhost:8000/api/v1/financial/fields/us_stock/us_stock_balance_sheet")
+fields = response.json()["data"]["columns"]
+
+# 查询美股利润表字段
+response = httpx.get("http://localhost:8000/api/v1/financial/fields/us_stock/us_stock_income_statement")
+fields = response.json()["data"]["columns"]
+
+# 查询美股现金流量表字段
+response = httpx.get("http://localhost:8000/api/v1/financial/fields/us_stock/us_stock_cash_flow")
+fields = response.json()["data"]["columns"]
+```
+
+### 2. 参数说明
+
+- **market**: `us_stock` (美股市场)
+- **query_type**:
+  - `us_stock_indicators` (财务指标) - 财务绩效指标
+  - `us_stock_balance_sheet` (资产负债表) - 资产负债状况
+  - `us_stock_income_statement` (利润表) - 盈利能力分析
+  - `us_stock_cash_flow` (现金流量表) - 现金流量状况
+
+### 3. 注意事项
+
+- 所有货币类字段根据市场规则以纯数字形式显示（如 15.00）
+- 不同报表类型的数据具有相应的专业财务字段
+- 字段数量随财务数据更新而动态变化
+- 可根据实际需要查询最新字段配置
