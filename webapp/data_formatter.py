@@ -63,7 +63,7 @@ def format_financial_data(df: pd.DataFrame, report_type: str, market: str = "A�
         indicator_name = indicator_mapping.get(indicator, indicator)
 
         # 跳过说明性行，只处理实际数据
-        if indicator == '报表核心指标' or indicator == 'SECURITY_CODE' or indicator == 'SECURITY_NAME_ABBR':
+        if indicator in ['报表核心指标', 'SECURITY_CODE', 'SECURITY_NAME_ABBR', 'SECUCODE', 'ORG_CODE', 'DATE_TYPE_CODE', 'REPORT_DATE', 'START_DATE', 'FISCAL_YEAR', 'CURRENCY', 'IS_CNY_CODE', 'ORGTYPE']:
             continue
 
         row_data = {'指标名称': indicator_name}
