@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>财务数据查询 API 测试工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .header {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .header h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        .header p {
+            color: #666;
+            font-size: 14px;
+        }
+        .tabs {
+            display: flex;
+            background: white;
+            border-radius: 12px 12px 0 0;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            margin-bottom: 0;
+        }
+        .tab {
+            flex: 1;
+            padding: 15px 20px;
+            background: #f8f9fa;
+            border: none;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 500;
+            color: #666;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+        }
+        .tab:hover {
+            background: #e9ecef;
+        }
+        .tab.active {
+            background: white;
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+        .tab-content {
+            background: white;
+            padding: 30px;
+            border-radius: 0 0 12px 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+        .form-group select,
+        .form-group input[type="text"],
+        .form-group input[type="number"] {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .method-badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        .url-display {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #495057;
+            word-break: break-all;
+        }
+        .url-display strong {
+            color: #333;
+        }
+        button[type="submit"] {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+        button[type="submit"]:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+        button[type="submit"]:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 8px;
+            display: none;
+        }
+        .result.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+        }
+        .result.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+        }
+        .result h2 {
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        .result.success h2 {
+            color: #155724;
+        }
+        .result.error h2 {
+            color: #721c24;
+        }
+        .metadata {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        .metadata h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+            font-size: 16px;
+        }
+        .metadata p {
+            margin: 5px 0;
+            color: #555;
+            font-size: 14px;
+        }
+        .metadata strong {
+            color: #333;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 12px;
+            line-height: 1.5;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .loading {
+            text-align: center;
+            color: #667eea;
+            padding: 20px;
+            font-size: 16px;
+            display: none;
+        }
+        .loading::after {
+            content: '...';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+        .field-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .field-item {
+            background: #f8f9fa;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #495057;
+            border-left: 3px solid #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 财务数据查询 API 测试工具</h1>
+            <p>FastAPI Web API 全接口测试 - 支持 GET/POST 方法</p>
+        </div>
+
+        <!-- Tab 导航 -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('indicators')" id="tabIndicators">
+                📊 财务指标查询
+            </button>
+            <button class="tab" onclick="switchTab('statements')" id="tabStatements">
+                📋 财务三表查询
+            </button>
+            <button class="tab" onclick="switchTab('fields')" id="tabFields">
+                🔍 字段发现
+            </button>
+        </div>
+
+        <!-- 财务指标查询 -->
+        <div class="tab-content" id="contentIndicators">
+            <h2 style="margin-bottom: 20px; color: #333;">
+                财务指标查询
+                <span class="method-badge">GET /indicators</span>
+            </h2>
+
+            <form id="indicatorsForm">
+                <div class="form-group">
+                    <label for="indicators_market">市场类型</label>
+                    <select id="indicators_market" name="market" required onchange="updateIndicatorsSymbol()">
+                        <option value="a_stock">A股</option>
+                        <option value="hk_stock">港股</option>
+                        <option value="us_stock">美股</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="indicators_symbol">股票代码</label>
+                    <input type="text" id="indicators_symbol" name="symbol" value="SH600519" placeholder="例如: SH600519, 00700, AAPL" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="indicators_frequency">数据频率</label>
+                    <select id="indicators_frequency" name="frequency" required>
+                        <option value="annual">年度数据</option>
+                        <option value="quarterly">报告期数据</option>
+                    </select>
+                </div>
+
+                <button type="submit" id="indicatorsSubmitBtn">🔍 查询财务指标</button>
+            </form>
+
+            <div class="url-display" id="indicatorsUrl">
+                <strong>请求 URL：</strong><span id="indicatorsUrlText">-</span>
+            </div>
+        </div>
+
+        <!-- 财务三表查询 -->
+        <div class="tab-content" id="contentStatements" style="display: none;">
+            <h2 style="margin-bottom: 20px; color: #333;">
+                财务三表聚合查询
+                <span class="method-badge">GET /statements</span>
+            </h2>
+
+            <form id="statementsForm">
+                <div class="form-group">
+                    <label for="query_type">查询类型</label>
+                    <select id="query_type" name="query_type" required onchange="updateStatementsSymbol()">
+                        <option value="a_financial_statements">A股财务三表</option>
+                        <option value="hk_financial_statements">港股财务三表</option>
+                        <option value="us_financial_statements">美股财务三表</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="symbol">股票代码</label>
+                    <input type="text" id="symbol" name="symbol" value="SH600519" placeholder="例如: SH600519, 00700, AAPL" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="frequency">数据频率</label>
+                    <select id="frequency" name="frequency" required>
+                        <option value="annual">年度数据</option>
+                        <option value="quarterly">报告期数据</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="limit">返回记录数（可选）</label>
+                    <input type="number" id="limit" name="limit" min="1" placeholder="留空返回全部">
+                </div>
+
+                <button type="submit" id="statementsSubmitBtn">🔍 查询财务三表</button>
+            </form>
+
+            <div class="url-display" id="statementsUrl">
+                <strong>请求 URL：</strong><span id="statementsUrlText">-</span>
+            </div>
+        </div>
+
+        <!-- 字段发现 -->
+        <div class="tab-content" id="contentFields" style="display: none;">
+            <h2 style="margin-bottom: 20px; color: #333;">
+                字段发现查询
+                <span class="method-badge">GET /fields/{market}/{query_type}</span>
+            </h2>
+
+            <form id="fieldsForm">
+                <div class="form-group">
+                    <label for="fields_market">市场类型</label>
+                    <select id="fields_market" name="market" required onchange="updateFieldsQueryType()">
+                        <option value="a_stock">A股</option>
+                        <option value="hk_stock">港股</option>
+                        <option value="us_stock">美股</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="fields_query_type">查询类型</label>
+                    <select id="fields_query_type" name="query_type" required onchange="updateFieldsUrl()">
+                        <option value="a_stock_indicators">A股财务指标</option>
+                        <option value="a_financial_statements">A股财务三表</option>
+                    </select>
+                </div>
+
+                <button type="submit" id="fieldsSubmitBtn">🔍 查询可用字段</button>
+            </form>
+
+            <div class="url-display" id="fieldsUrl">
+                <strong>请求 URL：</strong><span id="fieldsUrlText">-</span>
+            </div>
+        </div>
+
+        <!-- 加载状态 -->
+        <div class="loading" id="loading" style="margin-top: 20px;">正在查询中，请稍候</div>
+
+        <!-- 结果展示 -->
+        <div class="result" id="result"></div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:8000/api/v1/financial';
+
+        // ========== Tab 切换 ==========
+        function switchTab(tab) {
+            // 隐藏所有内容
+            document.getElementById('contentIndicators').style.display = 'none';
+            document.getElementById('contentStatements').style.display = 'none';
+            document.getElementById('contentFields').style.display = 'none';
+
+            // 移除所有 Tab 激活状态
+            document.getElementById('tabIndicators').classList.remove('active');
+            document.getElementById('tabStatements').classList.remove('active');
+            document.getElementById('tabFields').classList.remove('active');
+
+            // 显示选中的内容和激活 Tab
+            document.getElementById('content' + tab.charAt(0).toUpperCase() + tab.slice(1)).style.display = 'block';
+            document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+
+            // 隐藏结果
+            document.getElementById('result').style.display = 'none';
+        }
+
+        // ========== URL 更新函数 ==========
+        function updateIndicatorsUrl() {
+            const market = document.getElementById('indicators_market').value;
+            const symbol = document.getElementById('indicators_symbol').value;
+            const frequency = document.getElementById('indicators_frequency').value;
+
+            const url = `${API_BASE_URL}/indicators?market=${market}&symbol=${encodeURIComponent(symbol)}&frequency=${frequency}`;
+            document.getElementById('indicatorsUrlText').textContent = url;
+        }
+
+        function updateStatementsUrl() {
+            const queryType = document.getElementById('query_type').value;
+            const symbol = document.getElementById('symbol').value;
+            const frequency = document.getElementById('frequency').value;
+            const limit = document.getElementById('limit').value;
+
+            let url = `${API_BASE_URL}/statements?query_type=${queryType}&symbol=${encodeURIComponent(symbol)}&frequency=${frequency}`;
+            if (limit) {
+                url += `&limit=${limit}`;
+            }
+            document.getElementById('statementsUrlText').textContent = url;
+        }
+
+        function updateFieldsUrl() {
+            const market = document.getElementById('fields_market').value;
+            const queryType = document.getElementById('fields_query_type').value;
+
+            const url = `${API_BASE_URL}/fields/${market}/${queryType}`;
+            document.getElementById('fieldsUrlText').textContent = url;
+        }
+
+        // ========== 股票代码更新函数 ==========
+        function updateIndicatorsSymbol() {
+            const market = document.getElementById('indicators_market').value;
+            const symbolInput = document.getElementById('indicators_symbol');
+
+            switch(market) {
+                case 'a_stock':
+                    symbolInput.placeholder = '例如: SH600519, SZ000001';
+                    symbolInput.value = 'SH600519';
+                    break;
+                case 'hk_stock':
+                    symbolInput.placeholder = '例如: 00700, 00941';
+                    symbolInput.value = '00700';
+                    break;
+                case 'us_stock':
+                    symbolInput.placeholder = '例如: AAPL, MSFT';
+                    symbolInput.value = 'AAPL';
+                    break;
+            }
+            updateIndicatorsUrl();
+        }
+
+        function updateStatementsSymbol() {
+            const queryType = document.getElementById('query_type').value;
+            const symbolInput = document.getElementById('symbol');
+
+            switch(queryType) {
+                case 'a_financial_statements':
+                    symbolInput.placeholder = '例如: SH600519, SZ000001';
+                    symbolInput.value = 'SH600519';
+                    break;
+                case 'hk_financial_statements':
+                    symbolInput.placeholder = '例如: 00700, 00941';
+                    symbolInput.value = '00700';
+                    break;
+                case 'us_financial_statements':
+                    symbolInput.placeholder = '例如: AAPL, MSFT';
+                    symbolInput.value = 'AAPL';
+                    break;
+            }
+            updateStatementsUrl();
+        }
+
+        function updateFieldsQueryType() {
+            const market = document.getElementById('fields_market').value;
+            const queryTypeSelect = document.getElementById('fields_query_type');
+
+            // 清空选项
+            queryTypeSelect.innerHTML = '';
+
+            // 根据市场添加选项
+            switch(market) {
+                case 'a_stock':
+                    queryTypeSelect.innerHTML = `
+                        <option value="a_stock_indicators">A股财务指标</option>
+                        <option value="a_financial_statements">A股财务三表</option>
+                    `;
+                    break;
+                case 'hk_stock':
+                    queryTypeSelect.innerHTML = `
+                        <option value="hk_stock_indicators">港股财务指标</option>
+                        <option value="hk_financial_statements">港股财务三表</option>
+                    `;
+                    break;
+                case 'us_stock':
+                    queryTypeSelect.innerHTML = `
+                        <option value="us_stock_indicators">美股财务指标</option>
+                        <option value="us_financial_statements">美股财务三表</option>
+                    `;
+                    break;
+            }
+            updateFieldsUrl();
+        }
+
+        // ========== 事件监听 ==========
+        document.getElementById('indicators_market').addEventListener('change', updateIndicatorsUrl);
+        document.getElementById('indicators_symbol').addEventListener('input', updateIndicatorsUrl);
+        document.getElementById('indicators_frequency').addEventListener('change', updateIndicatorsUrl);
+
+        document.getElementById('query_type').addEventListener('change', updateStatementsUrl);
+        document.getElementById('symbol').addEventListener('input', updateStatementsUrl);
+        document.getElementById('frequency').addEventListener('change', updateStatementsUrl);
+        document.getElementById('limit').addEventListener('input', updateStatementsUrl);
+
+        // ========== 财务指标查询 ==========
+        document.getElementById('indicatorsForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const submitBtn = document.getElementById('indicatorsSubmitBtn');
+            const resultDiv = document.getElementById('result');
+            const loadingDiv = document.getElementById('loading');
+
+            const market = document.getElementById('indicators_market').value;
+            const symbol = document.getElementById('indicators_symbol').value;
+            const frequency = document.getElementById('indicators_frequency').value;
+
+            // 构建查询参数
+            const params = new URLSearchParams({
+                market: market,
+                symbol: symbol,
+                frequency: frequency
+            });
+
+            submitBtn.disabled = true;
+            loadingDiv.style.display = 'block';
+            resultDiv.style.display = 'none';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/indicators?${params}`, {
+                    method: 'GET'
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        <h2>✅ 查询成功</h2>
+                        <div class="metadata">
+                            <h3>📋 查询元数据</h3>
+                            <p><strong>股票代码：</strong>${data.query_info.symbol || symbol}</p>
+                            <p><strong>查询类型：</strong>${data.metadata.query_type}</p>
+                            <p><strong>数据频率：</strong>${data.metadata.frequency}</p>
+                            <p><strong>记录数：</strong>${data.data.shape[0]}</p>
+                            <p><strong>字段数：</strong>${data.data.shape[1]}</p>
+                        </div>
+                        <h3>💾 完整响应数据</h3>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    resultDiv.className = 'result error';
+                    const errorMsg = data.detail?.error?.message || data.detail || JSON.stringify(data, null, 2);
+                    resultDiv.innerHTML = `
+                        <h2>❌ 查询失败</h2>
+                        <p><strong>错误信息：</strong></p>
+                        <pre>${errorMsg}</pre>
+                    `;
+                }
+
+                resultDiv.style.display = 'block';
+
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <h2>❌ 网络错误</h2>
+                    <p><strong>错误信息：</strong>${error.message}</p>
+                    <p>请确保API服务已启动（运行 <code>poe api</code>）</p>
+                `;
+                resultDiv.style.display = 'block';
+            } finally {
+                submitBtn.disabled = false;
+                loadingDiv.style.display = 'none';
+            }
+        });
+
+        // ========== 财务三表查询 ==========
+        document.getElementById('statementsForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const submitBtn = document.getElementById('statementsSubmitBtn');
+            const resultDiv = document.getElementById('result');
+            const loadingDiv = document.getElementById('loading');
+
+            const queryType = document.getElementById('query_type').value;
+            const symbol = document.getElementById('symbol').value;
+            const frequency = document.getElementById('frequency').value;
+            const limit = document.getElementById('limit').value;
+
+            // 构建查询参数
+            const params = new URLSearchParams({
+                query_type: queryType,
+                symbol: symbol,
+                frequency: frequency
+            });
+            if (limit) {
+                params.append('limit', limit);
+            }
+
+            submitBtn.disabled = true;
+            loadingDiv.style.display = 'block';
+            resultDiv.style.display = 'none';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/statements?${params}`, {
+                    method: 'GET'
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        <h2>✅ 查询成功</h2>
+                        <div class="metadata">
+                            <h3>📋 查询元数据</h3>
+                            <p><strong>股票代码：</strong>${data.metadata.symbol}</p>
+                            <p><strong>查询类型：</strong>${data.metadata.query_type}</p>
+                            <p><strong>数据频率：</strong>${data.metadata.frequency}</p>
+                            <p><strong>限制条数：</strong>${data.metadata.limit || '无限制'}</p>
+                            <h3>📊 记录统计</h3>
+                            <p><strong>资产负债表：</strong>${data.metadata.record_counts.balance_sheet} 条记录</p>
+                            <p><strong>利润表：</strong>${data.metadata.record_counts.income_statement} 条记录</p>
+                            <p><strong>现金流量表：</strong>${data.metadata.record_counts.cash_flow} 条记录</p>
+                        </div>
+                        <h3>💾 完整响应数据</h3>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    resultDiv.className = 'result error';
+                    const errorMsg = data.detail?.error?.message || data.detail || JSON.stringify(data, null, 2);
+                    resultDiv.innerHTML = `
+                        <h2>❌ 查询失败</h2>
+                        <p><strong>错误信息：</strong></p>
+                        <pre>${errorMsg}</pre>
+                    `;
+                }
+
+                resultDiv.style.display = 'block';
+
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <h2>❌ 网络错误</h2>
+                    <p><strong>错误信息：</strong>${error.message}</p>
+                    <p>请确保API服务已启动（运行 <code>poe api</code>）</p>
+                `;
+                resultDiv.style.display = 'block';
+            } finally {
+                submitBtn.disabled = false;
+                loadingDiv.style.display = 'none';
+            }
+        });
+
+        // ========== 字段发现查询 ==========
+        document.getElementById('fieldsForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const submitBtn = document.getElementById('fieldsSubmitBtn');
+            const resultDiv = document.getElementById('result');
+            const loadingDiv = document.getElementById('loading');
+
+            const market = document.getElementById('fields_market').value;
+            const queryType = document.getElementById('fields_query_type').value;
+
+            submitBtn.disabled = true;
+            loadingDiv.style.display = 'block';
+            resultDiv.style.display = 'none';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/fields/${market}/${queryType}`, {
+                    method: 'GET'
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    const isIndicators = queryType.includes('indicators');
+
+                    let html = `
+                        <h2>✅ 字段发现成功</h2>
+                        <div class="metadata">
+                            <h3>📋 查询信息</h3>
+                            <p><strong>市场：</strong>${data.metadata.market}</p>
+                            <p><strong>查询类型：</strong>${data.metadata.query_type}</p>
+                    `;
+
+                    if (isIndicators) {
+                        html += `
+                            <p><strong>字段数量：</strong>${data.metadata.field_count}</p>
+                        </div>
+                        <h3>📊 可用字段列表</h3>
+                            <div class="field-list">
+                        `;
+                        data.metadata.available_fields.forEach(field => {
+                            html += `<div class="field-item">${field}</div>`;
+                        });
+                        html += `</div>`;
+                    } else {
+                        html += `
+                            <p><strong>样本股票：</strong>${data.metadata.sample_symbol}</p>
+                        </div>
+                        <h3>📊 可用字段列表</h3>
+                        <h4>资产负债表 (${data.data.balance_sheet.field_count} 个字段)</h4>
+                        <div class="field-list">
+                        `;
+                        data.data.balance_sheet.columns.forEach(field => {
+                            html += `<div class="field-item">${field}</div>`;
+                        });
+                        html += `</div>
+                        <h4 style="margin-top: 15px;">利润表 (${data.data.income_statement.field_count} 个字段)</h4>
+                        <div class="field-list">
+                        `;
+                        data.data.income_statement.columns.forEach(field => {
+                            html += `<div class="field-item">${field}</div>`;
+                        });
+                        html += `</div>
+                        <h4 style="margin-top: 15px;">现金流量表 (${data.data.cash_flow.field_count} 个字段)</h4>
+                        <div class="field-list">
+                        `;
+                        data.data.cash_flow.columns.forEach(field => {
+                            html += `<div class="field-item">${field}</div>`;
+                        });
+                        html += `</div>`;
+                    }
+
+                    html += `
+                        <h3 style="margin-top: 20px;">💾 完整响应数据</h3>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = html;
+                } else {
+                    resultDiv.className = 'result error';
+                    const errorMsg = data.detail?.error?.message || data.detail || JSON.stringify(data, null, 2);
+                    resultDiv.innerHTML = `
+                        <h2>❌ 查询失败</h2>
+                        <p><strong>错误信息：</strong></p>
+                        <pre>${errorMsg}</pre>
+                    `;
+                }
+
+                resultDiv.style.display = 'block';
+
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <h2>❌ 网络错误</h2>
+                    <p><strong>错误信息：</strong>${error.message}</p>
+                    <p>请确保API服务已启动（运行 <code>poe api</code>）</p>
+                `;
+                resultDiv.style.display = 'block';
+            } finally {
+                submitBtn.disabled = false;
+                loadingDiv.style.display = 'none';
+            }
+        });
+
+        // ========== 初始化 ==========
+        // 页面加载时初始化 URL 显示
+        updateIndicatorsUrl();
+        updateStatementsUrl();
+        updateFieldsUrl();
+    </script>
+</body>
+</html>

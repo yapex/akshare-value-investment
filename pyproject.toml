@@ -70,7 +70,4 @@ install = "pip install -e ."
 # FastAPI任务
 api = "uvicorn akshare_value_investment.api.main:create_app --reload"
 
-# Streamlit任务
-streamlit = "sh -c 'PYTHONPATH=src:webapp uv run streamlit run webapp/main.py --server.address localhost --server.port 8501'"
-
 

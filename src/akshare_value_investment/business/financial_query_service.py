@@ -81,7 +81,6 @@ class FinancialQueryService:
             FinancialQueryType.HK_STOCK_BALANCE_SHEET: self.container.hk_stock_balance_sheet(),
             FinancialQueryType.HK_STOCK_INCOME_STATEMENT: self.container.hk_stock_income_statement(),
             FinancialQueryType.HK_STOCK_CASH_FLOW: self.container.hk_stock_cash_flow(),
-            FinancialQueryType.HK_STOCK_STATEMENTS: self.container.hk_stock_statement(),  # 备用
 
             # 美股查询器
             FinancialQueryType.US_STOCK_INDICATORS: self.container.us_stock_indicators(),
@@ -746,3 +745,100 @@ class FinancialQueryService:
         except Exception as e:
             self.logger.error(f"字段发现失败: {e}", exc_info=True)
             return []
+
+    def query_financial_statements(
+        self,
+        query_type: FinancialQueryType,
+        symbol: str,
+        frequency: Frequency = Frequency.ANNUAL,
+        limit: Optional[int] = None
+    ) -> Dict[str, pd.DataFrame]:
+        """
+        查询财务三表聚合数据
+
+        返回包含资产负债表、利润表、现金流量表的字典结构。
+
+        Args:
+            query_type: 财务三表聚合查询类型（A/HK/US_FINANCIAL_STATEMENTS）
+            symbol: 股票代码
+            frequency: 时间频率（年度/报告期）
+            limit: 限制每个DataFrame返回的记录数
+
+        Returns:
+            字典结构：{'balance_sheet': DataFrame, 'income_statement': DataFrame, 'cash_flow': DataFrame}
+
+        Raises:
+            ValueError: 如果query_type不是财务三表聚合查询类型
+
+        Examples:
+            >>> service = FinancialQueryService()
+            >>> result = service.query_financial_statements(
+            ...     query_type=FinancialQueryType.A_FINANCIAL_STATEMENTS,
+            ...     symbol="SH600519",
+            ...     frequency=Frequency.ANNUAL,
+            ...     limit=3
+            ... )
+            >>> print(result.keys())  # dict_keys(['balance_sheet', 'income_statement', 'cash_flow'])
+        """
+        # 验证是否为财务三表聚合查询类型
+        aggregation_types = {
+            FinancialQueryType.A_FINANCIAL_STATEMENTS: MarketType.A_STOCK,
+            FinancialQueryType.HK_FINANCIAL_STATEMENTS: MarketType.HK_STOCK,
+            FinancialQueryType.US_FINANCIAL_STATEMENTS: MarketType.US_STOCK,
+        }
+
+        if query_type not in aggregation_types:
+            raise ValueError(
+                f"查询类型 {query_type.value} 不是财务三表聚合查询类型。"
+                f"支持的聚合查询类型: {[qt.value for qt in aggregation_types.keys()]}"
+            )
+
+        market = aggregation_types[query_type]
+
+        # 根据市场类型确定三个查询器
+        queryer_map = {
+            MarketType.A_STOCK: {
+                'balance_sheet': FinancialQueryType.A_STOCK_BALANCE_SHEET,
+                'income_statement': FinancialQueryType.A_STOCK_INCOME_STATEMENT,
+                'cash_flow': FinancialQueryType.A_STOCK_CASH_FLOW,
+            },
+            MarketType.HK_STOCK: {
+                'balance_sheet': FinancialQueryType.HK_STOCK_BALANCE_SHEET,
+                'income_statement': FinancialQueryType.HK_STOCK_INCOME_STATEMENT,
+                'cash_flow': FinancialQueryType.HK_STOCK_CASH_FLOW,
+            },
+            MarketType.US_STOCK: {
+                'balance_sheet': FinancialQueryType.US_STOCK_BALANCE_SHEET,
+                'income_statement': FinancialQueryType.US_STOCK_INCOME_STATEMENT,
+                'cash_flow': FinancialQueryType.US_STOCK_CASH_FLOW,
+            }
+        }
+
+        statement_types = queryer_map[market]
+        result = {}
+
+        # 查询三张报表
+        for statement_name, statement_query_type in statement_types.items():
+            queryer = self._get_queryer(statement_query_type)
+            if queryer is None:
+                self.logger.warning(f"未找到查询器: {statement_query_type.value}")
+                result[statement_name] = pd.DataFrame()
+                continue
+
+            # 执行查询
+            raw_data = queryer.query(symbol)
+
+            if raw_data.empty:
+                result[statement_name] = pd.DataFrame()
+                continue
+
+            # 应用时间频率处理
+            processed_data = self._process_frequency(raw_data, frequency, statement_query_type)
+
+            # 应用记录数限制
+            if limit is not None and len(processed_data) > limit:
+                processed_data = processed_data.head(limit)
+
+            result[statement_name] = processed_data
+
+        return result

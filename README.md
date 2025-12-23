@@ -1,307 +1,300 @@
-# AKShare价值投资分析系统
+# AKShare价值投资分析系统 - FastAPI Web服务
 
-> 基于akshare和MCP的智能财务数据查询系统
+> 基于akshare的跨市场财务数据查询Web API服务
 
 [![Python](https://img.shields.io/badge/Python-3.13+-blue.svg)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green.svg)](https://fastapi.tiangolo.com/)
 [![akshare](https://img.shields.io/badge/akshare-1.0.0+-green.svg)](https://www.akshare.xyz/)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**项目愿景**: 基于akshare和MCP协议的跨市场财务数据查询系统，为AI助手提供标准化的财务数据访问接口。
+## 项目概述
 
-## 🎯 核心特性
+基于 FastAPI 的现代化财务数据查询Web API服务，提供A股、港股、美股的财务指标和财务三表数据查询能力，支持GET和POST双模式访问。
 
-- 🔍 **跨市场覆盖**: A股、港股、美股财务数据
-- 🤖 **MCP协议**: Model Context Protocol标准化接口
-- 💾 **智能缓存**: DiskCache缓存系统，API调用减少70%+
-- 🏗️ **SOLID架构**: 基于设计模式的可扩展架构
-- ⚡ **严格字段过滤**: 按需返回数据，减少传输开销
-- 📊 **Web交互界面**: Streamlit财务分析应用，支持可视化图表
+**核心特性**：
+- 🌐 RESTful API：财务查询端点，支持浏览器URL访问
+- ⚡ 异步处理：FastAPI异步高性能处理
+- 📖 自动文档：OpenAPI/Swagger自动生成
+- 🎯 类型安全：Pydantic模型验证和序列化
+- 💾 智能缓存：SQLite缓存系统，API调用减少70%+
 
-## 🚀 快速开始
+## 快速开始
 
-### 基础查询
-
-```python
-from akshare_value_investment import create_container
-
-# 创建容器
-container = create_container()
-
-# 获取查询器
-a_stock_queryer = container.a_stock_indicators()
-
-# 查询A股财务数据
-data = a_stock_queryer.query("600519", "2023-01-01", "2023-12-31")
-print(f"贵州茅台ROE: {data.iloc[0]['净资产收益率(%)']}")
-```
-
-### Web应用使用
+### 启动API服务
 
 ```bash
-# 启动Streamlit财务分析应用
-poe streamlit
-# 或者
-PYTHONPATH=src:webapp uv run streamlit run webapp/main.py
-
-# 访问应用
-# 浏览器打开 http://localhost:8501
+poe api
+# 或
+PYTHONPATH=src uv run uvicorn akshare_value_investment.api.main:create_app --reload --host 0.0.0.0 --port 8000
 ```
 
-**Web应用功能**:
-- 📈 **四大财务报表**: 财务指标、资产负债表、利润表、现金流量表
-- 🎯 **交互式图表**: 点击任意指标查看深度分析和趋势图
-- 📅 **智能时间选择**: 支持5年、10年、全部历史数据
-- 📊 **窄表格式**: 年份横向排列，便于趋势分析
-- 🔍 **数据过滤**: 自动隐藏空值和无效指标
-- 📱 **响应式设计**: 适配不同屏幕尺寸
-
-### MCP服务器使用
+### 健康检查
 
 ```bash
-# 启动MCP服务器
-uv run python -m akshare_value_investment.mcp.server --stdio
-
-# 或查看工具信息
-uv run python -m akshare_value_investment.mcp.server --info
+curl http://localhost:8000/health
 ```
 
-## 📊 支持的市场和查询类型
+### 访问API文档
 
-### A股市场 (4个查询类型)
-- **财务指标**: 净资产收益率、净利润、毛利率等25+指标
-- **资产负债表**: 资产总计、负债合计等75+字段
-- **利润表**: 营业收入、营业成本等46+字段
-- **现金流量表**: 经营活动现金流等72+字段
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
 
-### 港股市场 (2个查询类型)
-- **财务指标**: ROE、净利润等核心指标
-- **财务三表**: 完整财务报表数据
+## API端点
 
-### 美股市场 (4个查询类型)
-- **财务指标**: ROE、EPS等财务指标
-- **资产负债表**: 完整资产负债表
-- **利润表**: 收入、成本、利润等
-- **现金流量表**: 经营、投资、筹资现金流
+### 核心查询端点
 
-## 🛠️ MCP工具集
+| HTTP方法 | 端点 | 功能 |
+|---------|------|------|
+| GET/POST | `/api/v1/financial/indicators` | 财务指标查询 |
+| GET/POST | `/api/v1/financial/statements` | 财务三表聚合查询 |
+| GET | `/api/v1/financial/fields/{market}/{query_type}` | 字段发现 |
+| GET | `/health` | 健康检查 |
 
-### 1. query_financial_data
-查询财务数据，支持严格字段过滤和时间频率处理
+## API使用
 
+### 1. 健康检查
+
+```bash
+curl http://localhost:8000/health
+```
+
+**响应**：
 ```json
 {
-  "tool": "query_financial_data",
-  "parameters": {
+  "status": "healthy",
+  "container": "configured",
+  "services": {
+    "a_stock_indicators": "available",
+    "hk_stock_indicators": "available",
+    "us_stock_indicators": "available",
+    "financial_query_service": "available",
+    "field_discovery_service": "available"
+  }
+}
+```
+
+### 2. 财务指标查询
+
+**GET方法（浏览器URL）**：
+```bash
+# A股
+curl "http://localhost:8000/api/v1/financial/indicators?symbol=SH600519&market=a_stock&frequency=annual"
+
+# 港股
+curl "http://localhost:8000/api/v1/financial/indicators?symbol=00700&market=hk_stock&frequency=quarterly"
+
+# 美股
+curl "http://localhost:8000/api/v1/financial/indicators?symbol=AAPL&market=us_stock&frequency=annual"
+```
+
+**POST方法（支持字段过滤）**：
+```bash
+curl -X POST "http://localhost:8000/api/v1/financial/indicators" \
+  -H "Content-Type: application/json" \
+  -d '{
     "market": "a_stock",
     "query_type": "a_stock_indicators",
-    "symbol": "600519",
+    "symbol": "SH600519",
     "fields": ["报告期", "净利润", "净资产收益率"],
+    "start_date": "2023-01-01",
+    "end_date": "2023-12-31",
+    "frequency": "annual"
+  }'
+```
+
+**响应格式**：
+```json
+{
+  "status": "success",
+  "data": {
+    "records": [{"报告期": "2023-12-31", "净利润": 747.34}],
+    "columns": ["报告期", "净利润"],
+    "shape": [1, 2],
+    "empty": false
+  },
+  "metadata": {
+    "query_type": "A股财务指标",
+    "frequency": "年度数据",
+    "record_count": 1
+  },
+  "query_info": {
+    "market": "a_stock",
+    "symbol": "SH600519",
     "frequency": "annual"
   }
 }
 ```
 
-### 2. get_available_fields
-获取指定查询类型的所有可用字段
+### 3. 财务三表查询
 
+**GET方法**：
+```bash
+# A股财务三表（最近3年）
+curl "http://localhost:8000/api/v1/financial/statements?symbol=SH600519&query_type=a_financial_statements&frequency=annual&limit=3"
+
+# 港股财务三表
+curl "http://localhost:8000/api/v1/financial/statements?symbol=00700&query_type=hk_financial_statements&frequency=annual"
+
+# 美股财务三表
+curl "http://localhost:8000/api/v1/financial/statements?symbol=AAPL&query_type=us_financial_statements&frequency=annual"
+```
+
+**POST方法**：
+```bash
+curl -X POST "http://localhost:8000/api/v1/financial/statements" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query_type": "a_financial_statements",
+    "symbol": "SH600519",
+    "frequency": "annual",
+    "limit": 3
+  }'
+```
+
+**响应格式**：
 ```json
 {
-  "tool": "get_available_fields",
-  "parameters": {
-    "market": "a_stock",
-    "query_type": "a_stock_indicators"
+  "status": "success",
+  "data": {
+    "balance_sheet": {
+      "columns": ["报告期", "资产总计", "负债合计"],
+      "data": [{"报告期": "2023-12-31", "资产总计": 1234.56}],
+      "record_count": 1
+    },
+    "income_statement": {...},
+    "cash_flow": {...}
+  },
+  "metadata": {
+    "symbol": "SH600519",
+    "query_type": "A股财务三表",
+    "frequency": "年度数据",
+    "record_counts": {
+      "balance_sheet": 1,
+      "income_statement": 1,
+      "cash_flow": 1
+    },
+    "limit": 3
   }
 }
 ```
 
-### 3. validate_fields
-验证字段有效性并提供智能建议
+### 4. 字段发现查询
 
+```bash
+# A股财务指标字段
+curl http://localhost:8000/api/v1/financial/fields/a_stock/a_stock_indicators
+
+# A股财务三表字段
+curl http://localhost:8000/api/v1/financial/fields/a_stock/a_financial_statements
+
+# 港股财务指标字段
+curl http://localhost:8000/api/v1/financial/fields/hk_stock/hk_stock_indicators
+
+# 美股财务三表字段
+curl http://localhost:8000/api/v1/financial/fields/us_stock/us_financial_statements
+```
+
+## 参数说明
+
+### 通用参数
+
+| 参数 | 类型 | 说明 | 可选值 |
+|------|------|------|--------|
+| `symbol` | string | 股票代码 | SH600519, 00700, AAPL |
+| `market` | string | 市场类型 | a_stock, hk_stock, us_stock |
+| `frequency` | string | 数据频率 | annual（年度）, quarterly（报告期） |
+| `query_type` | string | 查询类型 | 见下方查询类型列表 |
+| `limit` | int | 限制返回记录数（可选） | >=1 |
+
+### 查询类型
+
+**财务指标**：
+- `a_stock_indicators` - A股财务指标
+- `hk_stock_indicators` - 港股财务指标
+- `us_stock_indicators` - 美股财务指标
+
+**财务三表**：
+- `a_financial_statements` - A股财务三表
+- `hk_financial_statements` - 港股财务三表
+- `us_financial_statements` - 美股财务三表
+
+## 数据范围
+
+### A股市场
+- **财务指标**: 25+核心财务指标
+- **资产负债表**: 75+字段
+- **利润表**: 46+字段
+- **现金流量表**: 72+字段
+
+### 港股市场
+- **财务指标**: 核心财务指标
+- **财务三表**: 完整财务报表数据（窄表→宽表转换）
+
+### 美股市场
+- **财务指标**: 核心财务指标
+- **财务三表**: 完整财务报表数据（窄表→宽表转换）
+
+## 错误处理
+
+| 状态码 | 说明 |
+|--------|------|
+| 200 | 查询成功 |
+| 400 | 业务错误（市场与查询类型不匹配） |
+| 422 | 参数验证失败 |
+| 500 | 服务器内部错误 |
+
+**错误响应格式**：
 ```json
 {
-  "tool": "validate_fields",
-  "parameters": {
-    "market": "a_stock",
-    "query_type": "a_stock_indicators",
-    "fields": ["净利润", "不存在的字段"]
+  "detail": {
+    "error": {
+      "type": "invalid_query_type",
+      "message": "查询类型与市场不匹配"
+    }
   }
 }
 ```
 
-### 4. discover_fields
-发现指定查询类型的字段
-
-```json
-{
-  "tool": "discover_fields",
-  "parameters": {
-    "market": "a_stock",
-    "query_type": "a_stock_indicators"
-  }
-}
-```
-
-### 5. discover_all_market_fields
-发现指定市场下所有查询类型的字段
-
-```json
-{
-  "tool": "discover_all_market_fields",
-  "parameters": {
-    "market": "a_stock"
-  }
-}
-```
-
-## 🏗️ 系统架构
+## 系统架构
 
 ```
 src/akshare_value_investment/
-├── core/                   # 核心组件
-│   ├── models.py          # 数据模型定义
-│   └── stock_identifier.py # 智能股票代码识别
-├── datasource/queryers/    # SOLID查询器架构
-│   ├── base_queryer.py    # 模板方法基类
-│   ├── a_stock_queryers.py # A股查询器
-│   ├── hk_stock_queryers.py # 港股查询器
-│   └── us_stock_queryers.py # 美股查询器
-├── cache/                 # SQLite智能缓存
-│   ├── sqlite_cache.py    # 缓存核心实现
-│   └── smart_decorator.py # 透明缓存装饰器
+├── api/                    # FastAPI Web API
+│   ├── main.py            # 应用入口
+│   ├── routes/            # API路由
+│   │   ├── financial.py   # 财务查询端点
+│   │   └── field_discovery.py # 字段发现端点
+│   ├── models/            # Pydantic模型
+│   └── dependencies.py    # 依赖注入配置
 ├── business/              # 业务服务层
-│   ├── financial_query_service.py # 统一查询接口
-│   ├── field_discovery_service.py # 字段发现服务
-│   └── mcp_response.py    # MCP标准化响应
-├── mcp/                   # MCP协议实现
-│   ├── server.py          # MCP服务器核心
-│   ├── tools/             # MCP工具集
-│   └── schemas/           # Schema定义
+│   ├── financial_query_service.py # 查询服务
+│   └── field_discovery_service.py # 字段发现服务
+├── datasource/queryers/   # 数据查询器
 └── container.py           # 依赖注入容器
 ```
 
-## 💾 缓存系统
-
-### 智能增量更新
-- **API调用减少70%+**: 智能识别缺失数据范围
-- **查询速度提升50%+**: SQL范围查询优于多次键值查询
-- **存储效率提升60%+**: 按条精确缓存，无冗余字段
-- **线程安全保障**: 支持高并发访问
-
-### 使用示例
-
-```python
-from akshare_value_investment.cache import SQLiteCache, smart_sqlite_cache
-
-# 创建缓存实例
-cache = SQLiteCache(db_path=".cache/financial_data.db")
-
-# 应用装饰器
-@smart_sqlite_cache(
-    date_field='date',
-    query_type='indicators',
-    cache_adapter=cache
-)
-def get_financial_data(symbol, start_date, end_date):
-    return akshare_api_call(symbol)
-
-# 透明缓存使用
-data1 = get_financial_data("600519", "2023-01-01", "2023-12-31")  # API调用
-data2 = get_financial_data("600519", "2023-01-01", "2023-12-31")  # 缓存命中
-```
-
-## 🧪 测试覆盖
+## 运行测试
 
 ```bash
 # 运行所有测试
 uv run pytest tests/
 
-# 运行MCP集成测试
-uv run python test_mcp_integration.py
-
-# 运行缓存业务场景测试
-uv run pytest tests/test_financial_cache_business_scenarios.py
+# 运行API测试
+uv run pytest tests/api/
 ```
 
-**测试统计**: 293个测试用例，100%通过率
+**测试统计**：259个测试，100%通过率
 
-## 📈 性能指标
+## 版本历史
 
-| 指标 | 数值 | 说明 |
-|------|------|------|
-| 总测试数 | 293个 | 100%通过率 |
-| API调用减少 | 70%+ | 智能缓存效果 |
-| 查询速度提升 | 50%+ | SQL优化效果 |
-| 存储效率提升 | 60%+ | 精确缓存策略 |
-| 字段覆盖 | 218个 | A股全市场字段 |
-
-## 🔧 开发指南
-
-### 环境要求
-- Python >= 3.13
-- uv 包管理器
-- akshare >= 1.0.0
-
-### 核心原则
-- **SOLID架构**: 基于设计模式的可扩展架构
-- **智能缓存**: 透明的缓存机制，提升性能
-- **原始数据完整**: 保留所有原始字段，用户自主选择
-- **跨市场统一**: 同一接口支持三地市场
-
-## 📚 文档
-
-### 用户指南
-- [📊 财报检查清单](./doc/a_stock_check_list.md) - **A股财务分析完整指南**，包含42项详细检查指标和计算方法
-- [📈 Web应用使用](./webapp/) - Streamlit财务分析应用，可视化界面
-
-### 技术文档
-- [MCP集成文档](./src/akshare_value_investment/mcp/README.md) - MCP服务器完整文档
-- [时间范围过滤修复](./doc/TIME_RANGE_FILTERING_FIX.md) - API时间过滤功能说明
-- [A股字段说明](./doc/a_stock_fields.md) - A股财务数据字段详解
-
-## 🚀 版本历史
-
-### v3.0.0 (2025-12-03) - MCP集成版
-- ✅ **完整MCP集成**: 5个核心MCP工具
-- ✅ **标准化响应**: MCP协议兼容的响应格式
-- ✅ **智能字段验证**: 字段有效性检查和建议
-- ✅ **跨市场统一**: 统一接口支持A股/港股/美股
-
-### v2.1.0 (2025-12-01) - SOLID架构优化
-- ✅ **美股查询器重构**: 恢复基类架构，消除代码重复
-- ✅ **港股字段修复**: 修复REPORT_DATE字段缺失问题
-- ✅ **测试完善**: 293个测试全部通过
-
-### v2.0.0 (2025-11-13) - SQLite智能缓存系统
-- ✅ **架构重构**: 复合主键设计，摒弃冗余存储
-- ✅ **智能增量更新**: 6种数据缺失场景处理
-- ✅ **装饰器模式**: 透明集成缓存功能
+### v3.0.0 (2025-12-23) - FastAPI Web服务版
+- ✅ FastAPI集成：完整的RESTful API服务
+- ✅ GET/POST双模式：支持浏览器URL和POST JSON
+- ✅ 自动API文档：Swagger UI和ReDoc自动生成
+- ✅ 健康检查端点：服务状态监控
+- ✅ 类型安全：Pydantic模型验证
 
 ---
 
-## 💡 快速上手
-
-### 🚀 想要快速分析A股财务报表？
-```bash
-# 1. 启动Web应用
-poe streamlit
-
-# 2. 打开浏览器访问 http://localhost:8501
-
-# 3. 输入股票代码（如600519），选择时间范围，点击查询
-
-# 4. 点击任意财务指标查看深度图表分析
-```
-
-### 📚 需要详细的财报分析指导？
-- 阅读 [财报检查清单](./doc/a_stock_check_list.md) - 42项完整财务检查清单
-- 包含详细计算公式、评估标准和实际案例
-
-### 🔧 想要集成到自己的项目？
-- 参考 [基础查询](#基础查询) 代码示例
-- 查阅 [MCP文档](./src/akshare_value_investment/mcp/README.md) 了解协议接口
-
----
-
-**当前版本**: v3.1.0 (Web应用版)
-**技术栈**: Python 3.13, akshare, Streamlit, Plotly, FastAPI, MCP
-**最后更新**: 2025-12-16
+**当前版本**: v3.0.0 (FastAPI Web服务版)
+**技术栈**: Python 3.13, FastAPI, Pydantic, akshare, dependency-injector, SQLite
+**最后更新**: 2025-12-23

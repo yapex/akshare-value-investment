@@ -30,6 +30,25 @@ class FinancialQueryRequest(BaseModel):
     )
 
 
+class FinancialStatementsAggregationRequest(BaseModel):
+    """
+    财务三表聚合查询请求模型
+
+    专门用于财务三表聚合查询，支持limit参数。
+    """
+    query_type: FinancialQueryType = Field(
+        ...,
+        description="聚合查询类型（a_financial_statements/hk_financial_statements/us_financial_statements）"
+    )
+    symbol: str = Field(..., min_length=1, description="股票代码")
+    frequency: Frequency = Field(Frequency.ANNUAL, description="时间频率（年度数据/报告期数据）")
+    limit: Optional[int] = Field(None, ge=1, description="限制每个DataFrame返回的记录数")
+
+    model_config = ConfigDict(
+        use_enum_values=True
+    )
+
+
 class FieldDiscoveryRequest(BaseModel):
     """
     字段发现请求模型

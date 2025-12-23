@@ -29,14 +29,16 @@ class FinancialQueryType(Enum):
     HK_STOCK_INCOME_STATEMENT = "hk_stock_income_statement"  # 港股利润表
     HK_STOCK_CASH_FLOW = "hk_stock_cash_flow"          # 港股现金流量表
 
-    # 保留原有的三表合一类型作为备用
-    HK_STOCK_STATEMENTS = "hk_stock_statements"        # 港股财务三表（备用）
-
     # 美股查询类型 (4个接口)
     US_STOCK_INDICATORS = "us_stock_indicators"        # 美股财务指标
     US_STOCK_BALANCE_SHEET = "us_stock_balance_sheet"  # 美股资产负债表
     US_STOCK_INCOME_STATEMENT = "us_stock_income_statement"  # 美股利润表
     US_STOCK_CASH_FLOW = "us_stock_cash_flow"          # 美股现金流量表
+
+    # 财务三表聚合查询类型 (3个接口)
+    A_FINANCIAL_STATEMENTS = "a_financial_statements"      # A股财务三表聚合
+    HK_FINANCIAL_STATEMENTS = "hk_financial_statements"    # 港股财务三表聚合
+    US_FINANCIAL_STATEMENTS = "us_financial_statements"    # 美股财务三表聚合
 
     @classmethod
     def get_query_types_by_market(cls, market: MarketType) -> list['FinancialQueryType']:
@@ -89,11 +91,11 @@ class FinancialQueryType(Enum):
         Returns:
             市场类型
         """
-        if self.value.startswith("a_stock_"):
+        if self.value.startswith("a_stock_") or self.value.startswith("a_financial_"):
             return MarketType.A_STOCK
-        elif self.value.startswith("hk_stock_"):
+        elif self.value.startswith("hk_stock_") or self.value.startswith("hk_financial_"):
             return MarketType.HK_STOCK
-        elif self.value.startswith("us_stock_"):
+        elif self.value.startswith("us_stock_") or self.value.startswith("us_financial_"):
             return MarketType.US_STOCK
         else:
             raise ValueError(f"未知的查询类型: {self}")
@@ -117,13 +119,17 @@ class FinancialQueryType(Enum):
             FinancialQueryType.HK_STOCK_BALANCE_SHEET: "港股资产负债表",
             FinancialQueryType.HK_STOCK_INCOME_STATEMENT: "港股利润表",
             FinancialQueryType.HK_STOCK_CASH_FLOW: "港股现金流量表",
-            FinancialQueryType.HK_STOCK_STATEMENTS: "港股财务三表（备用）",
 
             # 美股
             FinancialQueryType.US_STOCK_INDICATORS: "美股财务指标",
             FinancialQueryType.US_STOCK_BALANCE_SHEET: "美股资产负债表",
             FinancialQueryType.US_STOCK_INCOME_STATEMENT: "美股利润表",
             FinancialQueryType.US_STOCK_CASH_FLOW: "美股现金流量表",
+
+            # 财务三表聚合
+            FinancialQueryType.A_FINANCIAL_STATEMENTS: "A股财务三表",
+            FinancialQueryType.HK_FINANCIAL_STATEMENTS: "港股财务三表",
+            FinancialQueryType.US_FINANCIAL_STATEMENTS: "美股财务三表",
         }
 
         return display_names.get(self, self.value)

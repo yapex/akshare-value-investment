@@ -6,6 +6,8 @@ FastAPI应用主入口
 """
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from .dependencies import get_container
 from .routes.field_discovery import router as field_discovery_router
 from .routes.financial import router as financial_router
@@ -26,9 +28,24 @@ def create_app() -> FastAPI:
         redoc_url="/redoc",
     )
 
+    # 配置CORS中间件
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],  # 允许所有来源（开发环境）
+        allow_credentials=True,
+        allow_methods=["*"],  # 允许所有HTTP方法
+        allow_headers=["*"],  # 允许所有请求头
+    )
+
     # 注册路由
     app.include_router(field_discovery_router)
     app.include_router(financial_router)
+
+    # 根路径重定向到文档页面
+    @app.get("/", include_in_schema=False)
+    async def root():
+        """根路径重定向到API文档"""
+        return RedirectResponse(url="/docs")
 
     # 添加健康检查端点，验证依赖注入
     @app.get("/health")

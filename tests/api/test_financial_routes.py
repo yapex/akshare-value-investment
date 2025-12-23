@@ -1,8 +1,8 @@
 """
-财务查询路由测试
+财务指标查询路由测试
 
-TDD测试：验证财务数据查询API端点的功能
-先写失败测试，再实现功能
+TDD测试：验证财务指标查询API端点的功能
+测试 /api/v1/financial/indicators 端点
 """
 
 import pytest
@@ -26,7 +26,7 @@ def test_post_financial_query_a_stock_indicators():
         "frequency": "annual"
     }
 
-    response = client.post("/api/v1/financial/query", json=request_data)
+    response = client.post("/api/v1/financial/indicators", json=request_data)
 
     assert response.status_code == 200
 
@@ -61,7 +61,7 @@ def test_post_financial_query_hk_stock():
         "frequency": "quarterly"
     }
 
-    response = client.post("/api/v1/financial/query", json=request_data)
+    response = client.post("/api/v1/financial/indicators", json=request_data)
 
     assert response.status_code == 200
     data = response.json()
@@ -81,7 +81,7 @@ def test_post_financial_query_us_stock():
         "fields": ["REPORT_DATE", "PARENT_HOLDER_NETPROFIT", "OPERATE_INCOME"]
     }
 
-    response = client.post("/api/v1/financial/query", json=request_data)
+    response = client.post("/api/v1/financial/indicators", json=request_data)
 
     assert response.status_code == 200
     data = response.json()
@@ -103,7 +103,7 @@ def test_post_financial_query_invalid_request():
         "symbol": "SH600519"
     }
 
-    response = client.post("/api/v1/financial/query", json=request_data)
+    response = client.post("/api/v1/financial/indicators", json=request_data)
 
     # 应该返回验证错误
     assert response.status_code == 422
@@ -123,7 +123,7 @@ def test_post_financial_query_missing_required_fields():
         # 缺少 query_type 和 symbol
     }
 
-    response = client.post("/api/v1/financial/query", json=request_data)
+    response = client.post("/api/v1/financial/indicators", json=request_data)
 
     assert response.status_code == 422
 
@@ -143,7 +143,7 @@ def test_post_financial_query_market_query_type_mismatch():
         "symbol": "SH600519"
     }
 
-    response = client.post("/api/v1/financial/query", json=request_data)
+    response = client.post("/api/v1/financial/indicators", json=request_data)
 
     # 应该返回业务错误
     assert response.status_code == 400
@@ -166,7 +166,7 @@ def test_post_financial_query_invalid_symbol():
         "symbol": "",  # 空符号
     }
 
-    response = client.post("/api/v1/financial/query", json=request_data)
+    response = client.post("/api/v1/financial/indicators", json=request_data)
 
     assert response.status_code == 422
 
@@ -186,7 +186,7 @@ def test_post_financial_query_field_filtering():
         "end_date": "2023-12-31"
     }
 
-    response = client.post("/api/v1/financial/query", json=request_data)
+    response = client.post("/api/v1/financial/indicators", json=request_data)
 
     assert response.status_code == 200
     data = response.json()
