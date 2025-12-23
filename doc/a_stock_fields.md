@@ -7,9 +7,10 @@
 ## 🔍 字段发现API端点
 
 - **财务指标**: `GET /api/v1/financial/fields/a_stock/a_stock_indicators` (25个字段)
-- **资产负债表**: `GET /api/v1/financial/fields/a_stock/a_stock_balance_sheet` (75个字段)
-- **利润表**: `GET /api/v1/financial/fields/a_stock/a_stock_income_statement` (46个字段)
-- **现金流量表**: `GET /api/v1/financial/fields/a_stock/a_stock_cash_flow` (72个字段)
+- **财务三表**: `GET /api/v1/financial/fields/a_stock/a_financial_statements`
+  - 资产负债表: 75个字段
+  - 利润表: 46个字段
+  - 现金流量表: 72个字段
 
 ---
 
@@ -316,9 +317,22 @@
 ```python
 import httpx
 
-# 获取所有可用字段
-response = httpx.get("http://localhost:8000/api/v1/financial/fields/a_stock/a_stock_balance_sheet")
-fields = response.json()["data"]["columns"]  # 注意：字段在 "columns" 中，不是 "metadata"
+# 获取财务指标字段
+response = httpx.get("http://localhost:8000/api/v1/financial/fields/a_stock/a_stock_indicators")
+indicators_fields = response.json()["data"]["columns"]
+
+# 获取财务三表字段
+response = httpx.get("http://localhost:8000/api/v1/financial/fields/a_stock/a_financial_statements")
+data = response.json()["data"]
+
+# 资产负债表字段
+balance_fields = data["balance_sheet"]["columns"]
+
+# 利润表字段
+income_fields = data["income_statement"]["columns"]
+
+# 现金流量表字段
+cashflow_fields = data["cash_flow"]["columns"]
 ```
 
 ### ⚠️ 重要字段说明
@@ -340,9 +354,7 @@ fields = response.json()["data"]["columns"]  # 注意：字段在 "columns" 中�
 - **market**: `a_stock` (A股市场)
 - **query_type**:
   - `a_stock_indicators` (财务指标)
-  - `a_stock_balance_sheet` (资产负债表)
-  - `a_stock_income_statement` (利润表)
-  - `a_stock_cash_flow` (现金流量表)
+  - `a_financial_statements` (财务三表聚合)
 
 ### 3. 字段选择建议
 
@@ -388,26 +400,14 @@ def validate_fields_exist(market, query_type, required_fields):
 
 ## 📅 更新记录
 
-- **2025-12-11**: 完善字段清单，基于 FastAPI 完整字段发现API
-  - 完成财务指标25个字段的详细分类
-  - 完善现金流量表72个字段的结构化展示
-  - 添加字段分类和使用说明
-  - **重要修正**：修正 API 字段获取路径（`data.columns` 而非 `data.metadata`）
-  - **字段验证**：通过实际 API 调用验证所有 218 个字段的准确性
-  - **缺失字段说明**：添加不存在字段的替代方案
-  - **文档更新**：通过自动化脚本验证并修正文档中缺失的字段
-    - 资产负债表：添加缺失的 `报告期` 字段
-    - 利润表：添加缺失的 `报告期` 字段，修正 `*营业总Cost` 为 `*营业总成本`
-- **2025-12-09**: 基于 FastAPI 字段发现 API 创建初始字段清单
-- **字段总数验证**:
-  - 资产负债表：75个字段 ✅
-  - 利润表：46个字段 ✅
-  - 现金流量表：72个字段 ✅
-  - 财务指标：25个字段 ✅
-  - **总计：219个字段** ✅ (含重复的报告期字段)
-- **数据来源**: akshare 数据接口 + FastAPI 字段发现API
-- **验证端点**（已验证有效）:
-  - `GET /api/v1/financial/fields/a_stock/a_stock_balance_sheet`
-  - `GET /api/v1/financial/fields/a_stock/a_stock_income_statement`
-  - `GET /api/v1/financial/fields/a_stock/a_stock_cash_flow`
+- **2025-12-23**: 严格基于 FastAPI 字段发现 API 验证并更新所有字段
+  - 修正API端点为财务三表聚合接口: `a_financial_statements`
+  - 财务指标: 25个字段 ✅
+  - 资产负债表: 75个字段 ✅
+  - 利润表: 46个字段 ✅
+  - 现金流量表: 72个字段 ✅
+  - **总计**: 218个字段 ✅
+- **数据来源**: FastAPI 字段发现API
+- **验证端点**:
   - `GET /api/v1/financial/fields/a_stock/a_stock_indicators`
+  - `GET /api/v1/financial/fields/a_stock/a_financial_statements`

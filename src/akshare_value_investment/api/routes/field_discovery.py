@@ -7,6 +7,7 @@
 from fastapi import APIRouter, HTTPException, Path
 from typing import Dict, Any
 from datetime import datetime
+import pandas as pd
 
 from ...core.models import MarketType
 from ...business.financial_types import FinancialQueryType, Frequency
@@ -80,6 +81,10 @@ def _get_statements_fields(financial_service, query_type: FinancialQueryType, sy
     # 提取字段信息
     fields_dict = {}
     for statement_name, df in result.items():
+        # 跳过非DataFrame的键（如unit_map）
+        if not isinstance(df, pd.DataFrame):
+            continue
+
         if not df.empty:
             fields_dict[statement_name] = list(df.columns)
         else:

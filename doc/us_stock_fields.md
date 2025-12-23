@@ -7,9 +7,10 @@
 ## 🔍 字段发现API端点
 
 - **财务指标**: `GET /api/v1/financial/fields/us_stock/us_stock_indicators` (49个字段)
-- **资产负债表**: `GET /api/v1/financial/fields/us_stock/us_stock_balance_sheet` (45个字段)
-- **利润表**: `GET /api/v1/financial/fields/us_stock/us_stock_income_statement` (36个字段)
-- **现金流量表**: `GET /api/v1/financial/fields/us_stock/us_stock_cash_flow` (40个字段)
+- **财务三表**: `GET /api/v1/financial/fields/us_stock/us_financial_statements`
+  - 资产负债表: 45个字段
+  - 利润表: 36个字段
+  - 现金流量表: 40个字段
 
 ---
 
@@ -260,17 +261,17 @@
 
 ## 📅 更新记录
 
-- **2025-12-18**: 基于 FastAPI 字段发现 API 完善美股财务数据字段清单
-  - 完成财务指标49个字段的详细分类
-  - 完成资产负债表45个字段的结构化展示  
-  - 完成利润表36个字段的结构化展示
-  - 完成现金流量表40个字段的结构化展示
-  - **数据来源**: akshare 数据接口 + FastAPI 字段发现API
-  - **验证端点**（已验证有效）:
-    - `GET /api/v1/financial/fields/us_stock/us_stock_indicators`
-    - `GET /api/v1/financial/fields/us_stock/us_stock_balance_sheet`
-    - `GET /api/v1/financial/fields/us_stock/us_stock_income_statement`
-    - `GET /api/v1/financial/fields/us_stock/us_stock_cash_flow`
+- **2025-12-23**: 严格基于 FastAPI 字段发现 API 验证并更新所有字段
+  - 修正API端点为财务三表聚合接口: `us_financial_statements`
+  - 财务指标: 49个字段 ✅
+  - 资产负债表: 45个字段 ✅
+  - 利润表: 36个字段 ✅
+  - 现金流量表: 40个字段 ✅
+  - **总计**: 170个字段 ✅
+- **数据来源**: FastAPI 字段发现API
+- **验证端点**:
+  - `GET /api/v1/financial/fields/us_stock/us_stock_indicators`
+  - `GET /api/v1/financial/fields/us_stock/us_financial_statements`
 
 ---
 
@@ -281,21 +282,22 @@
 ```python
 import httpx
 
-# 查询美股财务指标字段
+# 获取财务指标字段
 response = httpx.get("http://localhost:8000/api/v1/financial/fields/us_stock/us_stock_indicators")
-fields = response.json()["data"]["columns"]
+indicators_fields = response.json()["data"]["columns"]
 
-# 查询美股资产负债表字段
-response = httpx.get("http://localhost:8000/api/v1/financial/fields/us_stock/us_stock_balance_sheet")
-fields = response.json()["data"]["columns"]
+# 获取财务三表字段
+response = httpx.get("http://localhost:8000/api/v1/financial/fields/us_stock/us_financial_statements")
+data = response.json()["data"]
 
-# 查询美股利润表字段
-response = httpx.get("http://localhost:8000/api/v1/financial/fields/us_stock/us_stock_income_statement")
-fields = response.json()["data"]["columns"]
+# 资产负债表字段
+balance_fields = data["balance_sheet"]["columns"]
 
-# 查询美股现金流量表字段
-response = httpx.get("http://localhost:8000/api/v1/financial/fields/us_stock/us_stock_cash_flow")
-fields = response.json()["data"]["columns"]
+# 利润表字段
+income_fields = data["income_statement"]["columns"]
+
+# 现金流量表字段
+cashflow_fields = data["cash_flow"]["columns"]
 ```
 
 ### 2. 参数说明
@@ -303,9 +305,7 @@ fields = response.json()["data"]["columns"]
 - **market**: `us_stock` (美股市场)
 - **query_type**:
   - `us_stock_indicators` (财务指标) - 财务绩效指标
-  - `us_stock_balance_sheet` (资产负债表) - 资产负债状况
-  - `us_stock_income_statement` (利润表) - 盈利能力分析
-  - `us_stock_cash_flow` (现金流量表) - 现金流量状况
+  - `us_financial_statements` (财务三表) - 资产负债、盈利能力、现金流量
 
 ### 3. 注意事项
 

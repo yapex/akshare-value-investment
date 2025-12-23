@@ -234,6 +234,9 @@ async def query_financial_statements(
             limit=request.limit
         )
 
+        # 提取单位映射（如果存在，仅A股有）
+        unit_map = result.pop("unit_map", {})
+
         # 构建响应数据
         # 将DataFrame转换为字典格式以便JSON序列化
         data_dict = {}
@@ -255,17 +258,25 @@ async def query_financial_statements(
                 }
                 record_counts[statement_name] = len(df)
 
+        # 构建元数据
+        metadata = {
+            "symbol": request.symbol,
+            "query_type": query_type_enum.get_display_name(),
+            "frequency": frequency_enum.get_display_name(),
+            "record_counts": record_counts,
+            "limit": request.limit
+        }
+
+        # 如果有单位映射，添加到元数据中
+        if unit_map:
+            metadata["unit_info"] = unit_map
+            metadata["default_unit"] = "亿元"
+
         # 构建响应
         return {
             "status": "success",
             "data": data_dict,
-            "metadata": {
-                "symbol": request.symbol,
-                "query_type": query_type_enum.get_display_name(),
-                "frequency": frequency_enum.get_display_name(),
-                "record_counts": record_counts,
-                "limit": request.limit
-            }
+            "metadata": metadata
         }
 
     except HTTPException:
@@ -431,6 +442,9 @@ async def get_financial_statements(
             limit=limit
         )
 
+        # 提取单位映射（如果存在，仅A股有）
+        unit_map = result.pop("unit_map", {})
+
         # 构建响应数据
         data_dict = {}
         record_counts = {}
@@ -451,17 +465,25 @@ async def get_financial_statements(
                 }
                 record_counts[statement_name] = len(df)
 
+        # 构建元数据
+        metadata = {
+            "symbol": symbol,
+            "query_type": query_type_enum.get_display_name(),
+            "frequency": frequency_enum.get_display_name(),
+            "record_counts": record_counts,
+            "limit": limit
+        }
+
+        # 如果有单位映射，添加到元数据中
+        if unit_map:
+            metadata["unit_info"] = unit_map
+            metadata["default_unit"] = "亿元"
+
         # 构建响应
         return {
             "status": "success",
             "data": data_dict,
-            "metadata": {
-                "symbol": symbol,
-                "query_type": query_type_enum.get_display_name(),
-                "frequency": frequency_enum.get_display_name(),
-                "record_counts": record_counts,
-                "limit": limit
-            }
+            "metadata": metadata
         }
 
     except HTTPException:

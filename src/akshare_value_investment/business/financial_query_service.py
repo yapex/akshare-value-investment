@@ -752,11 +752,12 @@ class FinancialQueryService:
         symbol: str,
         frequency: Frequency = Frequency.ANNUAL,
         limit: Optional[int] = None
-    ) -> Dict[str, pd.DataFrame]:
+    ) -> Dict[str, Any]:
         """
         查询财务三表聚合数据
 
         返回包含资产负债表、利润表、现金流量表的字典结构。
+        A股数据包含单位映射（unit_map），港股美股暂不包含。
 
         Args:
             query_type: 财务三表聚合查询类型（A/HK/US_FINANCIAL_STATEMENTS）
@@ -765,7 +766,9 @@ class FinancialQueryService:
             limit: 限制每个DataFrame返回的记录数
 
         Returns:
-            字典结构：{'balance_sheet': DataFrame, 'income_statement': DataFrame, 'cash_flow': DataFrame}
+            Dict[str, Any]:
+                - A股: {'balance_sheet': DataFrame, 'income_statement': DataFrame, 'cash_flow': DataFrame, 'unit_map': Dict}
+                - 港股/美股: {'balance_sheet': DataFrame, 'income_statement': DataFrame, 'cash_flow': DataFrame}
 
         Raises:
             ValueError: 如果query_type不是财务三表聚合查询类型
@@ -778,7 +781,7 @@ class FinancialQueryService:
             ...     frequency=Frequency.ANNUAL,
             ...     limit=3
             ... )
-            >>> print(result.keys())  # dict_keys(['balance_sheet', 'income_statement', 'cash_flow'])
+            >>> print(result.keys())  # dict_keys(['balance_sheet', 'income_statement', 'cash_flow', 'unit_map'])
         """
         # 验证是否为财务三表聚合查询类型
         aggregation_types = {
@@ -816,6 +819,7 @@ class FinancialQueryService:
 
         statement_types = queryer_map[market]
         result = {}
+        unit_map = {}  # 用于收集单位映射（仅A股）
 
         # 查询三张报表
         for statement_name, statement_query_type in statement_types.items():
@@ -826,7 +830,18 @@ class FinancialQueryService:
                 continue
 
             # 执行查询
-            raw_data = queryer.query(symbol)
+            query_result = queryer.query(symbol)
+
+            # 判断返回格式：A股返回Dict{'data', 'unit_map'}，其他返回DataFrame
+            if isinstance(query_result, dict):
+                # A股新格式：包含data和unit_map
+                raw_data = query_result.get("data", pd.DataFrame())
+                statement_unit_map = query_result.get("unit_map", {})
+                # 合并单位映射
+                unit_map.update(statement_unit_map)
+            else:
+                # 港股/美股旧格式：直接是DataFrame
+                raw_data = query_result
 
             if raw_data.empty:
                 result[statement_name] = pd.DataFrame()
@@ -840,5 +855,9 @@ class FinancialQueryService:
                 processed_data = processed_data.head(limit)
 
             result[statement_name] = processed_data
+
+        # 如果有单位映射（A股），添加到结果中
+        if unit_map:
+            result["unit_map"] = unit_map
 
         return result
