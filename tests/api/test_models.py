@@ -19,7 +19,6 @@ def test_financial_query_request_model():
         "market": "a_stock",
         "query_type": "a_stock_indicators",
         "symbol": "SH600519",
-        "fields": ["报告期", "净利润", "净资产收益率"],
         "start_date": "2023-01-01",
         "end_date": "2023-12-31",
         "frequency": "annual"
@@ -29,7 +28,6 @@ def test_financial_query_request_model():
     assert request.market == "a_stock"  # use_enum_values=True 返回字符串
     assert request.query_type == "a_stock_indicators"
     assert request.symbol == "SH600519"
-    assert len(request.fields) == 3
     assert request.frequency == "annual"
 
 def test_financial_query_request_validation():

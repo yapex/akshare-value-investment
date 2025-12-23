@@ -15,12 +15,11 @@ def test_post_financial_query_a_stock_indicators():
     app = create_app()
     client = TestClient(app)
 
-    # 测试财务查询端点（还未实现，会先失败）
+    # 测试财务查询端点
     request_data = {
         "market": "a_stock",
         "query_type": "a_stock_indicators",
         "symbol": "SH600519",
-        "fields": ["报告期", "净利润", "净资产收益率"],
         "start_date": "2023-01-01",
         "end_date": "2023-12-31",
         "frequency": "annual"
@@ -77,8 +76,7 @@ def test_post_financial_query_us_stock():
     request_data = {
         "market": "us_stock",
         "query_type": "us_stock_indicators",
-        "symbol": "AAPL",
-        "fields": ["REPORT_DATE", "PARENT_HOLDER_NETPROFIT", "OPERATE_INCOME"]
+        "symbol": "AAPL"
     }
 
     response = client.post("/api/v1/financial/indicators", json=request_data)
@@ -171,6 +169,7 @@ def test_post_financial_query_invalid_symbol():
     assert response.status_code == 422
 
 
+@pytest.mark.skip(reason="字段过滤功能已移除，待后续重新实现")
 def test_post_financial_query_field_filtering():
     """测试字段过滤功能"""
     app = create_app()

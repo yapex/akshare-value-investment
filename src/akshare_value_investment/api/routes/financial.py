@@ -115,7 +115,6 @@ async def query_financial_indicators(
             market=market_enum,
             query_type=query_type_enum,
             symbol=request.symbol,
-            fields=request.fields,
             start_date=request.start_date,
             end_date=request.end_date,
             frequency=frequency_enum

@@ -94,7 +94,6 @@ class FinancialQueryService:
         market: MarketType,
         query_type: FinancialQueryType,
         symbol: str,
-        fields: Optional[List[str]] = None,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
         frequency: Frequency = Frequency.ANNUAL
@@ -102,13 +101,12 @@ class FinancialQueryService:
         """
         统一查询接口
 
-        为FastAPI提供财务数据查询的核心接口，支持字段裁剪、时间频率处理等功能。
+        为FastAPI提供财务数据查询的核心接口，支持时间频率处理等功能。
 
         Args:
             market: 市场类型
             query_type: 查询类型
             symbol: 股票代码
-            fields: 需要返回的字段列表，None表示返回所有字段
             start_date: 开始日期，YYYY-MM-DD格式
             end_date: 结束日期，YYYY-MM-DD格式
             frequency: 时间频率，年度数据或报告期数据
@@ -119,12 +117,11 @@ class FinancialQueryService:
         Examples:
             >>> service = FinancialQueryService()
             >>>
-            >>> # 查询A股财务指标，只返回特定字段
+            >>> # 查询A股财务指标
             >>> response = service.query(
             ...     market=MarketType.A_STOCK,
             ...     query_type=FinancialQueryType.A_STOCK_INDICATORS,
-            ...     symbol="600519",
-            ...     fields=["报告期", "净利润", "净资产收益率"]
+            ...     symbol="600519"
             ... )
             >>>
             >>> # 查询年度数据
@@ -142,7 +139,6 @@ class FinancialQueryService:
             "market": market.value,
             "query_type": query_type.value,
             "symbol": symbol,
-            "fields": fields,
             "start_date": start_date,
             "end_date": end_date,
             "frequency": frequency.value
@@ -150,7 +146,7 @@ class FinancialQueryService:
 
         try:
             # 1. 参数验证
-            validation_error = self._validate_parameters(market, query_type, symbol, fields, frequency)
+            validation_error = self._validate_parameters(market, query_type, symbol, frequency)
             if validation_error:
                 return ResponseFormatter.validation_error(
                     field=validation_error["field"],
@@ -183,45 +179,7 @@ class FinancialQueryService:
             # 4. 时间频率处理
             processed_data = self._process_frequency(raw_data, frequency, query_type)
 
-            # 5. 字段裁剪（增强错误处理）
-            try:
-                final_data = self._apply_field_filter(processed_data, fields)
-            except ValueError as e:
-                if "请求的字段不存在" in str(e) or "字段不存在" in str(e):
-                    # 提取缺失字段和可用字段信息
-                    import re
-                    
-                    # 尝试从详细错误信息中提取字段
-                    missing_fields = []
-                    available_fields = list(processed_data.columns)
-                    
-                    # 提取缺失字段（多种格式支持）
-                    missing_match = re.search(r'请求的字段不存在: \[(.*?)\]', str(e))
-                    if missing_match:
-                        missing_fields_str = missing_match.group(1)
-                        missing_fields = [field.strip().strip("'\"") for field in missing_fields_str.split(',')]
-                    else:
-                        # 备用提取方式
-                        lines = str(e).split('\n')
-                        for line in lines:
-                            if '请求的字段不存在' in line:
-                                field_match = re.search(r'\[(.*?)\]', line)
-                                if field_match:
-                                    missing_fields = [f.strip().strip("'\"") for f in field_match.group(1).split(',')]
-                                    break
-
-                    # 构建增强的错误响应
-                    return ResponseFormatter.field_not_found_error(
-                        missing_fields=missing_fields,
-                        available_fields=available_fields,
-                        query_info=query_info
-                    )
-                else:
-                    # 其他ValueError异常
-                    self.logger.error(f"字段处理异常: {e}", exc_info=True)
-                    raise
-
-            # 6. 构建成功响应
+            # 5. 构建成功响应
             metadata = {
                 "market": market.value,
                 "query_type": query_type.get_display_name(),
@@ -229,7 +187,7 @@ class FinancialQueryService:
                 "frequency": frequency.get_display_name(),
                 "original_record_count": len(raw_data),
                 "processed_record_count": len(processed_data),
-                "returned_field_count": len(final_data.columns)
+                "returned_field_count": len(processed_data.columns)
             }
 
             if start_date or end_date:
@@ -238,10 +196,10 @@ class FinancialQueryService:
                     "end_date": end_date
                 }
 
-            self.logger.info(f"查询成功: {len(final_data)} 条记录, {len(final_data.columns)} 个字段")
-            
+            self.logger.info(f"查询成功: {len(processed_data)} 条记录, {len(processed_data.columns)} 个字段")
+
             return ResponseFormatter.success(
-                data=final_data,
+                data=processed_data,
                 metadata=metadata,
                 query_info=query_info
             )
@@ -337,7 +295,6 @@ class FinancialQueryService:
         market: MarketType,
         query_type: FinancialQueryType,
         symbol: str,
-        fields: Optional[List[str]],
         frequency: Frequency
     ) -> Optional[Dict[str, Any]]:
         """
@@ -347,7 +304,6 @@ class FinancialQueryService:
             market: 市场类型
             query_type: 查询类型
             symbol: 股票代码
-            fields: 字段列表
             frequency: 时间频率
 
         Returns:
@@ -368,22 +324,6 @@ class FinancialQueryService:
                 "value": symbol,
                 "allowed_values": ["非空字符串"]
             }
-
-        # 验证字段列表
-        if fields is not None:
-            if not isinstance(fields, list):
-                return {
-                    "field": "fields",
-                    "value": fields,
-                    "allowed_values": ["字段名列表或None"]
-                }
-
-            if not all(isinstance(field, str) for field in fields):
-                return {
-                    "field": "fields",
-                    "value": fields,
-                    "allowed_values": ["字符串列表"]
-                }
 
         # 验证频率
         if not isinstance(frequency, Frequency):
@@ -612,95 +552,6 @@ class FinancialQueryService:
                     return col
 
         return None
-
-    def _apply_field_filter(self, data: pd.DataFrame, fields: Optional[List[str]]) -> pd.DataFrame:
-        """
-        应用字段过滤器
-
-        严格的字段裁剪：如果请求的字段不存在，抛出详细的错误信息而不是忽略
-
-        Args:
-            data: 原始数据
-            fields: 需要保留的字段列表
-
-        Returns:
-            过滤后的数据
-
-        Raises:
-            ValueError: 当请求的字段不存在时，包含详细的错误信息和可用字段建议
-        """
-        if fields is None:
-            # 未指定字段，返回所有字段
-            self.logger.debug(f"未指定字段，返回所有 {len(data.columns)} 个字段")
-            return data.copy()
-
-        if not fields:
-            # 空字段列表，返回空DataFrame（保留结构）
-            self.logger.debug("字段列表为空，返回空DataFrame")
-            return data.iloc[:0].copy()
-
-        # 检查字段是否存在
-        missing_fields = [field for field in fields if field not in data.columns]
-        
-        if missing_fields:
-            # 构建详细的错误信息
-            available_fields = list(data.columns)
-            
-            # 提供字段相似性建议
-            similar_fields = []
-            for missing_field in missing_fields:
-                # 使用简单的字符串相似性查找相似字段
-                suggestions = []
-                missing_lower = missing_field.lower()
-                
-                for available_field in available_fields:
-                    available_lower = available_field.lower()
-                    # 检查包含关系
-                    if missing_lower in available_lower or available_lower in missing_lower:
-                        suggestions.append(available_field)
-                    # 检查编辑距离相近的字段
-                    elif self._calculate_similarity(missing_lower, available_lower) > 0.7:
-                        suggestions.append(available_field)
-                
-                similar_fields.extend(suggestions[:3])  # 最多建议3个相似字段
-            
-            error_msg = (
-                f"请求的字段不存在: {missing_fields}\n"
-                f"当前数据表可用字段 ({len(available_fields)}个): {available_fields[:10]}{'...' if len(available_fields) > 10 else ''}\n"
-                f"相似字段建议: {list(set(similar_fields))[:5] if similar_fields else '无相似字段'}"
-            )
-            
-            self.logger.warning(f"字段过滤失败: {error_msg}")
-            raise ValueError(error_msg)
-
-        # 过滤字段
-        available_fields = [field for field in fields if field in data.columns]
-        self.logger.debug(f"字段过滤成功，从 {len(data.columns)} 个字段中选择了 {len(available_fields)} 个字段")
-        
-        return data[available_fields].copy()
-
-    def _calculate_similarity(self, str1: str, str2: str) -> float:
-        """
-        计算两个字符串的相似度（简单的字符匹配算法）
-
-        Args:
-            str1: 字符串1
-            str2: 字符串2
-
-        Returns:
-            相似度分数 (0-1之间)
-        """
-        if not str1 or not str2:
-            return 0.0
-        
-        # 计算共同的字符比例
-        common_chars = set(str1) & set(str2)
-        total_chars = set(str1) | set(str2)
-        
-        if not total_chars:
-            return 0.0
-        
-        return len(common_chars) / len(total_chars)
 
     def _discover_fields(self, query_type: FinancialQueryType) -> List[str]:
         """

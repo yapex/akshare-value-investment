@@ -20,7 +20,6 @@ class FinancialQueryRequest(BaseModel):
     market: MarketType = Field(..., description="市场类型")
     query_type: FinancialQueryType = Field(..., description="查询类型")
     symbol: str = Field(..., min_length=1, description="股票代码")
-    fields: Optional[List[str]] = Field(None, description="需要返回的字段列表，为None时返回所有字段")
     start_date: Optional[str] = Field(None, description="开始日期，YYYY-MM-DD格式，为None时不限制开始时间")
     end_date: Optional[str] = Field(None, description="结束日期，YYYY-MM-DD格式，为None时不限制结束时间")
     frequency: Frequency = Field(Frequency.ANNUAL, description="时间频率")
