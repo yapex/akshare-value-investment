@@ -121,7 +121,7 @@ async def query_financial_indicators(
             frequency=frequency_enum
         )
 
-        # 返回服务响应（已经是MCP格式）
+        # 返回服务响应（已经是标准格式）
         return service_response
 
     except HTTPException:
@@ -362,7 +362,7 @@ async def get_financial_indicators(
             frequency=frequency_enum
         )
 
-        # 返回服务响应（已经是MCP格式）
+        # 返回服务响应（已经是标准格式）
         return service_response
 
     except HTTPException:

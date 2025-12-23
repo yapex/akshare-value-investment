@@ -2,7 +2,7 @@
 API响应模型
 
 定义FastAPI的响应Pydantic模型，确保返回数据的一致性。
-与MCP响应格式保持兼容。
+与业务服务层的响应格式保持兼容。
 """
 
 from typing import Any, Dict, List, Optional

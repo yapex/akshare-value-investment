@@ -1,8 +1,8 @@
 """
-MCP标准化响应格式
+FastAPI标准化响应格式
 
-为Model Context Protocol提供标准化的响应格式，确保错误处理
-和数据返回的一致性，便于MCP客户端解析和使用。
+为FastAPI Web服务提供标准化的响应格式，确保错误处理
+和数据返回的一致性，便于客户端解析和使用。
 """
 
 import pandas as pd
@@ -12,11 +12,11 @@ from datetime import datetime
 from .financial_types import MCPErrorType
 
 
-class MCPResponse:
+class ResponseFormatter:
     """
-    MCP标准化响应格式
+    FastAPI标准化响应格式
 
-    提供统一的成功和错误响应格式，为MCP客户端提供一致的接口。
+    提供统一的成功和错误响应格式，为FastAPI客户端提供一致的接口。
     """
 
     @staticmethod
@@ -150,7 +150,7 @@ class MCPResponse:
         else:
             message = f"字段 '{field}' 的值 '{value}' 无效"
 
-        return MCPResponse.error(
+        return ResponseFormatter.error(
             error_type=MCPErrorType.INVALID_FIELDS,
             message=message,
             details=details,
@@ -182,7 +182,7 @@ class MCPResponse:
 
         message = f"以下字段不存在: {', '.join(missing_fields)}"
 
-        return MCPResponse.error(
+        return ResponseFormatter.error(
             error_type=MCPErrorType.FIELD_NOT_FOUND,
             message=message,
             details=details,
@@ -216,7 +216,7 @@ class MCPResponse:
 
         message = f"未找到股票 {symbol} 在 {market} 市场的 {query_type} 数据"
 
-        return MCPResponse.error(
+        return ResponseFormatter.error(
             error_type=MCPErrorType.DATA_NOT_FOUND,
             message=message,
             details=details,
@@ -248,7 +248,7 @@ class MCPResponse:
 
         message = f"API调用失败: {api_name}"
 
-        return MCPResponse.error(
+        return ResponseFormatter.error(
             error_type=MCPErrorType.API_ERROR,
             message=message,
             details=details,
@@ -280,7 +280,7 @@ class MCPResponse:
 
         message = f"内部错误: {operation}"
 
-        return MCPResponse.error(
+        return ResponseFormatter.error(
             error_type=MCPErrorType.INTERNAL_ERROR,
             message=message,
             details=details,
@@ -324,7 +324,7 @@ class MCPResponse:
         Returns:
             错误信息字典，如果不是错误响应则返回None
         """
-        if MCPResponse.is_error_response(response):
+        if ResponseFormatter.is_error_response(response):
             return response.get("error", {})
         return None
 
@@ -339,6 +339,6 @@ class MCPResponse:
         Returns:
             数据信息字典，如果不是成功响应则返回None
         """
-        if MCPResponse.is_success_response(response):
+        if ResponseFormatter.is_success_response(response):
             return response.get("data", {})
         return None

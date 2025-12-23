@@ -1,15 +1,15 @@
 """
 财务查询服务
 
-为MCP（Model Context Protocol）提供统一的财务数据查询接口。
-集成查询路由、字段裁剪、时间频率处理等功能，专门为MCP场景优化。
+为FastAPI Web服务提供统一的财务数据查询接口。
+集成查询路由、字段裁剪、时间频率处理等核心业务逻辑。
 
 ## 🎯 核心功能
 
 1. **查询路由**: 将market+query_type路由到对应的queryer
-2. **字段裁剪**: 严格按需返回字段，减少MCP传输开销
+2. **字段裁剪**: 严格按需返回字段，减少数据传输开销
 3. **时间处理**: 支持年度聚合和报告期原始数据
-4. **错误处理**: MCP友好的标准化错误响应
+4. **错误处理**: 标准化的错误响应格式
 5. **字段发现**: 提供可用字段查询接口
 
 ## 📊 支持的查询类型
@@ -39,16 +39,16 @@ import pandas as pd
 from ..core.models import MarketType
 from ..container import create_container
 from .financial_types import FinancialQueryType, Frequency, MCPErrorType
-from .mcp_response import MCPResponse
+from .response_formatter import ResponseFormatter
 from .field_discovery_service import FieldDiscoveryService
 
 
 class FinancialQueryService:
     """
-    MCP财务查询服务
+    财务查询服务
 
-    统一的财务数据访问接口，为MCP提供查询路由、字段裁剪、
-    时间频率处理等核心功能，专门优化MCP调用场景。
+    统一的财务数据访问接口，为FastAPI提供查询路由、字段裁剪、
+    时间频率处理等核心业务逻辑。
     """
 
     def __init__(self, container=None):
@@ -102,7 +102,7 @@ class FinancialQueryService:
         """
         统一查询接口
 
-        为MCP提供财务数据查询的核心接口，支持字段裁剪、时间频率处理等功能。
+        为FastAPI提供财务数据查询的核心接口，支持字段裁剪、时间频率处理等功能。
 
         Args:
             market: 市场类型
@@ -114,7 +114,7 @@ class FinancialQueryService:
             frequency: 时间频率，年度数据或报告期数据
 
         Returns:
-            MCP标准化的响应格式，包含查询结果或错误信息
+            标准化的响应格式，包含查询结果或错误信息
 
         Examples:
             >>> service = FinancialQueryService()
@@ -152,7 +152,7 @@ class FinancialQueryService:
             # 1. 参数验证
             validation_error = self._validate_parameters(market, query_type, symbol, fields, frequency)
             if validation_error:
-                return MCPResponse.validation_error(
+                return ResponseFormatter.validation_error(
                     field=validation_error["field"],
                     value=validation_error["value"],
                     allowed_values=validation_error.get("allowed_values"),
@@ -162,7 +162,7 @@ class FinancialQueryService:
             # 2. 获取查询器并查询数据
             queryer = self._get_queryer(query_type)
             if queryer is None:
-                return MCPResponse.error(
+                return ResponseFormatter.error(
                     error_type=MCPErrorType.INVALID_QUERY_TYPE,
                     message=f"不支持的查询类型: {query_type.value}",
                     query_info=query_info
@@ -173,7 +173,7 @@ class FinancialQueryService:
             raw_data = queryer.query(symbol, start_date, end_date)
 
             if raw_data.empty:
-                return MCPResponse.data_not_found_error(
+                return ResponseFormatter.data_not_found_error(
                     symbol=symbol,
                     market=market.value,
                     query_type=query_type.get_display_name(),
@@ -211,7 +211,7 @@ class FinancialQueryService:
                                     break
 
                     # 构建增强的错误响应
-                    return MCPResponse.field_not_found_error(
+                    return ResponseFormatter.field_not_found_error(
                         missing_fields=missing_fields,
                         available_fields=available_fields,
                         query_info=query_info
@@ -240,7 +240,7 @@ class FinancialQueryService:
 
             self.logger.info(f"查询成功: {len(final_data)} 条记录, {len(final_data.columns)} 个字段")
             
-            return MCPResponse.success(
+            return ResponseFormatter.success(
                 data=final_data,
                 metadata=metadata,
                 query_info=query_info
@@ -248,7 +248,7 @@ class FinancialQueryService:
 
         except Exception as e:
             self.logger.error(f"查询失败: {e}", exc_info=True)
-            return MCPResponse.internal_error(
+            return ResponseFormatter.internal_error(
                 original_error=e,
                 operation=f"财务数据查询 ({query_type.get_display_name()})",
                 query_info=query_info
@@ -262,15 +262,14 @@ class FinancialQueryService:
         """
         获取指定查询类型下的所有可用字段
 
-        为MCP客户端提供字段发现功能，便于客户端了解可用字段
-        和构建字段请求。
+        为客户端提供字段发现功能，便于了解可用字段和构建字段请求。
 
         Args:
             market: 市场类型
             query_type: 查询类型
 
         Returns:
-            MCP标准化的响应格式，包含可用字段列表
+            标准化的响应格式，包含可用字段列表
 
         Examples:
             >>> service = FinancialQueryService()
@@ -279,7 +278,7 @@ class FinancialQueryService:
             ...     query_type=FinancialQueryType.A_STOCK_INDICATORS
             ... )
             >>>
-            >>> if MCPResponse.is_success_response(response):
+            >>> if ResponseFormatter.is_success_response(response):
             ...     fields = response["metadata"]["available_fields"]
             ...     print(f"可用字段: {fields}")
         """
@@ -291,7 +290,7 @@ class FinancialQueryService:
         try:
             # 参数验证
             if query_type.get_market() != market:
-                return MCPResponse.validation_error(
+                return ResponseFormatter.validation_error(
                     field="query_type",
                     value=query_type.value,
                     allowed_values=[qt.value for qt in FinancialQueryType.get_query_types_by_market(market)],
@@ -302,7 +301,7 @@ class FinancialQueryService:
             available_fields = self._discover_fields(query_type)
 
             if not available_fields:
-                return MCPResponse.data_not_found_error(
+                return ResponseFormatter.data_not_found_error(
                     symbol="字段发现",
                     market=market.value,
                     query_type=query_type.get_display_name(),
@@ -319,7 +318,7 @@ class FinancialQueryService:
             # 返回空的DataFrame但包含字段信息
             empty_df = pd.DataFrame(columns=available_fields)
 
-            return MCPResponse.success(
+            return ResponseFormatter.success(
                 data=empty_df,
                 metadata=metadata,
                 query_info=query_info
@@ -327,7 +326,7 @@ class FinancialQueryService:
 
         except Exception as e:
             self.logger.error(f"字段发现失败: {e}", exc_info=True)
-            return MCPResponse.internal_error(
+            return ResponseFormatter.internal_error(
                 original_error=e,
                 operation=f"字段发现 ({query_type.get_display_name()})",
                 query_info=query_info

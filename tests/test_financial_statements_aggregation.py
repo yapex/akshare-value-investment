@@ -174,8 +174,10 @@ class TestFinancialStatementsAggregation:
             limit=2
         )
 
-        # 验证每个DataFrame的行数不超过limit
+        # 验证每个DataFrame的行数不超过limit（跳过unit_map）
         for key, df in result.items():
+            if key == "unit_map":
+                continue  # 跳过单位映射字典
             if not df.empty:
                 assert len(df) <= 2, f"{key}的记录数不应超过limit=2"
 
