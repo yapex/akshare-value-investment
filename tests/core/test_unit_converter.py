@@ -19,9 +19,10 @@ class TestUnitConverter:
         assert UnitConverter.parse_value("123.45亿") == 123.45
 
     def test_parse_value_with_unit_wan(self):
-        """测试解析带"万"单位的字符串"""
-        assert UnitConverter.parse_value("123.45万") == 123.45
-        assert UnitConverter.parse_value("100万") == 100.0
+        """测试解析带"万"单位的字符串（转换为亿元）"""
+        assert UnitConverter.parse_value("123.45万") == 0.012345  # 123.45万 = 0.012345亿
+        assert UnitConverter.parse_value("100万") == 0.01  # 100万 = 0.01亿
+        assert UnitConverter.parse_value("10000万") == 1.0  # 10000万 = 1亿
 
     def test_parse_value_false(self):
         """测试解析false值"""
@@ -96,7 +97,7 @@ class TestUnitConverter:
         assert unit_map["货币资金"] == "亿元"
 
     def test_convert_dataframe_unit_patterns(self):
-        """测试不同单位模式"""
+        """测试不同单位模式（统一转换为亿元）"""
         df = pd.DataFrame({
             "value_yi": ["100亿", "200亿"],
             "value_wan": ["300万", "400万"],
@@ -105,9 +106,9 @@ class TestUnitConverter:
 
         result_df, unit_map = UnitConverter.convert_dataframe(df)
 
-        # 验证数值提取正确
+        # 验证数值转换正确（万需要除以10000）
         assert result_df["value_yi"].tolist() == [100.0, 200.0]
-        assert result_df["value_wan"].tolist() == [300.0, 400.0]
+        assert result_df["value_wan"].tolist() == [0.03, 0.04]  # 300万=0.03亿, 400万=0.04亿
         assert result_df["value_no_unit"].tolist() == [500.0, 600.0]
 
         # 验证单位映射统一为"亿元"

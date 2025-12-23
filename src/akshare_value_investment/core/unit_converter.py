@@ -33,17 +33,19 @@ class UnitConverter:
     @staticmethod
     def parse_value(value: Any) -> float:
         """
-        解析单个值
+        解析单个值，统一转换为亿元单位
 
         Args:
-            value: 原始值 ("592.96亿" / false / None / 123.45)
+            value: 原始值 ("592.96亿" / "1234.56万" / false / None / 123.45)
 
         Returns:
-            float: 转换后的数值
+            float: 转换后的数值（亿元单位）
 
         Examples:
             >>> UnitConverter.parse_value("592.96亿")
             592.96
+            >>> UnitConverter.parse_value("1234.56万")
+            0.123456
             >>> UnitConverter.parse_value(False)
             0.0
             >>> UnitConverter.parse_value(None)
@@ -65,14 +67,21 @@ class UnitConverter:
             if not value:
                 return 0.0
 
-            # 提取数字部分（去除末尾单位）
-            for unit_suffix in ["亿", "万"]:
-                if value.endswith(unit_suffix):
-                    number_str = value[:-1].strip()
-                    try:
-                        return float(number_str)
-                    except ValueError:
-                        return 0.0
+            # 以"亿"结尾：直接去除单位
+            if value.endswith("亿"):
+                number_str = value[:-1].strip()
+                try:
+                    return float(number_str)
+                except ValueError:
+                    return 0.0
+
+            # 以"万"结尾：去除单位后除以10000转换为亿
+            if value.endswith("万"):
+                number_str = value[:-1].strip()
+                try:
+                    return float(number_str) / 10000.0
+                except ValueError:
+                    return 0.0
 
             # 无单位，直接转换
             try:
