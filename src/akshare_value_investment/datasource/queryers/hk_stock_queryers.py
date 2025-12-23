@@ -2,9 +2,10 @@
 
 import akshare as ak
 import pandas as pd
-from typing import Optional
+from typing import Optional, Dict, Any, Tuple
 
 from .base_queryer import BaseDataQueryer
+from ...core.unit_converter import UnitConverter
 
 
 class HKStockIndicatorQueryer(BaseDataQueryer):
@@ -32,6 +33,77 @@ class HKStockStatementQueryerBase(BaseDataQueryer):
     """港股财务报表查询器基类"""
 
     cache_date_field = 'date'  # 报表查询器的日期字段是转换后生成的date
+
+    # 港股财务数据单位转换比例：从元转换为亿元（除以1亿）
+    UNIT_CONVERSION_FACTOR = 1e8
+
+    def query(self, symbol: str, start_date: Optional[str] = None,
+              end_date: Optional[str] = None) -> Dict[str, Any]:
+        """
+        查询港股财务报表数据（带单位标准化）
+
+        Args:
+            symbol: 股票代码
+            start_date: 开始日期
+            end_date: 结束日期
+
+        Returns:
+            Dict[str, Any]: 包含data（DataFrame）和unit_map（单位映射）的字典
+        """
+        # 调用父类query方法获取原始DataFrame
+        df = super().query(symbol, start_date, end_date)
+
+        if df.empty:
+            return {
+                "data": df,
+                "unit_map": {}
+            }
+
+        # 单位标准化：将元转换为亿元
+        normalized_df, unit_map = self._convert_units(df)
+
+        return {
+            "data": normalized_df,
+            "unit_map": unit_map
+        }
+
+    def _convert_units(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, str]]:
+        """
+        将港股财务数据从元转换为亿元
+
+        Args:
+            df: 原始DataFrame
+
+        Returns:
+            (转换后的DataFrame, 单位映射字典)
+        """
+        result_df = df.copy()
+        unit_map = {}
+
+        # 定义不需要转换的字段
+        non_numeric_fields = {
+            'date', 'REPORT_DATE', 'SECURITY_CODE', 'SECURITY_NAME_ABBR'
+        }
+
+        # 转换每一列
+        for col in df.columns:
+            if col in non_numeric_fields:
+                # 非数值字段：保持原值，不转换
+                if col == 'date':
+                    unit_map[col] = "日期"
+                elif col == 'REPORT_DATE':
+                    unit_map[col] = "日期"
+                else:
+                    unit_map[col] = "文本"
+            elif pd.api.types.is_numeric_dtype(df[col]):
+                # 数值字段：从元转换为亿元
+                result_df[col] = df[col] / self.UNIT_CONVERSION_FACTOR
+                unit_map[col] = "亿元"
+            else:
+                # 其他非数值字段（如object类型）：保持原值
+                unit_map[col] = "文本"
+
+        return result_df, unit_map
 
     def _query_raw(self, symbol: str) -> pd.DataFrame:
         """查询港股财务报表原始数据

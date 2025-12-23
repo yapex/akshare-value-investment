@@ -91,9 +91,10 @@ class TestFinancialStatementsAggregation:
         """测试港股财务三表聚合查询
 
         验证：
-        1. 返回字典结构包含三个键
+        1. 返回字典结构包含三个财务表和单位映射
         2. 每个值都是DataFrame
         3. DataFrame包含港股特有字段
+        4. 单位映射包含所有字段的单位信息（亿元）
         """
         # 执行聚合查询
         result = query_service.query_financial_statements(
@@ -105,20 +106,33 @@ class TestFinancialStatementsAggregation:
 
         # 验证返回结构
         assert isinstance(result, dict), "返回结果应该是字典类型"
-        assert len(result) == 3, "结果应包含3个键"
+        # 港股现在也返回单位映射，所以应该有4个键
+        assert len(result) == 4, "结果应包含4个键（3个财务表 + unit_map）"
 
-        # 验证每个值都是DataFrame
+        # 验证每个财务表都是DataFrame
         for key in ["balance_sheet", "income_statement", "cash_flow"]:
             assert key in result, f"结果应包含{key}键"
             assert isinstance(result[key], pd.DataFrame), f"{key}应该是DataFrame"
+
+        # 验证单位映射存在且包含亿元单位
+        assert "unit_map" in result, "结果应包含unit_map键"
+        unit_map = result["unit_map"]
+        assert isinstance(unit_map, dict), "unit_map应该是字典"
+        assert len(unit_map) > 0, "unit_map不应为空"
+
+        # 验证数值字段的单位都是"亿元"
+        for field, unit in unit_map.items():
+            if field not in ["date", "REPORT_DATE", "SECURITY_CODE", "SECURITY_NAME_ABBR"]:
+                assert unit == "亿元", f"字段{field}的单位应该是亿元，实际是{unit}"
 
     def test_us_financial_statements_aggregation(self, query_service):
         """测试美股财务三表聚合查询
 
         验证：
-        1. 返回字典结构包含三个键
+        1. 返回字典结构包含三个财务表和单位映射
         2. 每个值都是DataFrame
         3. DataFrame包含美股特有字段
+        4. 单位映射包含所有字段的单位信息（亿美元）
         """
         # 执行聚合查询
         result = query_service.query_financial_statements(
@@ -130,12 +144,24 @@ class TestFinancialStatementsAggregation:
 
         # 验证返回结构
         assert isinstance(result, dict), "返回结果应该是字典类型"
-        assert len(result) == 3, "结果应包含3个键"
+        # 美股现在也返回单位映射，所以应该有4个键
+        assert len(result) == 4, "结果应包含4个键（3个财务表 + unit_map）"
 
-        # 验证每个值都是DataFrame
+        # 验证每个财务表都是DataFrame
         for key in ["balance_sheet", "income_statement", "cash_flow"]:
             assert key in result, f"结果应包含{key}键"
             assert isinstance(result[key], pd.DataFrame), f"{key}应该是DataFrame"
+
+        # 验证单位映射存在且包含亿美元单位
+        assert "unit_map" in result, "结果应包含unit_map键"
+        unit_map = result["unit_map"]
+        assert isinstance(unit_map, dict), "unit_map应该是字典"
+        assert len(unit_map) > 0, "unit_map不应为空"
+
+        # 验证数值字段的单位都是"亿美元"
+        for field, unit in unit_map.items():
+            if field not in ["date", "REPORT_DATE", "SECURITY_CODE", "SECURITY_NAME_ABBR"]:
+                assert unit == "亿美元", f"字段{field}的单位应该是亿美元，实际是{unit}"
 
     def test_financial_statements_with_frequency(self, query_service):
         """测试不同频率的财务三表聚合查询

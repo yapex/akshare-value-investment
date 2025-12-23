@@ -568,6 +568,54 @@ def temp_cache_dir():
     shutil.rmtree(temp_dir, ignore_errors=True)
 
 
+@pytest.fixture(autouse=True, scope="function")
+def clear_project_cache():
+    """
+    自动清理项目缓存的fixture（每个测试前后执行）
+
+    确保测试之间不会受到缓存影响：
+    1. 创建并设置环境变量指向临时缓存目录
+    2. 备份并隐藏原有项目缓存（如果存在）
+    3. 测试结束后清理所有缓存
+    4. 恢复原有缓存（如果存在）
+    """
+    # 创建临时缓存目录
+    temp_dir = tempfile.mkdtemp(prefix="test_cache_")
+
+    # 测试开始前：设置环境变量使用临时缓存目录
+    original_cache_dir = os.environ.get('AKSHARE_CACHE_DIR')
+    os.environ['AKSHARE_CACHE_DIR'] = os.path.join(temp_dir, "diskcache")
+
+    # 备份并隐藏原有的项目缓存
+    project_cache = ".cache"
+    backup_cache = None
+
+    if os.path.exists(project_cache):
+        # 如果存在项目缓存，临时备份
+        import time
+        backup_cache = f"{project_cache}_backup_{int(time.time())}"
+        shutil.move(project_cache, backup_cache)
+
+    yield
+
+    # 测试结束后：恢复环境变量
+    if original_cache_dir is not None:
+        os.environ['AKSHARE_CACHE_DIR'] = original_cache_dir
+    else:
+        os.environ.pop('AKSHARE_CACHE_DIR', None)
+
+    # 清理临时缓存目录
+    shutil.rmtree(temp_dir, ignore_errors=True)
+
+    # 删除可能创建的项目缓存
+    if os.path.exists(project_cache):
+        shutil.rmtree(project_cache, ignore_errors=True)
+
+    # 恢复原有的缓存（如果存在）
+    if backup_cache and os.path.exists(backup_cache):
+        shutil.move(backup_cache, project_cache)
+
+
 @pytest.fixture
 def test_cache(temp_cache_dir):
     """创建测试专用的diskcache实例"""
@@ -583,9 +631,24 @@ def test_container(test_cache):
     """创建测试专用的容器实例，使用临时缓存"""
     from akshare_value_investment.container import ProductionContainer
     from dependency_injector import providers
-    from akshare_value_investment.datasource.queryers.hk_stock_queryers import HKStockIndicatorQueryer
-    from akshare_value_investment.datasource.queryers.us_stock_queryers import USStockIndicatorQueryer
-    from akshare_value_investment.datasource.queryers.a_stock_queryers import AStockIndicatorQueryer
+    from akshare_value_investment.datasource.queryers.hk_stock_queryers import (
+        HKStockIndicatorQueryer,
+        HKStockBalanceSheetQueryer,
+        HKStockIncomeStatementQueryer,
+        HKStockCashFlowQueryer
+    )
+    from akshare_value_investment.datasource.queryers.us_stock_queryers import (
+        USStockIndicatorQueryer,
+        USStockBalanceSheetQueryer,
+        USStockIncomeStatementQueryer,
+        USStockCashFlowQueryer
+    )
+    from akshare_value_investment.datasource.queryers.a_stock_queryers import (
+        AStockIndicatorQueryer,
+        AStockBalanceSheetQueryer,
+        AStockIncomeStatementQueryer,
+        AStockCashFlowQueryer
+    )
 
     # 创建测试专用的容器类
     class TestContainer(ProductionContainer):
@@ -594,22 +657,79 @@ def test_container(test_cache):
             lambda: test_cache
         )
 
-        # 覆盖查询器配置，直接传递测试缓存
+        # 覆盖A股查询器配置，使用测试缓存
         a_stock_indicators = providers.Factory(
             AStockIndicatorQueryer,
             cache=test_cache
         )
+        a_stock_balance_sheet = providers.Factory(
+            AStockBalanceSheetQueryer,
+            cache=test_cache
+        )
+        a_stock_income_statement = providers.Factory(
+            AStockIncomeStatementQueryer,
+            cache=test_cache
+        )
+        a_stock_cash_flow = providers.Factory(
+            AStockCashFlowQueryer,
+            cache=test_cache
+        )
+
+        # 覆盖港股查询器配置，使用测试缓存
         hk_stock_indicators = providers.Factory(
             HKStockIndicatorQueryer,
             cache=test_cache
         )
+        hk_stock_balance_sheet = providers.Factory(
+            HKStockBalanceSheetQueryer,
+            cache=test_cache
+        )
+        hk_stock_income_statement = providers.Factory(
+            HKStockIncomeStatementQueryer,
+            cache=test_cache
+        )
+        hk_stock_cash_flow = providers.Factory(
+            HKStockCashFlowQueryer,
+            cache=test_cache
+        )
+
+        # 覆盖美股查询器配置，使用测试缓存
         us_stock_indicators = providers.Factory(
             USStockIndicatorQueryer,
+            cache=test_cache
+        )
+        us_stock_balance_sheet = providers.Factory(
+            USStockBalanceSheetQueryer,
+            cache=test_cache
+        )
+        us_stock_income_statement = providers.Factory(
+            USStockIncomeStatementQueryer,
+            cache=test_cache
+        )
+        us_stock_cash_flow = providers.Factory(
+            USStockCashFlowQueryer,
             cache=test_cache
         )
 
     container = TestContainer()
     yield container
+
+
+@pytest.fixture(scope="function")
+def queryer_with_test_cache(test_cache):
+    """
+    提供带有测试缓存的查询器实例创建函数
+
+    用于测试中直接创建查询器实例时使用临时缓存
+
+    Returns:
+        function: 接受查询器类，返回带测试缓存的实例
+    """
+    def _create_queryer(queryer_class):
+        """创建带测试缓存的查询器实例"""
+        return queryer_class(cache=test_cache)
+
+    return _create_queryer
 
 
 # pytest fixtures

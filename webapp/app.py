@@ -14,8 +14,9 @@ import pandas as pd
 # 添加src目录到Python路径
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-# 导入数据服务
+# 导入数据服务和计算器
 from services.data_service import get_revenue_data, get_ebit_margin_data
+from services.calculator import Calculator
 
 st.set_page_config(
     page_title="股票质量分析",
@@ -136,14 +137,10 @@ if params_changed or st.button("🔄 刷新分析", type="secondary"):
             max_revenue = data[revenue_col].max()
             min_revenue = data[revenue_col].min()
             latest_revenue = data[revenue_col].iloc[-1]
-            first_revenue = data[revenue_col].iloc[0]
+            years_count = len(data)
 
             # 计算年复合增长率 (CAGR)
-            years_count = len(data)
-            if years_count > 1 and first_revenue > 0:
-                cagr = ((latest_revenue / first_revenue) ** (1 / (years_count - 1)) - 1) * 100
-            else:
-                cagr = 0
+            cagr = Calculator.cagr(data[revenue_col])
 
             # 计算平均增长率
             avg_growth_rate = data['增长率'].mean()

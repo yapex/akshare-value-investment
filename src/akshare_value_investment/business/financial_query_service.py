@@ -32,7 +32,7 @@
 """
 
 import logging
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 
 import pandas as pd
 
@@ -354,31 +354,35 @@ class FinancialQueryService:
         Args:
             data: 原始数据
             frequency: 时间频率
-            query_type: 查询类型（用于特殊处理美股数据）
+            query_type: 查询类型（用于识别美股财务指标）
 
         Returns:
             处理后的数据
         """
-        if frequency == Frequency.QUARTERLY:
-            # 报告期数据，直接返回
+        # 空数据直接返回
+        if data.empty:
             return data.copy()
 
-        if frequency == Frequency.ANNUAL:
-            # 美股财务三表硬编码使用年报数据，直接返回
-            us_financial_statements = [
-                FinancialQueryType.US_STOCK_BALANCE_SHEET,
-                FinancialQueryType.US_STOCK_INCOME_STATEMENT,
-                FinancialQueryType.US_STOCK_CASH_FLOW
-            ]
-            if query_type in us_financial_statements:
-                return data.copy()
+        # 财务三表数据已经是年度数据（通过akshare的indicator="年报"或"年度"参数获取）
+        # 不需要做任何频率转换，直接返回
+        if query_type and query_type in [
+            FinancialQueryType.A_FINANCIAL_STATEMENTS,
+            FinancialQueryType.HK_FINANCIAL_STATEMENTS,
+            FinancialQueryType.US_FINANCIAL_STATEMENTS
+        ]:
+            return data.copy()
 
+        # 季度数据：直接返回原始数据
+        if frequency == Frequency.QUARTERLY:
+            return data.copy()
+
+        # 年度数据：需要过滤或转换（仅用于财务指标数据）
+        if frequency == Frequency.ANNUAL:
             # 检查是否已经是年度数据
             if self._is_already_annual_data(data):
-                # 已经是年度数据，直接返回
                 return data.copy()
             else:
-                # 需要转换为年度数据
+                # 转换为年度数据
                 return self._convert_to_annual_data(data, query_type)
 
         return data.copy()
@@ -401,21 +405,9 @@ class FinancialQueryService:
         if data.empty:
             return True
 
-        # 查找日期字段
-        date_field = self._find_date_field(data)
-        if date_field is None:
-            # 找不到日期字段，无法判断，假设已经是年度数据
-            return True
-
-        # 确保日期字段是datetime类型
-        data_copy = data.copy()
-        if not pd.api.types.is_datetime64_any_dtype(data_copy[date_field]):
-            data_copy[date_field] = pd.to_datetime(data_copy[date_field], errors='coerce')
-
-        # 过滤掉无效日期
-        data_copy = data_copy.dropna(subset=[date_field])
-
-        if data_copy.empty:
+        # 准备数据：查找日期字段并转换为datetime类型
+        date_field, data_copy = self._prepare_date_field(data)
+        if date_field is None or data_copy.empty:
             return True
 
         # 检查是否有REPORT_TYPE字段 - 主要用于美股财务指标
@@ -425,6 +417,15 @@ class FinancialQueryService:
             if q4_count > 0:
                 return q4_count / len(data_copy) > 0.6  # 如果超过60%是Q4，认为是年度数据
 
+        # 检查数据密度：如果平均每年只有1条记录，认为是年度数据
+        # 这适用于美股财务三表（每家公司每年只有一条年报记录）
+        years = data_copy[date_field].dt.year
+        unique_years = years.nunique()
+        if unique_years > 0:
+            records_per_year = len(data_copy) / unique_years
+            if records_per_year <= 1.2:  # 允许少量误差
+                return True
+
         # A股/港股：检查12月31日占比
         dec_31_count = len(data_copy[
             (data_copy[date_field].dt.month == 12) &
@@ -433,6 +434,33 @@ class FinancialQueryService:
 
         # A股/港股标准：如果超过70%是12月31日，认为是年度数据
         return dec_31_count / len(data_copy) > 0.7
+
+    def _prepare_date_field(self, data: pd.DataFrame) -> Tuple[Optional[str], pd.DataFrame]:
+        """
+        准备日期字段：查找日期字段并转换为datetime类型
+
+        这个辅助方法避免了在 _is_already_annual_data 和 _convert_to_annual_data 中重复代码
+
+        Args:
+            data: 原始数据
+
+        Returns:
+            (日期字段名, 处理后的DataFrame)
+        """
+        # 查找日期字段
+        date_field = self._find_date_field(data)
+        if date_field is None:
+            return None, data
+
+        # 确保日期字段是datetime类型
+        data_copy = data.copy()
+        if not pd.api.types.is_datetime64_any_dtype(data_copy[date_field]):
+            data_copy[date_field] = pd.to_datetime(data_copy[date_field], errors='coerce')
+
+        # 过滤掉无效日期
+        data_copy = data_copy.dropna(subset=[date_field])
+
+        return date_field, data_copy
 
     def _convert_to_annual_data(self, data: pd.DataFrame, query_type: Optional[FinancialQueryType] = None) -> pd.DataFrame:
         """
@@ -455,20 +483,11 @@ class FinancialQueryService:
         if query_type == FinancialQueryType.US_STOCK_INDICATORS:
             return self._process_us_fiscal_year_data(data)
 
-        # 查找日期字段
-        date_field = self._find_date_field(data)
-        if date_field is None:
-            # 找不到日期字段，无法转换为年度数据
-            self.logger.warning("未找到日期字段，无法转换为年度数据")
+        # 准备日期字段（复用辅助方法避免重复代码）
+        date_field, data_copy = self._prepare_date_field(data)
+        if date_field is None or data_copy.empty:
+            self.logger.warning("未找到日期字段或无有效数据，返回原始数据")
             return data.copy()
-
-        # 确保日期字段是datetime类型
-        data_copy = data.copy()
-        if not pd.api.types.is_datetime64_any_dtype(data_copy[date_field]):
-            data_copy[date_field] = pd.to_datetime(data_copy[date_field], errors='coerce')
-
-        # 过滤掉无效日期
-        data_copy = data_copy.dropna(subset=[date_field])
 
         # 过滤出年度报告（12月31日，适用于A股/港股）
         annual_data = data_copy[
@@ -607,7 +626,7 @@ class FinancialQueryService:
         查询财务三表聚合数据
 
         返回包含资产负债表、利润表、现金流量表的字典结构。
-        A股数据包含单位映射（unit_map），港股美股暂不包含。
+        所有市场（A股、港股、美股）都包含单位映射（unit_map）。
 
         Args:
             query_type: 财务三表聚合查询类型（A/HK/US_FINANCIAL_STATEMENTS）
@@ -616,9 +635,13 @@ class FinancialQueryService:
             limit: 限制每个DataFrame返回的记录数
 
         Returns:
-            Dict[str, Any]:
-                - A股: {'balance_sheet': DataFrame, 'income_statement': DataFrame, 'cash_flow': DataFrame, 'unit_map': Dict}
-                - 港股/美股: {'balance_sheet': DataFrame, 'income_statement': DataFrame, 'cash_flow': DataFrame}
+            Dict[str, Any]: 统一格式，所有市场都包含4个键
+                {
+                    'balance_sheet': DataFrame,
+                    'income_statement': DataFrame,
+                    'cash_flow': DataFrame,
+                    'unit_map': Dict[str, str]  # 字段单位映射
+                }
 
         Raises:
             ValueError: 如果query_type不是财务三表聚合查询类型
@@ -682,16 +705,16 @@ class FinancialQueryService:
             # 执行查询
             query_result = queryer.query(symbol)
 
-            # 判断返回格式：A股返回Dict{'data', 'unit_map'}，其他返回DataFrame
+            # 所有市场现在都返回统一格式：{'data': DataFrame, 'unit_map': Dict}
             if isinstance(query_result, dict):
-                # A股新格式：包含data和unit_map
+                # 新格式：包含data和unit_map（所有市场）
                 raw_data = query_result.get("data", pd.DataFrame())
                 statement_unit_map = query_result.get("unit_map", {})
                 # 合并单位映射
                 unit_map.update(statement_unit_map)
             else:
-                # 港股/美股旧格式：直接是DataFrame
-                raw_data = query_result
+                # 兼容旧格式：直接返回DataFrame的情况
+                raw_data = query_result if isinstance(query_result, pd.DataFrame) else pd.DataFrame()
 
             if raw_data.empty:
                 result[statement_name] = pd.DataFrame()
@@ -706,7 +729,7 @@ class FinancialQueryService:
 
             result[statement_name] = processed_data
 
-        # 如果有单位映射（A股），添加到结果中
+        # 添加单位映射到结果中（所有市场）
         if unit_map:
             result["unit_map"] = unit_map
 

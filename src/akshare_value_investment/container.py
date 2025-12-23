@@ -92,9 +92,10 @@ class ProductionContainer(containers.DeclarativeContainer):
 
     
     # DiskCache配置
+    # 优先使用环境变量 AKSHARE_CACHE_DIR，否则使用默认目录
+    # 使用工厂函数确保在实例化时动态获取环境变量
     diskcache = providers.Singleton(
-        diskcache.Cache,
-        ".cache/diskcache"
+        lambda: diskcache.Cache(os.environ.get('AKSHARE_CACHE_DIR', '.cache/diskcache'))
     )
 
     # 核心组件

@@ -133,12 +133,12 @@ class TestUSStockQueryersWithRealData:
             assert isinstance(result, pd.DataFrame)
 
     def test_us_stock_statement_queryer_success(self, mock_loader):
-        """测试美股财务三表查询器成功查询（宽表格式）"""
+        """测试美股财务三表查询器成功查询（宽表格式，带单位转换）"""
         test_symbol = "AAPL"
         test_start_date = "2024-01-01"
         test_end_date = "2024-12-31"
 
-        # 创建包含财务项目的窄表数据
+        # 创建包含财务项目的窄表数据（单位：美元）
         narrow_data = pd.DataFrame({
             'REPORT_DATE': ['2024-12-31', '2024-12-31', '2024-12-31'],
             'SECURITY_CODE': [test_symbol, test_symbol, test_symbol],
@@ -154,51 +154,91 @@ class TestUSStockQueryersWithRealData:
             # 执行查询 - 使用query方法
             result = queryer.query(test_symbol, test_start_date, test_end_date)
 
-            # 验证结果
-            assert isinstance(result, pd.DataFrame)
-            assert len(result) > 0
+            # 验证结果格式：返回包含data和unit_map的字典
+            assert isinstance(result, dict)
+            assert 'data' in result
+            assert 'unit_map' in result
+
+            df = result['data']
+            unit_map = result['unit_map']
+
+            # 验证DataFrame不为空
+            assert isinstance(df, pd.DataFrame)
+            assert len(df) > 0
 
             # 验证宽表格式关键字段存在
             required_fields = ['SECURITY_CODE', 'REPORT_DATE', 'date']
             for field in required_fields:
-                assert field in result.columns, f"缺少字段: {field}"
+                assert field in df.columns, f"缺少字段: {field}"
+
+            # 验证单位映射
+            assert isinstance(unit_map, dict)
+            assert len(unit_map) > 0
+
+            # 验证数值字段已转换为亿美元
+            assert 'Total Assets' in df.columns
+            original_value = 350000000000  # 原始值：3500亿美元
+            expected_value = original_value / 1e8  # 转换后：3500亿美元
+            assert df['Total Assets'].iloc[0] == expected_value
+
+            # 验证单位映射正确
+            assert unit_map.get('Total Assets') == '亿美元'
 
             # 验证财务项目转换成功
             expected_items = ['Total Assets', 'Total Liabilities', 'Net Income']
             for item in expected_items:
-                assert item in result.columns, f"缺少财务项目列: {item}"
+                assert item in df.columns, f"缺少财务项目列: {item}"
 
             # 验证股票代码正确
-            if 'SECURITY_CODE' in result.columns and len(result) > 0:
-                assert result['SECURITY_CODE'].iloc[0] == test_symbol
+            if 'SECURITY_CODE' in df.columns and len(df) > 0:
+                assert df['SECURITY_CODE'].iloc[0] == test_symbol
 
     def test_us_stock_statement_queryer_different_items(self, mock_loader):
-        """测试美股财务三表查询器不同财务项目（宽表格式）"""
+        """测试美股财务三表查询器不同财务项目（窄表转宽表格式，带单位转换）"""
         test_symbol = "AAPL"
         test_start_date = "2024-01-01"
         test_end_date = "2024-12-31"
 
-        # 美股Statement查询器通过3次API调用获取不同报表，每次返回不同的宽表格式
-        # 这里我们模拟一个简化版本，测试基本功能
-        mock_wide_data = pd.DataFrame({
-            'REPORT_DATE': ['2024-12-31'],
-            'SECURITY_CODE': [test_symbol],
-            'SECURITY_NAME_ABBR': ['Apple Inc.'],
-            'Total Assets': [350000000000],
-            'Total Liabilities': [200000000000],
-            'date': ['2024-12-31']
+        # 美股资产负债表查询器 - 使用窄表格式的mock数据（单位：美元）
+        # 模拟akshare API返回的窄表格式
+        mock_narrow_data = pd.DataFrame({
+            'REPORT_DATE': ['2024-12-31', '2024-12-31'],
+            'SECURITY_CODE': [test_symbol, test_symbol],
+            'SECURITY_NAME_ABBR': ['Apple Inc.', 'Apple Inc.'],
+            'ITEM_NAME': ['Total Assets', 'Total Liabilities'],
+            'AMOUNT': [350000000000, 200000000000]  # 3500亿和2000亿美元
         })
 
-        with patch('akshare.stock_financial_us_report_em', return_value=mock_wide_data):
-            queryer = USStockStatementQueryer()
+        with patch('akshare.stock_financial_us_report_em', return_value=mock_narrow_data):
+            queryer = USStockBalanceSheetQueryer()
             result = queryer.query(test_symbol, test_start_date, test_end_date)
 
-            # 验证结果
-            assert isinstance(result, pd.DataFrame)
-            assert len(result) > 0
+            # 验证结果格式
+            assert isinstance(result, dict)
+            assert 'data' in result
+            assert 'unit_map' in result
+
+            df = result['data']
+            unit_map = result['unit_map']
+
+            # 验证DataFrame不为空
+            assert isinstance(df, pd.DataFrame)
+            assert len(df) > 0
+
+            # 验证窄表已转换为宽表
+            assert 'Total Assets' in df.columns
+            assert 'Total Liabilities' in df.columns
+
+            # 验证单位转换
+            assert df['Total Assets'].iloc[0] == 350000000000 / 1e8  # 3500亿美元
+            assert df['Total Liabilities'].iloc[0] == 200000000000 / 1e8  # 2000亿美元
+
+            # 验证单位映射
+            assert unit_map.get('Total Assets') == '亿美元'
+            assert unit_map.get('Total Liabilities') == '亿美元'
 
             # 验证包含基本的财务项目列
-            assert 'Total Assets' in result.columns or 'SECURITY_CODE' in result.columns
+            assert 'Total Assets' in df.columns or 'SECURITY_CODE' in df.columns
 
     def test_us_stock_statement_queryer_api_error_handling(self):
         """测试美股财务三表查询器API错误处理"""
@@ -207,12 +247,13 @@ class TestUSStockQueryersWithRealData:
             queryer = USStockStatementQueryer()
             result = queryer.query("AAPL", "2024-01-01", "2024-12-31")
 
-            # 验证结果：应该返回空的宽表结构（美股有异常处理）
-            assert isinstance(result, pd.DataFrame)
-            # 应该有基本的列结构（空宽表）
-            expected_columns = ['REPORT_DATE', 'SECURITY_CODE', 'SECURITY_NAME_ABBR', 'date']
-            for col in expected_columns:
-                assert col in result.columns
+            # 验证结果格式：即使异常也返回包含data和unit_map的字典
+            assert isinstance(result, dict)
+            assert 'data' in result
+            assert 'unit_map' in result
+
+            # 验证data是DataFrame（可能是空的）
+            assert isinstance(result['data'], pd.DataFrame)
 
     def test_wide_format_conversion(self, mock_loader):
         """测试美股财务三表的数据格式"""

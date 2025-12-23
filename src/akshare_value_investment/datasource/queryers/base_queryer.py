@@ -1,5 +1,6 @@
 from typing import Optional, ClassVar, Tuple
 import pandas as pd
+import os
 
 from .interfaces import IDataQueryer
 from ...core.models import MarketType
@@ -16,7 +17,9 @@ def create_cached_query_method(cache_date_field: str, cache_query_type: str, cac
             cache_instance = cache
         else:
             import diskcache
-            cache_instance = diskcache.Cache(".cache/diskcache")
+            # 优先使用环境变量指定的缓存目录（用于测试），否则使用默认目录
+            cache_dir = os.environ.get('AKSHARE_CACHE_DIR', '.cache/diskcache')
+            cache_instance = diskcache.Cache(cache_dir)
 
         cached_data = cache_instance.get(cache_key)
 
