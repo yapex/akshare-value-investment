@@ -225,6 +225,84 @@
             color: #495057;
             border-left: 3px solid #667eea;
         }
+
+        /* 表格样式 */
+        .table-container {
+            overflow-x: auto;
+            margin: 15px 0;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            font-size: 13px;
+        }
+        .data-table thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .data-table th {
+            padding: 12px 10px;
+            text-align: left;
+            font-weight: 600;
+            white-space: nowrap;
+            border-right: 1px solid rgba(255,255,255,0.2);
+        }
+        .data-table th:last-child {
+            border-right: none;
+        }
+        .data-table tbody tr {
+            border-bottom: 1px solid #e9ecef;
+            transition: background-color 0.2s;
+        }
+        .data-table tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+        .data-table tbody tr:last-child {
+            border-bottom: none;
+        }
+        .data-table td {
+            padding: 10px;
+            color: #495057;
+            border-right: 1px solid #e9ecef;
+        }
+        .data-table td:last-child {
+            border-right: none;
+        }
+        .data-table td:first-child {
+            font-weight: 500;
+            color: #333;
+        }
+        .no-data {
+            text-align: center;
+            padding: 20px;
+            color: #6c757d;
+            background: #f8f9fa;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        .raw-data {
+            margin-top: 20px;
+            background: white;
+            border-radius: 6px;
+            padding: 10px;
+        }
+        .raw-data summary {
+            cursor: pointer;
+            padding: 10px;
+            font-weight: 600;
+            color: #667eea;
+            user-select: none;
+        }
+        .raw-data summary:hover {
+            color: #764ba2;
+        }
+        .raw-data pre {
+            margin-top: 10px;
+            background: #f8f9fa;
+        }
     </style>
 </head>
 <body>
@@ -496,6 +574,83 @@
             updateFieldsUrl();
         }
 
+        // ========== 表格渲染函数 ==========
+        function renderTable(data) {
+            // 判断数据类型并渲染表格
+            if (data.data && data.data.records && Array.isArray(data.data.records)) {
+                // 财务指标数据
+                const records = data.data.records;
+                if (records.length === 0) {
+                    return '<p class="no-data">暂无数据</p>';
+                }
+
+                const columns = data.data.columns || Object.keys(records[0]);
+                let table = '<div class="table-container"><table class="data-table"><thead><tr>';
+                columns.forEach(col => {
+                    table += `<th>${col}</th>`;
+                });
+                table += '</tr></thead><tbody>';
+
+                records.forEach(row => {
+                    table += '<tr>';
+                    columns.forEach(col => {
+                        table += `<td>${row[col] !== null && row[col] !== undefined ? row[col] : '-'}</td>`;
+                    });
+                    table += '</tr>';
+                });
+
+                table += '</tbody></table></div>';
+                return table;
+            } else if (data.data && (data.data.balance_sheet || data.data.income_statement || data.data.cash_flow)) {
+                // 财务三表数据
+                let html = '';
+                const statements = ['balance_sheet', 'income_statement', 'cash_flow'];
+                const statementNames = {
+                    'balance_sheet': '资产负债表',
+                    'income_statement': '利润表',
+                    'cash_flow': '现金流量表'
+                };
+
+                statements.forEach(stmt => {
+                    const stmtData = data.data[stmt];
+                    if (stmtData && stmtData.data && stmtData.data.length > 0) {
+                        html += `<h4>${statementNames[stmt]} (${stmtData.record_count} 条记录)</h4>`;
+                        html += '<div class="table-container"><table class="data-table"><thead><tr>';
+                        stmtData.columns.forEach(col => {
+                            html += `<th>${col}</th>`;
+                        });
+                        html += '</tr></thead><tbody>';
+
+                        stmtData.data.forEach(row => {
+                            html += '<tr>';
+                            stmtData.columns.forEach(col => {
+                                html += `<td>${row[col] !== null && row[col] !== undefined ? row[col] : '-'}</td>`;
+                            });
+                            html += '</tr>';
+                        });
+
+                        html += '</tbody></table></div>';
+                    }
+                });
+
+                return html || '<p class="no-data">暂无数据</p>';
+            } else if (data.data && data.data.columns) {
+                // 字段列表
+                let table = '<div class="table-container"><table class="data-table"><thead><tr>';
+                data.data.columns.forEach(col => {
+                    table += `<th>${col}</th>`;
+                });
+                table += '</tr></thead><tbody><tr>';
+                data.data.columns.forEach(col => {
+                    table += `<td>${col}</td>`;
+                });
+                table += '</tr></tbody></table></div>';
+                return table;
+            }
+
+            return '<p class="no-data">无法识别的数据格式</p>';
+        }
+
         // ========== 事件监听 ==========
         document.getElementById('indicators_market').addEventListener('change', updateIndicatorsUrl);
         document.getElementById('indicators_symbol').addEventListener('input', updateIndicatorsUrl);
@@ -548,8 +703,12 @@
                             <p><strong>记录数：</strong>${data.data.shape[0]}</p>
                             <p><strong>字段数：</strong>${data.data.shape[1]}</p>
                         </div>
-                        <h3>💾 完整响应数据</h3>
-                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                        <h3>📊 数据表格</h3>
+                        ${renderTable(data)}
+                        <details class="raw-data">
+                            <summary>查看完整JSON响应</summary>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </details>
                     `;
                 } else {
                     resultDiv.className = 'result error';
@@ -626,8 +785,12 @@
                             <p><strong>利润表：</strong>${data.metadata.record_counts.income_statement} 条记录</p>
                             <p><strong>现金流量表：</strong>${data.metadata.record_counts.cash_flow} 条记录</p>
                         </div>
-                        <h3>💾 完整响应数据</h3>
-                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                        <h3>📊 数据表格</h3>
+                        ${renderTable(data)}
+                        <details class="raw-data">
+                            <summary>查看完整JSON响应</summary>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </details>
                     `;
                 } else {
                     resultDiv.className = 'result error';
@@ -693,43 +856,27 @@
                             <p><strong>字段数量：</strong>${data.metadata.field_count}</p>
                         </div>
                         <h3>📊 可用字段列表</h3>
-                            <div class="field-list">
-                        `;
-                        data.metadata.available_fields.forEach(field => {
-                            html += `<div class="field-item">${field}</div>`;
-                        });
-                        html += `</div>`;
+                        ${renderTable(data)}
+                    `;
                     } else {
                         html += `
                             <p><strong>样本股票：</strong>${data.metadata.sample_symbol}</p>
                         </div>
                         <h3>📊 可用字段列表</h3>
                         <h4>资产负债表 (${data.data.balance_sheet.field_count} 个字段)</h4>
-                        <div class="field-list">
-                        `;
-                        data.data.balance_sheet.columns.forEach(field => {
-                            html += `<div class="field-item">${field}</div>`;
-                        });
-                        html += `</div>
+                        ${renderTable({data: {balance_sheet: data.data.balance_sheet}})}
                         <h4 style="margin-top: 15px;">利润表 (${data.data.income_statement.field_count} 个字段)</h4>
-                        <div class="field-list">
-                        `;
-                        data.data.income_statement.columns.forEach(field => {
-                            html += `<div class="field-item">${field}</div>`;
-                        });
-                        html += `</div>
+                        ${renderTable({data: {income_statement: data.data.income_statement}})}
                         <h4 style="margin-top: 15px;">现金流量表 (${data.data.cash_flow.field_count} 个字段)</h4>
-                        <div class="field-list">
-                        `;
-                        data.data.cash_flow.columns.forEach(field => {
-                            html += `<div class="field-item">${field}</div>`;
-                        });
-                        html += `</div>`;
+                        ${renderTable({data: {cash_flow: data.data.cash_flow}})}
+                    `;
                     }
 
                     html += `
-                        <h3 style="margin-top: 20px;">💾 完整响应数据</h3>
-                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                        <details class="raw-data">
+                            <summary>查看完整JSON响应</summary>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </details>
                     `;
 
                     resultDiv.className = 'result success';
