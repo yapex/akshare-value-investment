@@ -24,6 +24,7 @@ class RevenueGrowthComponent:
         """
         # 延迟导入，优化启动性能
         import streamlit as st
+        import pandas as pd
         import plotly.graph_objects as go
         from plotly.subplots import make_subplots
 
@@ -145,8 +146,17 @@ class RevenueGrowthComponent:
             # 折叠的原始数据表格
             with st.expander("📊 查看原始数据"):
                 display_data = revenue_data.copy()
-                display_data['增长率'] = display_data['增长率'].round(2)
-                display_data.loc[display_data['增长率'].isna(), '增长率'] = '-'
+                # 创建用于显示的副本，避免修改原始数据类型
+                display_data = display_data.astype({
+                    '增长率': 'str'
+                })
+                # 格式化增长率显示
+                for idx in display_data.index:
+                    growth_val = revenue_data.loc[idx, '增长率']
+                    if pd.isna(growth_val):
+                        display_data.loc[idx, '增长率'] = '-'
+                    else:
+                        display_data.loc[idx, '增长率'] = f"{growth_val:.2f}%"
                 st.dataframe(display_data, width='stretch', hide_index=True)
 
             return True
