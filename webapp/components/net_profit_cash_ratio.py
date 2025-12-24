@@ -2,7 +2,6 @@
 净利润现金比分析组件
 """
 
-from typing import Tuple, List
 import traceback
 
 

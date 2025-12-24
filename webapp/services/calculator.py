@@ -9,7 +9,7 @@
 - 单一职责：每个分析方法负责获取数据+计算，app.py只负责展示
 """
 
-from typing import List, Tuple, Dict, Optional
+from typing import List, Tuple, Dict
 import pandas as pd
 
 from . import data_service

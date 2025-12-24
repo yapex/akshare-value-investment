@@ -239,9 +239,10 @@ def handle_data_service_error(e: DataServiceError):
     Args:
         e: 数据服务异常
     """
+    import streamlit as st
+
     st.error(f"❌ {e.message}")
     if e.suggestions:
         st.info("💡 **建议：**")
         for suggestion in e.suggestions:
             st.markdown(f"- {suggestion}")
-

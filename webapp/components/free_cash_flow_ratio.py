@@ -2,7 +2,6 @@
 自由现金流净利润比分析组件
 """
 
-from typing import Tuple, List
 import traceback
 
 
