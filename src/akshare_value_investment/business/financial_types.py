@@ -5,7 +5,6 @@
 """
 
 from enum import Enum
-from typing import Dict, Type
 from ..core.models import MarketType
 
 

@@ -4,6 +4,7 @@
 提供API响应格式化功能，保持响应格式的一致性。
 """
 
+
 def format_service_response(service_response: dict) -> dict:
     """
     格式化服务响应为API响应

@@ -7,8 +7,6 @@
 
 from typing import List
 from pydantic import BaseModel, Field
-from ...core.models import MarketType
-from ...business.financial_types import FinancialQueryType
 
 
 class MarketInfo(BaseModel):

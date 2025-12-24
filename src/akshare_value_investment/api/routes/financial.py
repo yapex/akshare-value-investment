@@ -6,7 +6,6 @@
 
 from fastapi import APIRouter, HTTPException, Query
 from typing import Dict, Any, Optional
-import pandas as pd
 
 from ...core.models import MarketType
 from ...business.financial_types import FinancialQueryType, Frequency

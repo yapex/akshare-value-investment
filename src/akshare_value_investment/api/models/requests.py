@@ -5,7 +5,7 @@ API请求模型
 严格遵循SOLID原则，每个模型单一职责。
 """
 
-from typing import List, Optional
+from typing import Optional
 from pydantic import BaseModel, Field, ConfigDict
 from ...core.models import MarketType
 from ...business.financial_types import FinancialQueryType, Frequency

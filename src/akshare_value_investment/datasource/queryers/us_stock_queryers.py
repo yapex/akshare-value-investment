@@ -5,7 +5,6 @@ import pandas as pd
 from typing import Optional, Dict, Any, Tuple
 
 from .base_queryer import BaseDataQueryer
-from ...core.unit_converter import UnitConverter
 
 
 class USStockIndicatorQueryer(BaseDataQueryer):

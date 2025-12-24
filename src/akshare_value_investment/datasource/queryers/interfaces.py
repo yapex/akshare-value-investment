@@ -86,4 +86,3 @@ class IDataQueryer(Protocol):
             - 不同市场的数据格式和字段名称可能不同
         """
         ...
-

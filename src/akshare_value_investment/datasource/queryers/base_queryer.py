@@ -9,7 +9,7 @@ from ...core.stock_identifier import StockIdentifier
 
 def create_cached_query_method(cache_date_field: str, cache_query_type: str, cache=None):
     def cached_query(self, symbol: str, start_date: Optional[str] = None,
-                    end_date: Optional[str] = None) -> pd.DataFrame:
+                     end_date: Optional[str] = None) -> pd.DataFrame:
         cache_key = f"{cache_query_type}:{symbol}"
 
         # 使用注入的缓存实例，如果没有则创建默认实例
@@ -40,7 +40,7 @@ def create_cached_query_method(cache_date_field: str, cache_query_type: str, cac
 
 
 def _filter_data_by_date_range(data: pd.DataFrame, start_date: Optional[str],
-                              end_date: Optional[str], date_field: str) -> pd.DataFrame:
+                               end_date: Optional[str], date_field: str) -> pd.DataFrame:
     """
     根据日期范围过滤数据
 

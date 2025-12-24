@@ -11,7 +11,6 @@ from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 from dependency_injector import containers, providers
 
-from .core.models import MarketType
 from .core.stock_identifier import StockIdentifier
 
 # 导入查询器架构
@@ -133,8 +132,5 @@ def create_container() -> ProductionContainer:
     # 首先设置日志
     ProductionContainer._setup_logging()
     return ProductionContainer()
-
-
-
 
 

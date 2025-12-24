@@ -201,7 +201,6 @@ uv run pytest tests/ -m production
 - **📦 基础功能**: 实现跨市场财务数据查询的基础功能
 """
 
-from .interfaces import IDataQueryer
 from .base_queryer import BaseDataQueryer
 from .a_stock_queryers import (
     AStockIndicatorQueryer,
@@ -228,7 +227,7 @@ __all__ = [
     # A股查询器
     'AStockIndicatorQueryer',      # A股财务指标查询器
     'AStockBalanceSheetQueryer',    # A股资产负债表查询器
-    'AStockIncomeStatementQueryer', # A股利润表查询器
+    'AStockIncomeStatementQueryer',  # A股利润表查询器
     'AStockCashFlowQueryer',        # A股现金流量表查询器
 
     # 港股查询器
@@ -238,7 +237,7 @@ __all__ = [
     # 美股查询器
     'USStockIndicatorQueryer',      # 美股财务指标查询器
     'USStockBalanceSheetQueryer',   # 美股资产负债表查询器
-    'USStockIncomeStatementQueryer',# 美股利润表查询器
-    'USStockCashFlowQueryer',       # 美股现金流量表查询器
-    'USStockStatementQueryer',      # 美股财务三表查询器
+    'USStockIncomeStatementQueryer',  # 美股利润表查询器
+    'USStockCashFlowQueryer',        # 美股现金流量表查询器
+    'USStockStatementQueryer',       # 美股财务三表查询器
 ]

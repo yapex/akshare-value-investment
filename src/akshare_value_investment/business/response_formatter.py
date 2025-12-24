@@ -6,7 +6,7 @@ FastAPI标准化响应格式
 """
 
 import pandas as pd
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 from datetime import datetime
 
 from .financial_types import MCPErrorType

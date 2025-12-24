@@ -51,7 +51,7 @@ def create_app() -> FastAPI:
     @app.get("/health")
     async def health_check():
         """健康检查端点，验证容器集成"""
-        container = get_container()
+        get_container()  # 验证容器可以正常初始化
 
         return {
             "status": "healthy",

@@ -479,7 +479,7 @@ class FieldDiscoveryService:
                 total_interfaces += market_interface_count
                 total_fields += market_field_count
 
-            print(f"\n📈 总计:")
+            print("\n📈 总计:")
             print(f"   市场数: {len(all_fields)}")
             print(f"   接口数: {total_interfaces}")
             print(f"   字段数: {total_fields}")
