@@ -547,3 +547,180 @@ class Calculator:
         }
 
         return ratio_data, display_cols, metrics
+
+    @staticmethod
+    def roic(data: Dict[str, pd.DataFrame], market: str) -> Tuple[pd.DataFrame, List[str]]:
+        """计算投入资本回报率（ROIC = NOPAT ÷ 投入资本）
+
+        ROIC 是衡量公司资本使用效率的核心指标：
+        - > 15%：优秀，公司资本利用效率很高
+        - 10-15%：良好，公司资本利用效率较好
+        - < 10%：一般，公司资本利用效率较低
+
+        计算公式：
+        - NOPAT（税后净营业利润）= EBIT × (1 - 税率)
+        - 投入资本 = 股东权益 + 有息负债（短期借款 + 长期借款）
+        - ROIC = NOPAT ÷ 投入资本 × 100%
+
+        Args:
+            data: 包含利润表和资产负债表的字典
+                {
+                    "income_statement": DataFrame,
+                    "balance_sheet": DataFrame
+                }
+            market: 市场类型（A股/港股/美股）
+
+        Returns:
+            (添加了ROIC字段的DataFrame, 显示列名列表)
+        """
+        # 复用 ebit() 函数获取 EBIT
+        income_df, _ = Calculator.ebit(data, market)
+        balance_df = data["balance_sheet"].copy()
+
+        # 根据市场提取权益字段并合并数据
+        if market == "A股":
+            equity_col = "归属于母公司所有者权益合计"
+            short_debt_col = "短期借款"
+            long_debt_col = "长期借款"
+            tax_col = "所得税费用"
+            # A股：合并利润表和资产负债表
+            result_df = pd.merge(
+                income_df.loc[:, ["年份", "EBIT", "收入", tax_col]],
+                balance_df.loc[:, ["年份", equity_col, short_debt_col, long_debt_col]],
+                on="年份"
+            )
+            # 计算实际税率
+            result_df["实际税率"] = (result_df[tax_col] / result_df["EBIT"]).replace([float('inf'), -float('inf')], 0).fillna(0.25)
+
+        elif market == "港股":
+            equity_col = "股东权益"
+            short_debt_col = "短期贷款"
+            long_debt_col = "长期贷款"
+            # 港股：合并利润表和资产负债表
+            result_df = pd.merge(
+                income_df.loc[:, ["年份", "EBIT", "收入"]],
+                balance_df.loc[:, ["年份", equity_col, short_debt_col, long_debt_col]],
+                on="年份"
+            )
+            # 港股使用固定税率
+            result_df["实际税率"] = 0.165  # 香港利得税16.5%
+
+        else:  # 美股
+            equity_col = "股东权益合计"
+            short_debt_col = "短期债务"
+            long_debt_col = "长期负债"
+            # 美股：合并利润表和资产负债表
+            result_df = pd.merge(
+                income_df.loc[:, ["年份", "EBIT", "收入"]],
+                balance_df.loc[:, ["年份", equity_col, short_debt_col, long_debt_col]],
+                on="年份"
+            )
+            # 美股使用固定税率
+            result_df["实际税率"] = 0.21  # 美国联邦税率21%
+
+        # 计算投入资本 = 股东权益 + 有息负债（短期借款 + 长期借款）
+        result_df["投入资本"] = (
+            result_df[equity_col].fillna(0) +
+            result_df[short_debt_col].fillna(0) +
+            result_df[long_debt_col].fillna(0)
+        )
+
+        # 计算 NOPAT（税后净营业利润）
+        result_df["NOPAT"] = result_df["EBIT"] * (1 - result_df["实际税率"])
+
+        # 计算 ROIC
+        result_df["ROIC"] = (
+            result_df["NOPAT"] /
+            result_df["投入资本"].replace(0, pd.NA) * 100
+        ).round(2)
+
+        display_columns = [
+            "年份",
+            "EBIT",
+            "实际税率",
+            "NOPAT",
+            "投入资本",
+            "ROIC"
+        ]
+
+        return result_df, display_columns
+
+    @staticmethod
+    def calculate_roic(symbol: str, market: str, years: int) -> Tuple[pd.DataFrame, List[str], Dict[str, float]]:
+        """计算投入资本回报率分析（包含数据获取）
+
+        Args:
+            symbol: 股票代码
+            market: 市场类型（A股/港股/美股）
+            years: 查询年数
+
+        Returns:
+            (结果DataFrame, 显示列名列表, 指标字典)
+
+        Raises:
+            data_service.SymbolNotFoundError: 股票代码未找到
+            data_service.APIServiceUnavailableError: API服务不可用
+            data_service.DataServiceError: 其他数据错误
+        """
+        import requests
+
+        # 获取利润表数据
+        income_data = data_service.get_financial_statements(symbol, market, years)
+
+        # 单独获取资产负债表数据
+        query_type_map = {
+            "A股": "a_financial_statements",
+            "港股": "hk_financial_statements",
+            "美股": "us_financial_statements"
+        }
+        query_type = query_type_map.get(market)
+
+        response = requests.get(
+            f"{data_service.API_BASE_URL}/api/v1/financial/statements",
+            params={
+                "symbol": symbol,
+                "query_type": query_type,
+                "frequency": "annual"
+            },
+            timeout=30
+        )
+
+        if response.status_code != 200:
+            raise data_service.APIServiceUnavailableError(f"API服务返回错误状态码: {response.status_code}")
+
+        result = response.json()
+        data_dict = result.get("data", {})
+        balance_sheet = data_dict.get("balance_sheet")
+
+        if not balance_sheet:
+            raise data_service.DataServiceError(f"{market}股票 {symbol} 没有资产负债表数据")
+
+        # 转换资产负债表为DataFrame
+        import pandas as pd
+        balance_df = pd.DataFrame(balance_sheet["data"])
+
+        # 提取年份
+        date_col = "报告期" if "报告期" in balance_df.columns else "date"
+        balance_df = balance_df.copy()
+        balance_df["年份"] = pd.to_datetime(balance_df[date_col]).dt.year
+
+        # 构建完整数据字典
+        financial_data = {
+            "income_statement": income_data["income_statement"],
+            "balance_sheet": balance_df
+        }
+
+        roic_data, display_cols = Calculator.roic(financial_data, market)
+        roic_data = roic_data.sort_values("年份").reset_index(drop=True)
+
+        # 计算指标
+        metrics = {
+            "avg_roic": roic_data['ROIC'].mean(),
+            "latest_roic": roic_data['ROIC'].iloc[-1],
+            "min_roic": roic_data['ROIC'].min(),
+            "max_roic": roic_data['ROIC'].max(),
+            "avg_nopat": roic_data['NOPAT'].mean(),
+            "avg_capital": roic_data['投入资本'].mean()
+        }
+
+        return roic_data, display_cols, metrics

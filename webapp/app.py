@@ -19,6 +19,7 @@ from components.net_profit_cash_ratio import NetProfitCashRatioComponent
 from components.revenue_growth import RevenueGrowthComponent
 from components.ebit_margin import EBITMarginComponent
 from components.free_cash_flow_ratio import FreeCashFlowRatioComponent
+from components.roic import ROICComponent
 
 # 配置：分析组件列表
 ANALYSIS_COMPONENTS = [
@@ -26,6 +27,7 @@ ANALYSIS_COMPONENTS = [
     RevenueGrowthComponent,
     EBITMarginComponent,
     FreeCashFlowRatioComponent,
+    ROICComponent,
 ]
 
 # 创建容器，获取股票识别器
