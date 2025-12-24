@@ -9,13 +9,31 @@
 
 ## 1分钟上手
 
-### 启动Web应用
+### 第一次使用
 
 ```bash
-# 1. 启动后端API服务
+# 1. 克隆项目
+git clone <repository_url>
+cd akshare-value-investment
+
+# 2. 安装依赖
+uv sync
+
+# 3. 启动服务(自动启动API和Web应用)
+./start_services.sh
+```
+
+### 日常使用
+
+```bash
+# 方式1: 使用启动脚本(推荐)
+./start_services.sh
+
+# 方式2: 手动启动
+# 终端1: 启动后端API服务
 poe api
 
-# 2. 启动前端Web应用
+# 终端2: 启动前端Web应用
 poe streamlit
 ```
 
@@ -112,8 +130,26 @@ curl "http://localhost:8000/api/v1/financial/indicators?symbol=AAPL&market=us_st
 
 ## 常见问题
 
+### Q: 第一次使用需要做什么?
+A:
+```bash
+# 1. 安装uv包管理器
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# 2. 克隆项目并安装依赖
+git clone <repository_url>
+cd akshare-value-investment
+uv sync
+
+# 3. 启动服务
+./start_services.sh
+```
+
 ### Q: 启动提示"无法连接到API服务"?
-A: 请确保先启动API服务 `poe api`,再启动Web应用 `poe streamlit`
+A: 请确保先启动API服务 `poe api`,再启动Web应用 `poe streamlit`,或直接使用 `./start_services.sh` 一键启动
+
+### Q: 如何使用启动脚本?
+A: 运行 `./start_services.sh` 会自动启动API和Web应用,推荐使用!
 
 ### Q: 股票代码输入错误怎么办?
 A: 系统会智能提示常见错误(如APPL→AAPL),并给出正确代码建议
