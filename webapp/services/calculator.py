@@ -6,10 +6,13 @@
 设计原则：
 - YAGNI：只包含当前需要的方法
 - KISS：保持简单
+- 单一职责：每个分析方法负责获取数据+计算，app.py只负责展示
 """
 
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Optional
 import pandas as pd
+
+from . import data_service
 
 
 class Calculator:
@@ -163,3 +166,97 @@ class Calculator:
         ]
 
         return result_df, display_columns
+
+    @staticmethod
+    def calculate_net_profit_cash_ratio(symbol: str, market: str, years: int) -> Optional[Tuple[pd.DataFrame, List[str]]]:
+        """计算净利润现金比分析（包含数据获取）
+
+        Args:
+            symbol: 股票代码
+            market: 市场类型（A股/港股/美股）
+            years: 查询年数
+
+        Returns:
+            (结果DataFrame, 显示列名列表)，失败返回None
+        """
+        financial_data = data_service.get_financial_statements(symbol, market, years)
+        if financial_data is None:
+            return None
+
+        return Calculator.net_profit_cash_ratio(financial_data, market)
+
+    @staticmethod
+    def calculate_revenue_growth(symbol: str, market: str, years: int) -> Optional[Tuple[pd.DataFrame, Dict[str, float]]]:
+        """计算营业收入增长趋势（包含数据获取）
+
+        Args:
+            symbol: 股票代码
+            market: 市场类型（A股/港股/美股）
+            years: 查询年数
+
+        Returns:
+            (收入数据DataFrame, 指标字典)，失败返回None
+        """
+        financial_data = data_service.get_financial_statements(symbol, market, years)
+        if financial_data is None:
+            return None
+
+        income_df = financial_data["income_statement"]
+
+        # 获取收入字段名称
+        if market == "A股":
+            revenue_col = "其中：营业收入"
+        elif market == "港股":
+            revenue_col = "营业额"
+        else:  # 美股
+            revenue_col = "营业收入"
+
+        # 提取收入数据
+        revenue_data = income_df[["年份", revenue_col]].copy()
+        revenue_data = revenue_data.sort_values("年份").reset_index(drop=True)
+        revenue_data['增长率'] = revenue_data[revenue_col].pct_change() * 100
+        revenue_data['增长率'] = revenue_data['增长率'].round(2)
+
+        # 计算指标
+        years_count = len(revenue_data)
+        metrics = {
+            "cagr": Calculator.cagr(revenue_data[revenue_col]),
+            "avg_growth_rate": revenue_data['增长率'].mean(),
+            "latest_revenue": revenue_data[revenue_col].iloc[-1],
+            "avg_revenue": revenue_data[revenue_col].mean(),
+            "years_count": years_count
+        }
+
+        return revenue_data, metrics
+
+    @staticmethod
+    def calculate_ebit_margin(symbol: str, market: str, years: int) -> Optional[Tuple[pd.DataFrame, List[str], Dict[str, float]]]:
+        """计算EBIT利润率分析（包含数据获取）
+
+        Args:
+            symbol: 股票代码
+            market: 市场类型（A股/港股/美股）
+            years: 查询年数
+
+        Returns:
+            (结果DataFrame, 显示列名列表, 指标字典)，失败返回None
+        """
+        financial_data = data_service.get_financial_statements(symbol, market, years)
+        if financial_data is None:
+            return None
+
+        ebit_data, display_cols = Calculator.ebit(financial_data, market)
+        ebit_data = ebit_data.sort_values("年份").reset_index(drop=True)
+        ebit_data['利润率增长率'] = ebit_data['EBIT利润率'].pct_change() * 100
+        ebit_data['利润率增长率'] = ebit_data['利润率增长率'].round(2)
+
+        # 计算指标
+        metrics = {
+            "avg_margin": ebit_data['EBIT利润率'].mean(),
+            "latest_margin": ebit_data['EBIT利润率'].iloc[-1],
+            "max_margin": ebit_data['EBIT利润率'].max(),
+            "min_margin": ebit_data['EBIT利润率'].min(),
+            "avg_growth_rate": ebit_data['利润率增长率'].mean()
+        }
+
+        return ebit_data, display_cols, metrics

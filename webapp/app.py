@@ -14,8 +14,7 @@ import pandas as pd
 # 添加src目录到Python路径
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-# 导入数据服务和计算器
-from services.data_service import get_financial_statements
+# 导入计算器（所有数据获取和计算都在这里）
 from services.calculator import Calculator
 
 st.set_page_config(
@@ -70,133 +69,109 @@ if params_changed or st.button("🔄 刷新分析", type="secondary"):
     st.session_state.last_params = current_params
     st.session_state.initialized = True
 
-    with st.spinner(f"正在获取 {market} 股票 {symbol} 的数据..."):
-        financial_data = get_financial_statements(symbol, market, years)
+    # ==================== 1. 净利润现金比分析 ====================
+    st.markdown("---")
+    st.subheader("💰 净利润现金比分析（利润质量）")
 
-        if financial_data is not None:
-            income_df = financial_data["income_statement"]
+    with st.spinner(f"正在获取 {market} 股票 {symbol} 的净利润现金比数据..."):
+        result = Calculator.calculate_net_profit_cash_ratio(symbol, market, years)
 
-            # ==================== 1. 净利润现金比分析 ====================
+        if result is not None:
+            ratio_data, display_cols = result
+            ratio_data = ratio_data.sort_values("年份").reset_index(drop=True)
+
+            # 创建双Y轴图表：两条折线分别展示累计净利润和累计经营现金流
+            fig1 = make_subplots(
+                specs=[[{"secondary_y": True}]],
+                subplot_titles=[f"{symbol} - 累计净利润 vs 累计经营现金流"]
+            )
+
+            # 添加折线图（累计净利润）
+            fig1.add_trace(
+                go.Scatter(
+                    x=ratio_data['年份'],
+                    y=ratio_data['累计净利润'],
+                    name='累计净利润',
+                    mode='lines+markers',
+                    line=dict(color='blue', width=2),
+                    marker=dict(size=8)
+                ),
+                secondary_y=False
+            )
+
+            # 添加折线图（累计经营现金流）
+            fig1.add_trace(
+                go.Scatter(
+                    x=ratio_data['年份'],
+                    y=ratio_data['累计经营性现金流量净额'],
+                    name='累计经营现金流',
+                    mode='lines+markers',
+                    line=dict(color='green', width=2),
+                    marker=dict(size=8)
+                ),
+                secondary_y=True
+            )
+
+            # 设置Y轴标题
+            fig1.update_yaxes(title_text="累计净利润", secondary_y=False)
+            fig1.update_yaxes(title_text="累计经营现金流", secondary_y=True)
+
+            # 设置布局
+            fig1.update_layout(
+                xaxis_title="年份",
+                hovermode="x unified",
+                height=500
+            )
+
+            # 显示图表
+            st.plotly_chart(fig1, use_container_width=True)
+
+            # 显示关键指标
             st.markdown("---")
-            st.subheader("💰 净利润现金比分析（利润质量）")
+            st.subheader("📊 关键指标")
 
-            try:
-                ratio_data, display_cols = Calculator.net_profit_cash_ratio(financial_data, market)
+            avg_ratio = ratio_data['净现比'].mean()
+            latest_ratio = ratio_data['净现比'].iloc[-1]
+            latest_cumulative_net_profit = ratio_data['累计净利润'].iloc[-1]
+            latest_cumulative_cashflow = ratio_data['累计经营性现金流量净额'].iloc[-1]
 
-                # 排序数据
-                ratio_data = ratio_data.sort_values("年份").reset_index(drop=True)
+            col1, col2, col3, col4 = st.columns(4)
 
-                # 创建双Y轴图表：两条折线分别展示累计净利润和累计经营现金流
-                fig1 = make_subplots(
-                    specs=[[{"secondary_y": True}]],
-                    subplot_titles=[f"{symbol} - 累计净利润 vs 累计经营现金流"]
-                )
+            with col1:
+                st.metric(label="平均净现比", value=f"{avg_ratio:.2f}", delta=None)
 
-                # 添加折线图（累计净利润）
-                fig1.add_trace(
-                    go.Scatter(
-                        x=ratio_data['年份'],
-                        y=ratio_data['累计净利润'],
-                        name='累计净利润',
-                        mode='lines+markers',
-                        line=dict(color='blue', width=2),
-                        marker=dict(size=8)
-                    ),
-                    secondary_y=False
-                )
+            with col2:
+                st.metric(label="最新净现比", value=f"{latest_ratio:.2f}", delta=None)
 
-                # 添加折线图（累计经营现金流）
-                fig1.add_trace(
-                    go.Scatter(
-                        x=ratio_data['年份'],
-                        y=ratio_data['累计经营性现金流量净额'],
-                        name='累计经营现金流',
-                        mode='lines+markers',
-                        line=dict(color='green', width=2),
-                        marker=dict(size=8)
-                    ),
-                    secondary_y=True
-                )
+            with col3:
+                st.metric(label="累计净利润", value=f"{latest_cumulative_net_profit:.2f}", delta=None)
 
-                # 设置Y轴标题
-                fig1.update_yaxes(title_text="累计净利润", secondary_y=False)
-                fig1.update_yaxes(title_text="累计经营现金流", secondary_y=True)
+            with col4:
+                st.metric(label="累计经营现金流", value=f"{latest_cumulative_cashflow:.2f}", delta=None)
 
-                # 设置布局
-                fig1.update_layout(
-                    xaxis_title="年份",
-                    hovermode="x unified",
-                    height=500
-                )
+            # 折叠的原始数据表格
+            with st.expander("📊 查看计算用原始数据"):
+                st.dataframe(ratio_data[display_cols], use_container_width=True, hide_index=True)
+        else:
+            st.error(f"无法获取股票 {symbol} 的净利润现金比数据")
 
-                # 显示图表
-                st.plotly_chart(fig1, use_container_width=True)
+    # ==================== 2. 营业收入增长趋势分析 ====================
+    st.markdown("---")
+    st.subheader("📈 营业收入增长趋势分析")
 
-                # 计算并显示关键指标
-                st.markdown("---")
-                st.subheader("📊 关键指标")
+    with st.spinner(f"正在获取 {market} 股票 {symbol} 的营业收入数据..."):
+        result = Calculator.calculate_revenue_growth(symbol, market, years)
 
-                # 计算指标
-                avg_ratio = ratio_data['净现比'].mean()
-                latest_ratio = ratio_data['净现比'].iloc[-1]
-                latest_cumulative_net_profit = ratio_data['累计净利润'].iloc[-1]
-                latest_cumulative_cashflow = ratio_data['累计经营性现金流量净额'].iloc[-1]
+        if result is not None:
+            revenue_data, metrics = result
 
-                # 使用四列布局显示指标
-                col1, col2, col3, col4 = st.columns(4)
-
-                with col1:
-                    st.metric(
-                        label="平均净现比",
-                        value=f"{avg_ratio:.2f}",
-                        delta=None
-                    )
-
-                with col2:
-                    st.metric(
-                        label="最新净现比",
-                        value=f"{latest_ratio:.2f}",
-                        delta=None
-                    )
-
-                with col3:
-                    st.metric(
-                        label="累计净利润",
-                        value=f"{latest_cumulative_net_profit:.2f}",
-                        delta=None
-                    )
-
-                with col4:
-                    st.metric(
-                        label="累计经营现金流",
-                        value=f"{latest_cumulative_cashflow:.2f}",
-                        delta=None
-                    )
-
-                # 折叠的原始数据表格
-                with st.expander("📊 查看计算用原始数据"):
-                    st.dataframe(ratio_data[display_cols], use_container_width=True, hide_index=True)
-
-            except Exception as e:
-                st.error(f"计算净利润现金比时出错: {e}")
-
-            # ==================== 2. 营业收入增长趋势分析 ====================
-            st.markdown("---")
-            st.subheader("📈 营业收入增长趋势分析")
-
-            # 获取收入字段名称
+            # 获取收入字段名称（用于显示）
             if market == "A股":
                 revenue_col = "其中：营业收入"
             elif market == "港股":
                 revenue_col = "营业额"
             else:  # 美股
                 revenue_col = "营业收入"
-
-            # 提取收入数据
-            revenue_data = income_df[["年份", revenue_col]].copy()
-            revenue_data = revenue_data.sort_values("年份").reset_index(drop=True)
-            revenue_data['增长率'] = revenue_data[revenue_col].pct_change() * 100
-            revenue_data['增长率'] = revenue_data['增长率'].round(2)
 
             # 创建双Y轴图表
             fig2 = make_subplots(
@@ -244,51 +219,23 @@ if params_changed or st.button("🔄 刷新分析", type="secondary"):
             # 显示图表
             st.plotly_chart(fig2, use_container_width=True)
 
-            # 计算并显示关键指标
+            # 显示关键指标
             st.markdown("---")
             st.subheader("📊 关键指标")
 
-            # 计算指标
-            avg_revenue = revenue_data[revenue_col].mean()
-            latest_revenue = revenue_data[revenue_col].iloc[-1]
-            years_count = len(revenue_data)
-
-            # 计算年复合增长率 (CAGR)
-            cagr = Calculator.cagr(revenue_data[revenue_col])
-
-            # 计算平均增长率
-            avg_growth_rate = revenue_data['增长率'].mean()
-
-            # 使用四列布局显示指标
             col1, col2, col3, col4 = st.columns(4)
 
             with col1:
-                st.metric(
-                    label="年复合增长率 (CAGR)",
-                    value=f"{cagr:.2f}%",
-                    delta=None
-                )
+                st.metric(label="年复合增长率 (CAGR)", value=f"{metrics['cagr']:.2f}%", delta=None)
 
             with col2:
-                st.metric(
-                    label="平均增长率",
-                    value=f"{avg_growth_rate:.2f}%",
-                    delta=None
-                )
+                st.metric(label="平均增长率", value=f"{metrics['avg_growth_rate']:.2f}%", delta=None)
 
             with col3:
-                st.metric(
-                    label="最新营业收入",
-                    value=f"{latest_revenue:.2f}",
-                    delta=None
-                )
+                st.metric(label="最新营业收入", value=f"{metrics['latest_revenue']:.2f}", delta=None)
 
             with col4:
-                st.metric(
-                    label=f"{years_count}年平均",
-                    value=f"{avg_revenue:.2f}",
-                    delta=None
-                )
+                st.metric(label=f"{metrics['years_count']}年平均", value=f"{metrics['avg_revenue']:.2f}", delta=None)
 
             # 折叠的原始数据表格
             with st.expander("📊 查看原始数据"):
@@ -296,115 +243,85 @@ if params_changed or st.button("🔄 刷新分析", type="secondary"):
                 display_data['增长率'] = display_data['增长率'].round(2)
                 display_data.loc[display_data['增长率'].isna(), '增长率'] = '-'
                 st.dataframe(display_data, use_container_width=True, hide_index=True)
-
-            # ==================== 3. EBIT利润率分析 ====================
-            st.markdown("---")
-            st.subheader("💰 EBIT利润率分析")
-
-            try:
-                ebit_data, display_cols = Calculator.ebit(financial_data, market)
-
-                # 计算增长率
-                ebit_data = ebit_data.sort_values("年份").reset_index(drop=True)
-                ebit_data['利润率增长率'] = ebit_data['EBIT利润率'].pct_change() * 100
-                ebit_data['利润率增长率'] = ebit_data['利润率增长率'].round(2)
-
-                # 创建双Y轴图表
-                fig3 = make_subplots(
-                    specs=[[{"secondary_y": True}]],
-                    subplot_titles=[f"{symbol} - EBIT利润率趋势"]
-                )
-
-                # 添加柱状图（EBIT利润率）
-                fig3.add_trace(
-                    go.Bar(
-                        x=ebit_data['年份'],
-                        y=ebit_data['EBIT利润率'],
-                        name="EBIT利润率 (%)",
-                        marker_color='purple',
-                        opacity=0.7
-                    ),
-                    secondary_y=False
-                )
-
-                # 添加折线图（增长率）
-                fig3.add_trace(
-                    go.Scatter(
-                        x=ebit_data['年份'],
-                        y=ebit_data['利润率增长率'],
-                        name='增长率',
-                        mode='lines+markers',
-                        line=dict(color='red', width=2),
-                        marker=dict(size=8)
-                    ),
-                    secondary_y=True
-                )
-
-                # 设置Y轴标题
-                fig3.update_yaxes(title_text="EBIT利润率 (%)", secondary_y=False)
-                fig3.update_yaxes(title_text="增长率 (%)", secondary_y=True)
-
-                # 设置布局
-                fig3.update_layout(
-                    xaxis_title="年份",
-                    hovermode="x unified",
-                    barmode='group',
-                    height=500
-                )
-
-                # 显示图表
-                st.plotly_chart(fig3, use_container_width=True)
-
-                # 计算并显示关键指标
-                st.markdown("---")
-                st.subheader("📊 关键指标")
-
-                # 计算指标
-                avg_margin = ebit_data['EBIT利润率'].mean()
-                max_margin = ebit_data['EBIT利润率'].max()
-                min_margin = ebit_data['EBIT利润率'].min()
-                latest_margin = ebit_data['EBIT利润率'].iloc[-1]
-
-                # 计算平均增长率
-                avg_growth_rate = ebit_data['利润率增长率'].mean()
-
-                # 使用四列布局显示指标
-                col1, col2, col3, col4 = st.columns(4)
-
-                with col1:
-                    st.metric(
-                        label="平均利润率",
-                        value=f"{avg_margin:.2f}%",
-                        delta=None
-                    )
-
-                with col2:
-                    st.metric(
-                        label="最新利润率",
-                        value=f"{latest_margin:.2f}%",
-                        delta=None
-                    )
-
-                with col3:
-                    st.metric(
-                        label=f"{years}年最高",
-                        value=f"{max_margin:.2f}%",
-                        delta=None
-                    )
-
-                with col4:
-                    st.metric(
-                        label=f"{years}年最低",
-                        value=f"{min_margin:.2f}%",
-                        delta=None
-                    )
-
-                # 折叠的计算用原始数据表格
-                with st.expander("📊 查看计算用原始数据"):
-                    st.dataframe(ebit_data[display_cols], use_container_width=True, hide_index=True)
-
-            except Exception as e:
-                st.warning(f"计算EBIT利润率时出错: {e}")
-
         else:
-            st.error(f"无法获取股票 {symbol} 的财务数据")
+            st.error(f"无法获取股票 {symbol} 的营业收入数据")
+
+    # ==================== 3. EBIT利润率分析 ====================
+    st.markdown("---")
+    st.subheader("💰 EBIT利润率分析")
+
+    with st.spinner(f"正在获取 {market} 股票 {symbol} 的EBIT利润率数据..."):
+        result = Calculator.calculate_ebit_margin(symbol, market, years)
+
+        if result is not None:
+            ebit_data, display_cols, metrics = result
+
+            # 创建双Y轴图表
+            fig3 = make_subplots(
+                specs=[[{"secondary_y": True}]],
+                subplot_titles=[f"{symbol} - EBIT利润率趋势"]
+            )
+
+            # 添加柱状图（EBIT利润率）
+            fig3.add_trace(
+                go.Bar(
+                    x=ebit_data['年份'],
+                    y=ebit_data['EBIT利润率'],
+                    name="EBIT利润率 (%)",
+                    marker_color='purple',
+                    opacity=0.7
+                ),
+                secondary_y=False
+            )
+
+            # 添加折线图（增长率）
+            fig3.add_trace(
+                go.Scatter(
+                    x=ebit_data['年份'],
+                    y=ebit_data['利润率增长率'],
+                    name='增长率',
+                    mode='lines+markers',
+                    line=dict(color='red', width=2),
+                    marker=dict(size=8)
+                ),
+                secondary_y=True
+            )
+
+            # 设置Y轴标题
+            fig3.update_yaxes(title_text="EBIT利润率 (%)", secondary_y=False)
+            fig3.update_yaxes(title_text="增长率 (%)", secondary_y=True)
+
+            # 设置布局
+            fig3.update_layout(
+                xaxis_title="年份",
+                hovermode="x unified",
+                barmode='group',
+                height=500
+            )
+
+            # 显示图表
+            st.plotly_chart(fig3, use_container_width=True)
+
+            # 显示关键指标
+            st.markdown("---")
+            st.subheader("📊 关键指标")
+
+            col1, col2, col3, col4 = st.columns(4)
+
+            with col1:
+                st.metric(label="平均利润率", value=f"{metrics['avg_margin']:.2f}%", delta=None)
+
+            with col2:
+                st.metric(label="最新利润率", value=f"{metrics['latest_margin']:.2f}%", delta=None)
+
+            with col3:
+                st.metric(label=f"{years}年最高", value=f"{metrics['max_margin']:.2f}%", delta=None)
+
+            with col4:
+                st.metric(label=f"{years}年最低", value=f"{metrics['min_margin']:.2f}%", delta=None)
+
+            # 折叠的计算用原始数据表格
+            with st.expander("📊 查看计算用原始数据"):
+                st.dataframe(ebit_data[display_cols], use_container_width=True, hide_index=True)
+        else:
+            st.warning(f"无法获取股票 {symbol} 的EBIT利润率数据，可能该市场不支持此指标")
