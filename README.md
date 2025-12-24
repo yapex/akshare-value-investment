@@ -157,6 +157,19 @@ A: 系统会智能提示常见错误(如APPL→AAPL),并给出正确代码建议
 ### Q: 支持多少年的数据查询?
 A: 默认查询最近10年数据,可在界面调整查询年数
 
+### Q: 如何手动停止服务?
+A:
+```bash
+# 停止FastAPI服务 (端口8000)
+lsof -ti:8000 | xargs kill
+
+# 停止Streamlit服务 (端口8501)
+lsof -ti:8501 | xargs kill
+
+# 一次性停止所有服务
+lsof -ti:8000,8501 | xargs kill
+```
+
 ---
 
 **当前版本**: v3.1.0 (Streamlit Web应用版)
