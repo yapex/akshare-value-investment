@@ -168,7 +168,7 @@ class Calculator:
         return result_df, display_columns
 
     @staticmethod
-    def calculate_net_profit_cash_ratio(symbol: str, market: str, years: int) -> Optional[Tuple[pd.DataFrame, List[str]]]:
+    def calculate_net_profit_cash_ratio(symbol: str, market: str, years: int) -> Tuple[pd.DataFrame, List[str]]:
         """计算净利润现金比分析（包含数据获取）
 
         Args:
@@ -177,16 +177,18 @@ class Calculator:
             years: 查询年数
 
         Returns:
-            (结果DataFrame, 显示列名列表)，失败返回None
+            (结果DataFrame, 显示列名列表)
+
+        Raises:
+            data_service.SymbolNotFoundError: 股票代码未找到
+            data_service.APIServiceUnavailableError: API服务不可用
+            data_service.DataServiceError: 其他数据错误
         """
         financial_data = data_service.get_financial_statements(symbol, market, years)
-        if financial_data is None:
-            return None
-
         return Calculator.net_profit_cash_ratio(financial_data, market)
 
     @staticmethod
-    def calculate_revenue_growth(symbol: str, market: str, years: int) -> Optional[Tuple[pd.DataFrame, Dict[str, float]]]:
+    def calculate_revenue_growth(symbol: str, market: str, years: int) -> Tuple[pd.DataFrame, Dict[str, float]]:
         """计算营业收入增长趋势（包含数据获取）
 
         Args:
@@ -195,12 +197,14 @@ class Calculator:
             years: 查询年数
 
         Returns:
-            (收入数据DataFrame, 指标字典)，失败返回None
+            (收入数据DataFrame, 指标字典)
+
+        Raises:
+            data_service.SymbolNotFoundError: 股票代码未找到
+            data_service.APIServiceUnavailableError: API服务不可用
+            data_service.DataServiceError: 其他数据错误
         """
         financial_data = data_service.get_financial_statements(symbol, market, years)
-        if financial_data is None:
-            return None
-
         income_df = financial_data["income_statement"]
 
         # 获取收入字段名称
@@ -230,7 +234,7 @@ class Calculator:
         return revenue_data, metrics
 
     @staticmethod
-    def calculate_ebit_margin(symbol: str, market: str, years: int) -> Optional[Tuple[pd.DataFrame, List[str], Dict[str, float]]]:
+    def calculate_ebit_margin(symbol: str, market: str, years: int) -> Tuple[pd.DataFrame, List[str], Dict[str, float]]:
         """计算EBIT利润率分析（包含数据获取）
 
         Args:
@@ -239,12 +243,14 @@ class Calculator:
             years: 查询年数
 
         Returns:
-            (结果DataFrame, 显示列名列表, 指标字典)，失败返回None
+            (结果DataFrame, 显示列名列表, 指标字典)
+
+        Raises:
+            data_service.SymbolNotFoundError: 股票代码未找到
+            data_service.APIServiceUnavailableError: API服务不可用
+            data_service.DataServiceError: 其他数据错误
         """
         financial_data = data_service.get_financial_statements(symbol, market, years)
-        if financial_data is None:
-            return None
-
         ebit_data, display_cols = Calculator.ebit(financial_data, market)
         ebit_data = ebit_data.sort_values("年份").reset_index(drop=True)
         ebit_data['利润率增长率'] = ebit_data['EBIT利润率'].pct_change() * 100
@@ -260,3 +266,179 @@ class Calculator:
         }
 
         return ebit_data, display_cols, metrics
+
+    @staticmethod
+    def free_cash_flow(data: Dict[str, pd.DataFrame], market: str) -> Tuple[pd.DataFrame, List[str]]:
+        """计算自由现金流（FCF = 经营活动现金流 - 资本支出）
+
+        自由现金流是衡量公司真实盈利能力的重要指标：
+        - 正值：公司有充足现金用于分红、回购、还债
+        - 负值：公司需要外部融资来维持运营
+
+        Args:
+            data: 包含现金流量表的字典 {"cash_flow": DataFrame}
+            market: 市场类型（A股/港股/美股）
+
+        Returns:
+            (添加了自由现金流字段的DataFrame, 显示列名列表)
+        """
+        cashflow_df = data["cash_flow"].copy()
+
+        # 根据市场提取经营性现金流和资本支出字段
+        if market == "A股":
+            operating_cashflow_col = "经营活动产生的现金流量净额"
+            capex_col = "购建固定资产、无形资产和其他长期资产支付的现金"
+            # 检查字段是否存在
+            if operating_cashflow_col not in cashflow_df.columns:
+                raise ValueError(f"经营性现金流量净额字段 '{operating_cashflow_col}' 不存在")
+            if capex_col not in cashflow_df.columns:
+                raise ValueError(f"资本支出字段 '{capex_col}' 不存在")
+            # 计算资本支出(取绝对值,因为不同市场符号可能不同)
+            cashflow_df['资本支出'] = cashflow_df[capex_col].abs()
+
+        elif market == "港股":
+            operating_cashflow_col = "经营业务现金净额"
+            capex_col_1 = "购建固定资产"
+            capex_col_2 = "购建无形资产及其他资产"
+            # 检查字段是否存在
+            if operating_cashflow_col not in cashflow_df.columns:
+                raise ValueError(f"经营性现金流量净额字段 '{operating_cashflow_col}' 不存在")
+            # 港股的资本支出 = 购建固定资产 + 购建无形资产及其他资产(取绝对值)
+            capex_1 = cashflow_df.get(capex_col_1, 0).abs()
+            capex_2 = cashflow_df.get(capex_col_2, 0).abs()
+            cashflow_df['资本支出'] = (capex_1 + capex_2).fillna(0)
+
+        else:  # 美股
+            operating_cashflow_col = "经营活动产生的现金流量净额"
+            # 美股的资本支出 = 购买固定资产 + 购建无形资产及其他资产(取绝对值)
+            capex_col_1 = "购买固定资产"
+            capex_col_2 = "购建无形资产及其他资产"
+            # 检查字段是否存在
+            if operating_cashflow_col not in cashflow_df.columns:
+                raise ValueError(f"经营性现金流量净额字段 '{operating_cashflow_col}' 不存在")
+            # 计算资本支出
+            capex_1 = cashflow_df.get(capex_col_1, 0).abs()
+            capex_2 = cashflow_df.get(capex_col_2, 0).abs()
+            cashflow_df['资本支出'] = (capex_1 + capex_2).fillna(0)
+
+        # 计算自由现金流 = 经营现金流 - 资本支出
+        cashflow_df['自由现金流'] = cashflow_df[operating_cashflow_col] - cashflow_df['资本支出']
+        cashflow_df['自由现金流'] = cashflow_df['自由现金流'].round(2)
+
+        # 重命名字段为通用名称
+        cashflow_df.rename(columns={
+            operating_cashflow_col: "经营性现金流量净额"
+        }, inplace=True)
+
+        display_columns = [
+            "年份",
+            "经营性现金流量净额",
+            "资本支出",
+            "自由现金流"
+        ]
+
+        return cashflow_df, display_columns
+
+    @staticmethod
+    def free_cash_flow_to_net_income_ratio(data: Dict[str, pd.DataFrame], market: str) -> Tuple[pd.DataFrame, List[str]]:
+        """计算自由现金流净利润比（FCF / 净利润）
+
+        自由现金流净利润比（自由现金流转换率）是衡量利润质量的重要指标：
+        - > 1：说明公司不仅能将利润转化为现金,还有额外现金用于扩张
+        - 0.8-1：利润质量良好
+        - < 0.8：利润质量较差,大量利润被应收账款或存货占用
+
+        Args:
+            data: 包含利润表和现金流量表的字典
+                {
+                    "income_statement": DataFrame,
+                    "cash_flow": DataFrame
+                }
+            market: 市场类型（A股/港股/美股）
+
+        Returns:
+            (添加了自由现金流净利润比字段的DataFrame, 显示列名列表)
+        """
+        # 先计算自由现金流
+        fcf_data, _ = Calculator.free_cash_flow(data, market)
+
+        # 获取净利润数据
+        income_df = data["income_statement"].copy()
+
+        # 根据市场提取净利润字段
+        if market == "A股":
+            net_income_col = "五、净利润"
+        elif market == "港股":
+            net_income_col = "股东应占溢利"
+        else:  # 美股
+            net_income_col = "净利润"
+
+        # 检查字段是否存在
+        if net_income_col not in income_df.columns:
+            raise ValueError(f"净利润字段 '{net_income_col}' 不存在")
+
+        # 合并自由现金流和净利润
+        result_df = pd.merge(
+            fcf_data[["年份", "经营性现金流量净额", "资本支出", "自由现金流"]],
+            income_df[["年份", net_income_col]],
+            on="年份"
+        )
+
+        # 计算自由现金流净利润比
+        result_df['自由现金流净利润比'] = (
+            result_df['自由现金流'] /
+            result_df[net_income_col].replace(0, pd.NA)
+        ).round(2)
+
+        # 重命名字段为通用名称
+        result_df.rename(columns={
+            net_income_col: "净利润"
+        }, inplace=True)
+
+        display_columns = [
+            "年份",
+            "净利润",
+            "经营性现金流量净额",
+            "资本支出",
+            "自由现金流",
+            "自由现金流净利润比"
+        ]
+
+        return result_df, display_columns
+
+    @staticmethod
+    def calculate_free_cash_flow_to_net_income_ratio(symbol: str, market: str, years: int) -> Tuple[pd.DataFrame, List[str], Dict[str, float]]:
+        """计算自由现金流净利润比分析（包含数据获取）
+
+        Args:
+            symbol: 股票代码
+            market: 市场类型（A股/港股/美股）
+            years: 查询年数
+
+        Returns:
+            (结果DataFrame, 显示列名列表, 指标字典)
+
+        Raises:
+            data_service.SymbolNotFoundError: 股票代码未找到
+            data_service.APIServiceUnavailableError: API服务不可用
+            data_service.DataServiceError: 其他数据错误
+        """
+        financial_data = data_service.get_financial_statements(symbol, market, years)
+        ratio_data, display_cols = Calculator.free_cash_flow_to_net_income_ratio(financial_data, market)
+        ratio_data = ratio_data.sort_values("年份").reset_index(drop=True)
+
+        # 计算指标
+        positive_ratio_years = (ratio_data['自由现金流净利润比'] > 0).sum()
+        total_years = len(ratio_data)
+
+        metrics = {
+            "avg_ratio": ratio_data['自由现金流净利润比'].mean(),
+            "latest_ratio": ratio_data['自由现金流净利润比'].iloc[-1],
+            "min_ratio": ratio_data['自由现金流净利润比'].min(),
+            "max_ratio": ratio_data['自由现金流净利润比'].max(),
+            "positive_years_ratio": (positive_ratio_years / total_years * 100) if total_years > 0 else 0,
+            "cumulative_fcf": ratio_data['自由现金流'].sum(),
+            "cumulative_net_income": ratio_data['净利润'].sum()
+        }
+
+        return ratio_data, display_cols, metrics

@@ -8,7 +8,7 @@ import traceback
 class RevenueGrowthComponent:
     """营业收入增长分析组件"""
 
-    title = "📈 营业收入增长趋势分析"
+    title = "📈 营收是否增长（成长性）"
 
     @staticmethod
     def render(symbol: str, market: str, years: int) -> bool:
@@ -27,26 +27,48 @@ class RevenueGrowthComponent:
         import plotly.graph_objects as go
         from plotly.subplots import make_subplots
 
-        import sys
-        from pathlib import Path
-
-        # 添加 src 目录到 Python 路径
-        sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
-
         from services.calculator import Calculator
+        from services import data_service
 
         try:
             st.markdown("---")
-            st.subheader(RevenueGrowthComponent.title)
+            st.subheader(
+                RevenueGrowthComponent.title,
+                help="""
+                **营业收入增长趋势**
+
+                **核心问题**：公司业务是否在持续扩张？
+
+                **关键指标：**
+                - **CAGR（复合年增长率）**：多年平均增长率，比单年增长率更稳定
+                - **平均增长率**：各年增长率的算术平均
+                - **最新增长率**：最近一年的增长情况
+
+                **指标解读：**
+                - **CAGR > 20%**：高成长！可能是优质成长股
+                - **CAGR 10%-20%**：稳健增长，可持续性强
+                - **CAGR < 10%**：增长缓慢，成熟期或遭遇瓶颈
+                - **CAGR < 0%**：业务萎缩，需要警惕
+
+                **重要提示：**
+                - 关注增长的**可持续性**：连续多年增长 > 偶尔爆发
+                - 对比**同行水平**：行业平均增长率很重要
+                - 剔除**异常因素**：并购、一次性收益等
+
+                **典型场景：**
+                - 成长期公司：CAGR 持续 > 20%
+                - 成熟期公司：CAGR 稳定在 5%-15%
+                - 衰退期公司：CAGR 持续为负
+                """
+            )
 
             with st.spinner(f"正在获取 {market} 股票 {symbol} 的营业收入数据..."):
-                result = Calculator.calculate_revenue_growth(symbol, market, years)
-
-                if result is None:
-                    st.error(f"无法获取股票 {symbol} 的营业收入数据")
+                try:
+                    result = Calculator.calculate_revenue_growth(symbol, market, years)
+                    revenue_data, metrics = result
+                except data_service.DataServiceError as e:
+                    data_service.handle_data_service_error(e)
                     return False
-
-                revenue_data, metrics = result
 
             # 获取收入字段名称（用于显示）
             if market == "A股":
