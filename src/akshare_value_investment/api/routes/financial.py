@@ -354,7 +354,6 @@ async def get_financial_indicators(
             market=market_enum,
             query_type=query_type_enum,
             symbol=symbol,
-            fields=None,
             start_date=None,
             end_date=None,
             frequency=frequency_enum

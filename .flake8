@@ -1,0 +1,19 @@
+[flake8]
+max-line-length = 120
+ignore = E501,E503,W503,E203,E402,W504
+exclude =
+    .git,
+    __pycache__,
+    venv,
+    .venv,
+    build,
+    dist,
+    *.egg-info,
+    .tox,
+    .pytest_cache,
+    htmlcov,
+    .mypy_cache,
+    node_modules
+
+per-file-ignores =
+    webapp/app.py: E402
