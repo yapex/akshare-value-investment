@@ -122,7 +122,7 @@ class EBITMarginComponent:
             )
 
             # 显示图表
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
             # 显示关键指标
             st.markdown("---")
@@ -144,7 +144,7 @@ class EBITMarginComponent:
 
             # 折叠的计算用原始数据表格
             with st.expander("📊 查看计算用原始数据"):
-                st.dataframe(ebit_data[display_cols], use_container_width=True, hide_index=True)
+                st.dataframe(ebit_data[display_cols], width='stretch', hide_index=True)
 
             return True
 

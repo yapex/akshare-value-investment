@@ -122,7 +122,7 @@ class RevenueGrowthComponent:
             )
 
             # 显示图表
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
             # 显示关键指标
             st.markdown("---")
@@ -147,7 +147,7 @@ class RevenueGrowthComponent:
                 display_data = revenue_data.copy()
                 display_data['增长率'] = display_data['增长率'].round(2)
                 display_data.loc[display_data['增长率'].isna(), '增长率'] = '-'
-                st.dataframe(display_data, use_container_width=True, hide_index=True)
+                st.dataframe(display_data, width='stretch', hide_index=True)
 
             return True
 
