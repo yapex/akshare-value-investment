@@ -442,3 +442,108 @@ class Calculator:
         }
 
         return ratio_data, display_cols, metrics
+
+    @staticmethod
+    def investment_intensity_ratio(data: Dict[str, pd.DataFrame], market: str) -> Tuple[pd.DataFrame, List[str]]:
+        """计算投资强度比率（资本支出 ÷ 折旧 × 100）
+
+        投资强度比率是判断公司是否在为增长投入资金的重要指标：
+        - 接近100%：公司在为维持现有业务的固定资产投资（维护性投资）
+        - 远高于100%：公司在为增长进行投资（扩张性投资）
+        - 低于100%：公司资本支出不足，可能影响未来竞争力
+
+        Args:
+            data: 包含现金流量表的字典 {"cash_flow": DataFrame}
+            market: 市场类型（A股/港股/美股）
+
+        Returns:
+            (添加了投资强度比率字段的DataFrame, 显示列名列表)
+        """
+        cashflow_df = data["cash_flow"].copy()
+
+        # 根据市场提取资本支出和折旧字段
+        if market == "A股":
+            capex_col = "购建固定资产、无形资产和其他长期资产支付的现金"
+            depreciation_col = "固定资产折旧、油气资产折耗、生产性生物资产折旧"
+            # 检查字段是否存在
+            if capex_col not in cashflow_df.columns:
+                raise ValueError(f"资本支出字段 '{capex_col}' 不存在")
+            if depreciation_col not in cashflow_df.columns:
+                raise ValueError(f"折旧字段 '{depreciation_col}' 不存在")
+            # 计算资本支出和折旧
+            cashflow_df['资本支出'] = cashflow_df[capex_col].abs()
+            cashflow_df['折旧'] = cashflow_df[depreciation_col].abs()
+
+        elif market == "港股":
+            capex_col = "购建固定资产"
+            depreciation_col = "加:折旧及摊销"
+            # 检查字段是否存在
+            if capex_col not in cashflow_df.columns:
+                raise ValueError(f"资本支出字段 '{capex_col}' 不存在")
+            if depreciation_col not in cashflow_df.columns:
+                raise ValueError(f"折旧字段 '{depreciation_col}' 不存在")
+            # 计算资本支出和折旧
+            cashflow_df['资本支出'] = cashflow_df[capex_col].abs()
+            cashflow_df['折旧'] = cashflow_df[depreciation_col].abs()
+
+        else:  # 美股
+            # 美股的资本支出 = 购买固定资产 + 购建无形资产及其他资产
+            capex_col_1 = "购买固定资产"
+            capex_col_2 = "购建无形资产及其他资产"
+            depreciation_col = "折旧及摊销"
+            # 检查字段是否存在
+            if depreciation_col not in cashflow_df.columns:
+                raise ValueError(f"折旧字段 '{depreciation_col}' 不存在")
+            # 计算资本支出和折旧
+            capex_1 = cashflow_df.get(capex_col_1, 0).abs()
+            capex_2 = cashflow_df.get(capex_col_2, 0).abs()
+            cashflow_df['资本支出'] = (capex_1 + capex_2).fillna(0)
+            cashflow_df['折旧'] = cashflow_df[depreciation_col].abs()
+
+        # 计算投资强度比率（资本支出 / 折旧 * 100）
+        cashflow_df['投资强度比率'] = (
+            cashflow_df['资本支出'] /
+            cashflow_df['折旧'].replace(0, pd.NA) * 100
+        ).round(2)
+
+        display_columns = [
+            "年份",
+            "资本支出",
+            "折旧",
+            "投资强度比率"
+        ]
+
+        return cashflow_df, display_columns
+
+    @staticmethod
+    def calculate_investment_intensity_ratio(symbol: str, market: str, years: int) -> Tuple[pd.DataFrame, List[str], Dict[str, float]]:
+        """计算投资强度比率分析（包含数据获取）
+
+        Args:
+            symbol: 股票代码
+            market: 市场类型（A股/港股/美股）
+            years: 查询年数
+
+        Returns:
+            (结果DataFrame, 显示列名列表, 指标字典)
+
+        Raises:
+            data_service.SymbolNotFoundError: 股票代码未找到
+            data_service.APIServiceUnavailableError: API服务不可用
+            data_service.DataServiceError: 其他数据错误
+        """
+        financial_data = data_service.get_financial_statements(symbol, market, years)
+        ratio_data, display_cols = Calculator.investment_intensity_ratio(financial_data, market)
+        ratio_data = ratio_data.sort_values("年份").reset_index(drop=True)
+
+        # 计算指标
+        metrics = {
+            "avg_ratio": ratio_data['投资强度比率'].mean(),
+            "latest_ratio": ratio_data['投资强度比率'].iloc[-1],
+            "min_ratio": ratio_data['投资强度比率'].min(),
+            "max_ratio": ratio_data['投资强度比率'].max(),
+            "cumulative_capex": ratio_data['资本支出'].sum(),
+            "cumulative_depreciation": ratio_data['折旧'].sum()
+        }
+
+        return ratio_data, display_cols, metrics
