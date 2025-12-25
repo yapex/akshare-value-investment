@@ -1239,7 +1239,7 @@ class Calculator:
         if market == "A股":
             equity_col = "所有者权益（或股东权益）合计"
         elif market == "港股":
-            equity_col = "股东权益合计"
+            equity_col = "股东权益"
         else:  # 美股
             equity_col = "股东权益合计"
 
