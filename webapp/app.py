@@ -132,10 +132,6 @@ if should_analyze:
     st.session_state.last_params = current_params
     st.session_state.initialized = True
 
-# 刷新按钮
-if st.button("🔄 刷新分析", type="secondary"):
-    st.rerun()
-
 # 渲染组件
 if selected_component == "全部显示":
     # 使用Tab标签页分组显示
