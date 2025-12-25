@@ -669,12 +669,30 @@ class Calculator:
             result_df["实际税率"] = 0.21  # 美国联邦税率21%
 
         # 使用统一方法计算有息债务
+        # 先给balance_df添加年份列用于merge
         balance_df_with_year = balance_df.copy()
-        balance_df_with_year["年份"] = result_df["年份"]
+        if "报告期" in balance_df.columns:
+            date_col = "报告期"
+        elif "REPORT_DATE" in balance_df.columns:
+            date_col = "REPORT_DATE"
+        elif "date" in balance_df.columns:
+            date_col = "date"
+        else:
+            date_col = list(balance_df.columns)[1]  # 假设第二列是日期
+
+        balance_df_with_year["年份"] = pd.to_datetime(balance_df_with_year[date_col]).dt.year
+
+        # 计算有息债务
         interest_bearing_debt = Calculator.calculate_interest_bearing_debt(balance_df_with_year, market)
 
+        # 通过merge将有息债务关联到result_df
+        debt_df = pd.DataFrame({
+            "年份": balance_df_with_year["年份"],
+            "有息债务": interest_bearing_debt.values
+        })
+        result_df = pd.merge(result_df, debt_df, on="年份", how="left")
+
         # 计算投入资本 = 股东权益 + 有息债务
-        result_df["有息债务"] = interest_bearing_debt.values
         result_df["投入资本"] = (
             result_df[equity_col].fillna(0) +
             result_df["有息债务"]
