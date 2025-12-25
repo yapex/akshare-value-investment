@@ -22,15 +22,24 @@ from components.free_cash_flow_ratio import FreeCashFlowRatioComponent
 from components.roic import ROICComponent
 # from components.roe import ROEComponent  # 暂时不用
 
-# 配置：分析组件列表
-ANALYSIS_COMPONENTS = [
-    NetProfitCashRatioComponent,
-    RevenueGrowthComponent,
-    EBITMarginComponent,
-    FreeCashFlowRatioComponent,
-    ROICComponent,
-    # ROEComponent,  # 暂时不用
-]
+# 配置：分析组件列表（按分组组织）
+ANALYSIS_GROUPS = {
+    "💰 盈利分析": [
+        NetProfitCashRatioComponent,
+        RevenueGrowthComponent,
+        EBITMarginComponent,
+        FreeCashFlowRatioComponent,
+        ROICComponent,
+    ],
+    "💳 债务分析": [
+        # ROEComponent,  # 暂时不用
+    ]
+}
+
+# 扁平化组件列表（用于快速导航）
+ANALYSIS_COMPONENTS = []
+for components in ANALYSIS_GROUPS.values():
+    ANALYSIS_COMPONENTS.extend(components)
 
 # 创建容器，获取股票识别器
 container = create_container()
@@ -129,9 +138,18 @@ if st.button("🔄 刷新分析", type="secondary"):
 
 # 渲染组件
 if selected_component == "全部显示":
-    # 显示所有组件
-    for component in ANALYSIS_COMPONENTS:
-        component.render(symbol, market, years)
+    # 使用Tab标签页分组显示
+    group_names = list(ANALYSIS_GROUPS.keys())
+    tabs = st.tabs(group_names)
+
+    for tab, group_name in zip(tabs, group_names):
+        with tab:
+            components = ANALYSIS_GROUPS[group_name]
+            if not components:
+                st.info("📭 该分类下暂无分析模块")
+            else:
+                for component in components:
+                    component.render(symbol, market, years)
 else:
     # 只显示选中的组件
     for component in ANALYSIS_COMPONENTS:
