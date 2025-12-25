@@ -20,7 +20,7 @@ from components.revenue_growth import RevenueGrowthComponent
 from components.ebit_margin import EBITMarginComponent
 from components.free_cash_flow_ratio import FreeCashFlowRatioComponent
 from components.roic import ROICComponent
-from components.roe import ROEComponent
+# from components.roe import ROEComponent  # 暂时不用
 
 # 配置：分析组件列表
 ANALYSIS_COMPONENTS = [
@@ -29,7 +29,7 @@ ANALYSIS_COMPONENTS = [
     EBITMarginComponent,
     FreeCashFlowRatioComponent,
     ROICComponent,
-    ROEComponent,
+    # ROEComponent,  # 暂时不用
 ]
 
 # 创建容器，获取股票识别器
@@ -42,10 +42,6 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
-
-# 标题
-st.title("📊 股票质量分析")
-st.markdown("---")
 
 # ==================== 侧边栏：股票选择 ====================
 st.sidebar.header("📈 股票选择")
@@ -86,6 +82,10 @@ symbol = identified_symbol
 
 # 显示识别结果
 st.sidebar.info(f"🎯 识别结果：**{market}** - `{symbol}`")
+
+# 标题（动态显示股票代码）
+st.title(f"📊 股票质量分析 - {symbol}")
+st.markdown("---")
 
 years = st.sidebar.slider(
     "查询年数",
@@ -144,3 +144,4 @@ else:
             # 渲染该组件
             component.render(symbol, market, years)
             break
+

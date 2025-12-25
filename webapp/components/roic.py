@@ -47,8 +47,14 @@ class ROICComponent:
 
                 **计算公式：**
                 - NOPAT = EBIT × (1 - 税率)
-                - 投入资本 = 股东权益（简化版）
+                - 投入资本 = 股东权益 + 有息负债
                 - ROIC = NOPAT ÷ 投入资本 × 100%
+
+                **运营ROIC（剔除非经营性资产）：**
+                - 剔除了不直接参与业务运营的资产（商誉、现金等）
+                - 运营投入资本 = 投入资本 - 非经营性资产
+                - 运营ROIC = NOPAT ÷ 运营投入资本 × 100%
+                - 能更准确地反映企业核心业务的投资回报率
 
                 **指标解读：**
                 - **> 20%**：卓越！公司资本利用效率极高，护城河深厚
@@ -61,33 +67,40 @@ class ROICComponent:
                 - ROIC衡量的是**业务本身**的回报能力
                 - 真正的价值创造者，ROIC > WACC（加权平均资本成本）
 
-                **典型场景：**
-                - 超高ROIC（>30%）：茅台、高端奢侈品、软件SaaS
-                - 高ROIC（20-30%）：消费品牌、优质制造
-                - 中等ROIC（10-20%）：一般制造业、服务业
-                - 低ROIC（<10%）：竞争激烈行业、重资产行业
-
                 **投资意义：**
                 ROIC持续 > 15% 的公司，往往是长期投资的好标的！
+                运营ROIC通常高于ROIC，因为剔除了非经营性资产。
                 """
             )
 
             with st.spinner(f"正在获取 {market} 股票 {symbol} 的ROIC数据..."):
                 try:
                     result = Calculator.calculate_roic(symbol, market, years)
-                    roic_data, display_cols, metrics = result
+                    (
+                        roic_data,
+                        operating_roic_data,
+                        dupont_data,
+                        roic_display_cols,
+                        operating_display_cols,
+                        dupont_display_cols,
+                        roic_metrics,
+                        operating_roic_metrics,
+                        exclusion_info
+                    ) = result
                 except data_service.DataServiceError as e:
                     data_service.handle_data_service_error(e)
                     return False
 
-            # 创建双Y轴图表
-            fig = make_subplots(
+            # ========== 第1行：ROIC图表 ==========
+            st.markdown("#### 📈 ROIC（全投入资本）")
+
+            fig1 = make_subplots(
                 specs=[[{"secondary_y": True}]],
                 subplot_titles=[f"{symbol} - 投入资本回报率分析"]
             )
 
-            # 添加投入资本柱状图（主Y轴）- 想要显示在左边，需要先添加
-            fig.add_trace(
+            # 添加投入资本柱状图（主Y轴）
+            fig1.add_trace(
                 go.Bar(
                     x=roic_data['年份'],
                     y=roic_data['投入资本'],
@@ -98,8 +111,8 @@ class ROICComponent:
                 secondary_y=False
             )
 
-            # 添加NOPAT柱状图（主Y轴）- 后添加显示在右边
-            fig.add_trace(
+            # 添加NOPAT柱状图（主Y轴）
+            fig1.add_trace(
                 go.Bar(
                     x=roic_data['年份'],
                     y=roic_data['NOPAT'],
@@ -111,7 +124,7 @@ class ROICComponent:
             )
 
             # 添加ROIC折线图（副Y轴）
-            fig.add_trace(
+            fig1.add_trace(
                 go.Scatter(
                     x=roic_data['年份'],
                     y=roic_data['ROIC'],
@@ -124,7 +137,7 @@ class ROICComponent:
             )
 
             # 添加参考线（15%优秀线）
-            fig.add_trace(
+            fig1.add_trace(
                 go.Scatter(
                     x=roic_data['年份'],
                     y=[15] * len(roic_data['年份']),
@@ -137,62 +150,319 @@ class ROICComponent:
             )
 
             # 设置Y轴标题
-            fig.update_yaxes(title_text="金额", secondary_y=False)
-            fig.update_yaxes(title_text="ROIC (%)", secondary_y=True)
+            fig1.update_yaxes(title_text="金额", secondary_y=False)
+            fig1.update_yaxes(title_text="ROIC (%)", secondary_y=True)
 
             # 设置布局
-            fig.update_layout(
+            fig1.update_layout(
                 xaxis_title="年份",
                 hovermode="x unified",
-                height=500,
+                height=450,
                 barmode='group',
-                legend={'traceorder': 'normal'}
+                legend={'traceorder': 'normal'},
+                showlegend=True
             )
 
             # 交换前两个柱状图的位置，使投入资本显示在左边
-            # 获取所有traces
-            traces = list(fig.data)
-            # 交换第1和第2个trace（索引0和1）
-            traces[0], traces[1] = traces[1], traces[0]
-            # 重新赋值
-            fig.data = tuple(traces)
+            traces1 = list(fig1.data)
+            traces1[0], traces1[1] = traces1[1], traces1[0]
+            fig1.data = tuple(traces1)
 
-            # 显示图表
-            st.plotly_chart(fig, width='stretch')
+            # 显示第1行图表
+            st.plotly_chart(fig1, width='stretch')
 
-            # 显示关键指标
-            st.markdown("---")
-            st.subheader("📊 关键指标")
-
+            # ROIC关键指标
+            st.markdown("##### 📊 ROIC关键指标")
             col1, col2, col3, col4 = st.columns(4)
 
             with col1:
-                st.metric(label=f"{years}年平均ROIC", value=f"{metrics['avg_roic']:.2f}%", delta=None)
+                st.metric(
+                    label=f"{years}年平均ROIC",
+                    value=f"{roic_metrics['avg_roic']:.2f}%",
+                    delta=None,
+                    help="ROIC = NOPAT ÷ 投入资本 × 100%"
+                )
 
             with col2:
-                st.metric(label="最新ROIC", value=f"{metrics['latest_roic']:.2f}%", delta=None)
+                st.metric(
+                    label="最新ROIC",
+                    value=f"{roic_metrics['latest_roic']:.2f}%",
+                    delta=None,
+                    help="最新年度的ROIC值"
+                )
 
             with col3:
-                st.metric(label="最低ROIC", value=f"{metrics['min_roic']:.2f}%", delta=None)
+                st.metric(
+                    label="最低ROIC",
+                    value=f"{roic_metrics['min_roic']:.2f}%",
+                    delta=None,
+                    help=f"{years}年内最低ROIC"
+                )
 
             with col4:
-                st.metric(label="最高ROIC", value=f"{metrics['max_roic']:.2f}%", delta=None)
+                st.metric(
+                    label="最高ROIC",
+                    value=f"{roic_metrics['max_roic']:.2f}%",
+                    delta=None,
+                    help=f"{years}年内最高ROIC"
+                )
 
-            # 显示辅助指标
             st.markdown("---")
-            st.subheader("💡 辅助指标")
 
-            col5, col6 = st.columns(2)
+            # ========== 第2行：ROIC拆解分析 ==========
+            help_text = """
+            **杜邦分析法拆解ROIC**：ROIC = NOPAT利润率 × 资本周转率
+
+            **NOPAT利润率（盈利能力）**：
+            - 公式：NOPAT利润率 = NOPAT ÷ 收入 × 100%
+            - 含义：每单位收入创造的税后净营业利润
+            - 反映：公司的定价权和成本控制能力
+
+            **资本周转率（营运效率）**：
+            - 公式：资本周转率 = 收入 ÷ 投入资本
+            - 含义：每单位投入资本产生的收入
+            - 反映：公司的资产使用效率和营运能力
+
+            **投资意义**：
+            - 高利润率 + 高周转率 = 卓越企业（具有定价权和高效运营）
+            - 高利润率 + 低周转率 = 品牌溢价型企业（奢侈品、高端制造）
+            - 低利润率 + 高周转率 = 薄利多销型企业（零售、快消品）
+            - 低利润率 + 低周转率 = 需要警惕的企业
+            """
+
+            st.markdown("#### 🔍 ROIC拆解分析（杜邦分析法）", help=help_text)
+
+            # 创建拆解图表
+            fig_dupont = make_subplots(
+                specs=[[{"secondary_y": False}]],
+                subplot_titles=[f"{symbol} - ROIC杜邦拆解：利润率 vs 周转率"]
+            )
+
+            # 添加NOPAT利润率折线图
+            fig_dupont.add_trace(
+                go.Scatter(
+                    x=dupont_data['年份'],
+                    y=dupont_data['NOPAT利润率'],
+                    name='NOPAT利润率',
+                    mode='lines+markers',
+                    line=dict(color='blue', width=3),
+                    marker=dict(size=10)
+                ),
+                secondary_y=False
+            )
+
+            # 添加资本周转率折线图（转换为百分比以便对比）
+            fig_dupont.add_trace(
+                go.Scatter(
+                    x=dupont_data['年份'],
+                    y=dupont_data['资本周转率'] * 100,
+                    name='资本周转率 (×100)',
+                    mode='lines+markers',
+                    line=dict(color='green', width=3),
+                    marker=dict(size=10)
+                ),
+                secondary_y=False
+            )
+
+            # 设置Y轴标题
+            fig_dupont.update_yaxes(title_text="%")
+
+            # 设置布局
+            fig_dupont.update_layout(
+                xaxis_title="年份",
+                hovermode="x unified",
+                height=450,
+                legend={'traceorder': 'normal'},
+                showlegend=True
+            )
+
+            # 显示拆解图表
+            st.plotly_chart(fig_dupont, width='stretch')
+
+            # ROIC拆解关键指标
+            st.markdown("##### 📊 ROIC拆解关键指标")
+            col9, col10, col11, col12 = st.columns(4)
+
+            with col9:
+                st.metric(
+                    label=f"{years}年平均NOPAT利润率",
+                    value=f"{roic_metrics['avg_nopat_margin']:.2f}%",
+                    delta=None,
+                    help="盈利能力：每单位收入创造的税后净营业利润"
+                )
+
+            with col10:
+                st.metric(
+                    label="最新NOPAT利润率",
+                    value=f"{roic_metrics['latest_nopat_margin']:.2f}%",
+                    delta=None,
+                    help="最新年度的NOPAT利润率"
+                )
+
+            st.markdown("---")
+
+            # ========== 第3行：运营ROIC图表 ==========
+            st.markdown("#### 🚀 运营ROIC（剔除非经营性资产）")
+
+            # 显示非经营性资产剔除说明
+            st.info(f"💡 **{exclusion_info['exclusion_note']}**")
+
+            fig2 = make_subplots(
+                specs=[[{"secondary_y": True}]],
+                subplot_titles=[f"{symbol} - 运营投入资本回报率分析"]
+            )
+
+            # 添加运营投入资本柱状图（主Y轴）
+            fig2.add_trace(
+                go.Bar(
+                    x=operating_roic_data['年份'],
+                    y=operating_roic_data['运营投入资本'],
+                    name='运营投入资本',
+                    marker_color='lightgreen',
+                    opacity=0.7
+                ),
+                secondary_y=False
+            )
+
+            # 添加NOPAT柱状图（主Y轴）
+            fig2.add_trace(
+                go.Bar(
+                    x=operating_roic_data['年份'],
+                    y=operating_roic_data['NOPAT'],
+                    name='NOPAT（税后净营业利润）',
+                    marker_color='lightblue',
+                    opacity=0.7
+                ),
+                secondary_y=False
+            )
+
+            # 添加非经营性资产柱状图（主Y轴）
+            fig2.add_trace(
+                go.Bar(
+                    x=operating_roic_data['年份'],
+                    y=operating_roic_data['非经营性资产'],
+                    name='非经营性资产（已剔除）',
+                    marker_color='lightgray',
+                    opacity=0.5
+                ),
+                secondary_y=False
+            )
+
+            # 添加运营ROIC折线图（副Y轴）
+            fig2.add_trace(
+                go.Scatter(
+                    x=operating_roic_data['年份'],
+                    y=operating_roic_data['运营ROIC'],
+                    name='运营ROIC',
+                    mode='lines+markers',
+                    line=dict(color='darkgreen', width=3),
+                    marker=dict(size=10)
+                ),
+                secondary_y=True
+            )
+
+            # 添加参考线（15%优秀线）
+            fig2.add_trace(
+                go.Scatter(
+                    x=operating_roic_data['年份'],
+                    y=[15] * len(operating_roic_data['年份']),
+                    mode='lines',
+                    name='优秀线 (15%)',
+                    line=dict(color='orange', width=2, dash='dash'),
+                    hoverinfo='skip'
+                ),
+                secondary_y=True
+            )
+
+            # 设置Y轴标题
+            fig2.update_yaxes(title_text="金额", secondary_y=False)
+            fig2.update_yaxes(title_text="运营ROIC (%)", secondary_y=True)
+
+            # 设置布局
+            fig2.update_layout(
+                xaxis_title="年份",
+                hovermode="x unified",
+                height=450,
+                barmode='group',
+                legend={'traceorder': 'normal'},
+                showlegend=True
+            )
+
+            # 交换柱状图的位置，使运营投入资本显示在最左边
+            traces2 = list(fig2.data)
+            # 顺序调整为：运营投入资本, NOPAT, 非经营性资产
+            traces2[0], traces2[1], traces2[2] = traces2[1], traces2[0], traces2[2]
+            fig2.data = tuple(traces2)
+
+            # 显示第2行图表
+            st.plotly_chart(fig2, width='stretch')
+
+            # 运营ROIC关键指标
+            st.markdown("##### 📊 运营ROIC关键指标")
+            col5, col6, col7, col8 = st.columns(4)
 
             with col5:
-                st.metric(label="平均NOPAT", value=f"{metrics['avg_nopat']:.2f}", delta=None)
+                st.metric(
+                    label=f"{years}年平均运营ROIC",
+                    value=f"{operating_roic_metrics['avg_operating_roic']:.2f}%",
+                    delta=None
+                )
 
             with col6:
-                st.metric(label="平均投入资本", value=f"{metrics['avg_capital']:.2f}", delta=None)
+                st.metric(
+                    label="最新运营ROIC",
+                    value=f"{operating_roic_metrics['latest_operating_roic']:.2f}%",
+                    delta=None
+                )
 
-            # 折叠的原始数据表格
-            with st.expander("📊 查看计算用原始数据"):
-                st.dataframe(roic_data[display_cols], width='stretch', hide_index=True)
+            with col7:
+                st.metric(
+                    label="最低运营ROIC",
+                    value=f"{operating_roic_metrics['min_operating_roic']:.2f}%",
+                    delta=None
+                )
+
+            with col8:
+                st.metric(
+                    label="最高运营ROIC",
+                    value=f"{operating_roic_metrics['max_operating_roic']:.2f}%",
+                    delta=None
+                )
+
+            # 运营ROIC辅助指标
+            st.markdown("##### 💡 运营ROIC辅助指标")
+            col9, col10 = st.columns(2)
+
+            with col9:
+                st.metric(
+                    label="平均运营投入资本",
+                    value=f"{operating_roic_metrics['avg_operating_capital']:.2f}",
+                    delta=None,
+                    help="剔除非经营性资产后的投入资本"
+                )
+
+            with col10:
+                avg_capital = roic_metrics['avg_capital']
+                avg_operating_capital = operating_roic_metrics['avg_operating_capital']
+                avg_exclusion = avg_capital - avg_operating_capital
+                exclusion_ratio = (avg_exclusion / avg_capital * 100) if avg_capital != 0 else 0
+                st.metric(
+                    label="平均非经营性资产占比",
+                    value=f"{exclusion_ratio:.2f}%",
+                    delta=None,
+                    help="非经营性资产占总投入资本的比例"
+                )
+
+            # ========== 折叠的原始数据表格 ==========
+            st.markdown("---")
+            with st.expander("📊 查看普通ROIC计算用原始数据"):
+                st.dataframe(roic_data[roic_display_cols], width='stretch', hide_index=True)
+
+            with st.expander("📊 查看ROIC拆解分析数据"):
+                st.dataframe(dupont_data[dupont_display_cols], width='stretch', hide_index=True)
+
+            with st.expander("📊 查看运营ROIC计算用原始数据"):
+                st.dataframe(operating_roic_data[operating_display_cols], width='stretch', hide_index=True)
 
             return True
 
