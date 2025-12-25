@@ -19,6 +19,56 @@ class Calculator:
     """财务指标计算器"""
 
     @staticmethod
+    def calculate_interest_bearing_debt(balance_df: pd.DataFrame, market: str) -> pd.Series:
+        """计算有息债务（统一的计算方法）
+
+        有息债务是指需要支付利息的债务，包括：
+        - 短期借款/短期债务
+        - 长期借款/长期债务
+        - 应付债券（A股特有）
+        - 一年内到期的非流动负债
+
+        Args:
+            balance_df: 资产负债表DataFrame（需包含"年份"列）
+            market: 市场类型（A股/港股/美股）
+
+        Returns:
+            有息债务的Series（与balance_df同长度）
+        """
+        # 根据市场映射字段
+        if market == "A股":
+            short_debt_col = "短期借款"
+            long_debt_col = "长期借款"
+            bonds_col = "应付债券"
+            current_non_current_col = "一年内到期的非流动负债"
+        elif market == "港股":
+            short_debt_col = "短期贷款"
+            long_debt_col = "长期贷款"
+            bonds_col = None  # 港股可能没有单独的应付债券字段
+            current_non_current_col = None  # 港股暂不统计
+        else:  # 美股
+            short_debt_col = "短期债务"
+            long_debt_col = "长期负债"
+            bonds_col = None  # 美股可能没有单独的应付债券字段
+            current_non_current_col = "长期负债(本期部分)"
+
+        # 计算有息债务
+        interest_bearing_debt = (
+            balance_df.get(short_debt_col, pd.Series([0] * len(balance_df))).fillna(0) +
+            balance_df.get(long_debt_col, pd.Series([0] * len(balance_df))).fillna(0)
+        )
+
+        # 添加应付债券（如果存在）
+        if bonds_col and bonds_col in balance_df.columns:
+            interest_bearing_debt += balance_df[bonds_col].fillna(0)
+
+        # 添加一年内到期的非流动负债（如果存在）
+        if current_non_current_col and current_non_current_col in balance_df.columns:
+            interest_bearing_debt += balance_df[current_non_current_col].fillna(0)
+
+        return interest_bearing_debt
+
+    @staticmethod
     def cagr(series: pd.Series) -> float:
         """计算复合年增长率(CAGR)
 
@@ -578,8 +628,6 @@ class Calculator:
         # 根据市场提取字段
         if market == "A股":
             equity_col = "归属于母公司所有者权益合计"
-            short_debt_col = "短期借款"
-            long_debt_col = "长期借款"
             tax_col = "减：所得税费用"
 
             # A股：从原始利润表中获取所得税费用（避免字段重命名问题）
@@ -590,7 +638,7 @@ class Calculator:
             )
             result_df = pd.merge(
                 result_df,
-                balance_df.loc[:, ["年份", equity_col, short_debt_col, long_debt_col]],
+                balance_df.loc[:, ["年份", equity_col]],
                 on="年份"
             )
             # 计算实际税率
@@ -598,13 +646,11 @@ class Calculator:
 
         elif market == "港股":
             equity_col = "股东权益"
-            short_debt_col = "短期贷款"
-            long_debt_col = "长期贷款"
 
             # 港股：合并利润表和资产负债表
             result_df = pd.merge(
                 income_df.loc[:, ["年份", "EBIT", "收入"]],
-                balance_df.loc[:, ["年份", equity_col, short_debt_col, long_debt_col]],
+                balance_df.loc[:, ["年份", equity_col]],
                 on="年份"
             )
             # 港股使用固定税率
@@ -612,23 +658,26 @@ class Calculator:
 
         else:  # 美股
             equity_col = "股东权益合计"
-            short_debt_col = "短期债务"
-            long_debt_col = "长期负债"
 
             # 美股：合并利润表和资产负债表
             result_df = pd.merge(
                 income_df.loc[:, ["年份", "EBIT", "收入"]],
-                balance_df.loc[:, ["年份", equity_col, short_debt_col, long_debt_col]],
+                balance_df.loc[:, ["年份", equity_col]],
                 on="年份"
             )
             # 美股使用固定税率
             result_df["实际税率"] = 0.21  # 美国联邦税率21%
 
-        # 计算投入资本 = 股东权益 + 有息负债（短期借款 + 长期借款）
+        # 使用统一方法计算有息债务
+        balance_df_with_year = balance_df.copy()
+        balance_df_with_year["年份"] = result_df["年份"]
+        interest_bearing_debt = Calculator.calculate_interest_bearing_debt(balance_df_with_year, market)
+
+        # 计算投入资本 = 股东权益 + 有息债务
+        result_df["有息债务"] = interest_bearing_debt.values
         result_df["投入资本"] = (
             result_df[equity_col].fillna(0) +
-            result_df[short_debt_col].fillna(0) +
-            result_df[long_debt_col].fillna(0)
+            result_df["有息债务"]
         )
 
         # 计算 NOPAT（税后净营业利润）
@@ -636,9 +685,7 @@ class Calculator:
 
         # 返回字段映射
         field_mapping = {
-            "equity_col": equity_col,
-            "short_debt_col": short_debt_col,
-            "long_debt_col": long_debt_col
+            "equity_col": equity_col
         }
 
         return result_df, field_mapping
@@ -1170,52 +1217,23 @@ class Calculator:
         balance_df = balance_df.copy()
         balance_df["年份"] = pd.to_datetime(balance_df[date_col]).dt.year
 
-        # 根据市场映射字段
+        # 根据市场映射股东权益字段
         if market == "A股":
-            short_debt_col = "短期借款"
-            long_debt_col = "长期借款"
-            bonds_col = "应付债券"
-            current_non_current_col = "一年内到期的非流动负债"
             equity_col = "所有者权益（或股东权益）合计"
         elif market == "港股":
-            short_debt_col = "短期债务"
-            long_debt_col = "长期负债"
-            bonds_col = None  # 港股可能没有单独的应付债券字段
-            current_non_current_col = "长期负债(本期部分)"
             equity_col = "股东权益合计"
         else:  # 美股
-            short_debt_col = "短期债务"
-            long_debt_col = "长期负债"
-            bonds_col = None  # 美股可能没有单独的应付债券字段
-            current_non_current_col = "长期负债(本期部分)"
             equity_col = "股东权益合计"
 
+        # 使用统一方法计算有息债务
+        interest_bearing_debt = Calculator.calculate_interest_bearing_debt(balance_df, market)
+
         # 构建债务数据
-        debt_data = pd.DataFrame({"年份": balance_df["年份"]})
-
-        # 添加各类债务（处理可能的缺失字段）
-        debt_data["短期借款"] = balance_df.get(short_debt_col, pd.Series([0] * len(balance_df))).fillna(0)
-        debt_data["长期借款"] = balance_df.get(long_debt_col, pd.Series([0] * len(balance_df))).fillna(0)
-
-        if bonds_col and bonds_col in balance_df.columns:
-            debt_data["应付债券"] = balance_df[bonds_col].fillna(0)
-        else:
-            debt_data["应付债券"] = 0
-
-        if current_non_current_col and current_non_current_col in balance_df.columns:
-            debt_data["一年内到期的非流动负债"] = balance_df[current_non_current_col].fillna(0)
-        else:
-            debt_data["一年内到期的非流动负债"] = 0
-
-        debt_data["股东权益"] = balance_df[equity_col].fillna(0)
-
-        # 计算有息债务
-        debt_data["有息债务"] = (
-            debt_data["短期借款"] +
-            debt_data["长期借款"] +
-            debt_data["应付债券"] +
-            debt_data["一年内到期的非流动负债"]
-        )
+        debt_data = pd.DataFrame({
+            "年份": balance_df["年份"],
+            "有息债务": interest_bearing_debt.values,
+            "股东权益": balance_df[equity_col].fillna(0)
+        })
 
         # 计算有息债务权益比
         debt_data["有息债务权益比"] = (
@@ -1236,7 +1254,6 @@ class Calculator:
         }
 
         # 显示列名
-        display_cols = ["年份", "短期借款", "长期借款", "应付债券", "一年内到期的非流动负债",
-                       "有息债务", "股东权益", "有息债务权益比"]
+        display_cols = ["年份", "有息债务", "股东权益", "有息债务权益比"]
 
         return debt_data, display_cols, metrics
