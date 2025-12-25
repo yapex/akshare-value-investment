@@ -20,6 +20,7 @@ from components.revenue_growth import RevenueGrowthComponent
 from components.ebit_margin import EBITMarginComponent
 from components.free_cash_flow_ratio import FreeCashFlowRatioComponent
 from components.roic import ROICComponent
+from components.debt_to_equity import DebtToEquityComponent
 # from components.roe import ROEComponent  # 暂时不用
 
 # 配置：分析组件列表（按分组组织）
@@ -32,6 +33,7 @@ ANALYSIS_GROUPS = {
         ROICComponent,
     ],
     "💳 债务分析": [
+        DebtToEquityComponent,
         # ROEComponent,  # 暂时不用
     ]
 }
