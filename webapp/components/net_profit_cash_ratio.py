@@ -133,8 +133,9 @@ class NetProfitCashRatioComponent:
                 barmode='group'
             )
 
-            # 显示图表
-            st.plotly_chart(fig, width='stretch')
+            # 显示图表（使用动态key避免重复渲染时的冲突）
+            chart_key = f"net_profit_cash_ratio_{symbol}_{market}"
+            st.plotly_chart(fig, width='stretch', key=chart_key)
 
             # 显示关键指标
             st.markdown("---")

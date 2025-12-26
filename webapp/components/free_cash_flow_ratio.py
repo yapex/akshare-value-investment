@@ -212,8 +212,9 @@ class FreeCashFlowRatioComponent:
                 showlegend=True
             )
 
-            # 显示图表
-            st.plotly_chart(fig, width='stretch')
+            # 显示图表（使用动态key避免重复渲染时的冲突）
+            chart_key = f"free_cash_flow_ratio_{symbol}_{market}"
+            st.plotly_chart(fig, width='stretch', key=chart_key)
 
             # 显示自由现金流关键指标
             st.markdown("---")
