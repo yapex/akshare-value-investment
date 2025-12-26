@@ -28,7 +28,10 @@ class LiquidityRatioComponent:
         import pandas as pd
         import requests
 
-        from services.calculator import Calculator
+        from services.calculators.liquidity_ratio import (
+            calculate as calculate_liquidity,
+            calculate_interest_coverage_ratio
+        )
         from services import data_service
 
         try:
@@ -147,7 +150,8 @@ class LiquidityRatioComponent:
                     elif market == "港股":
                         # 港股需要单独计算速动比率
                         try:
-                            quick_ratio_df, _, _ = Calculator.calculate_quick_ratio_for_hk(symbol, years + 5)
+                            from services.calculators.liquidity_ratio import calculate as calculate_quick_ratio
+                            quick_ratio_df, _, _ = calculate_quick_ratio(symbol, years + 5)
                             liquidity_data = pd.merge(
                                 liquidity_data,
                                 quick_ratio_df[["年份", "速动比率"]],
@@ -167,7 +171,7 @@ class LiquidityRatioComponent:
 
             # ========== 2. 获取利息覆盖比率数据 ==========
             try:
-                interest_coverage_df, _, interest_metrics = Calculator.calculate_interest_coverage_ratio(
+                interest_coverage_df, _, interest_metrics = calculate_interest_coverage_ratio(
                     symbol, market, years
                 )
 

@@ -27,7 +27,10 @@ class FreeCashFlowRatioComponent:
         import plotly.graph_objects as go
         from plotly.subplots import make_subplots
 
-        from services.calculator import Calculator
+        from services.calculators.free_cash_flow_ratio import (
+            calculate as calculate_fcf_ratio,
+            calculate_investment_intensity_ratio
+        )
         from services import data_service
 
         try:
@@ -70,10 +73,10 @@ class FreeCashFlowRatioComponent:
             with st.spinner(f"正在获取 {market} 股票 {symbol} 的自由现金流和投资强度数据..."):
                 try:
                     # 获取自由现金流数据
-                    fcf_result = Calculator.calculate_free_cash_flow_to_net_income_ratio(symbol, market, years)
+                    fcf_result = calculate_fcf_ratio(symbol, market, years)
                     fcf_data, fcf_display_cols, fcf_metrics = fcf_result
                     # 获取投资强度数据
-                    inv_result = Calculator.calculate_investment_intensity_ratio(symbol, market, years)
+                    inv_result = calculate_investment_intensity_ratio(symbol, market, years)
                     inv_data, inv_display_cols, inv_metrics = inv_result
                 except data_service.DataServiceError as e:
                     data_service.handle_data_service_error(e)

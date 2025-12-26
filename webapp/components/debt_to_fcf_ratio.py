@@ -26,7 +26,7 @@ class DebtToFcfRatioComponent:
         import streamlit as st
         import plotly.graph_objects as go
 
-        from services.calculator import Calculator
+        from services.calculators.debt_to_fcf_ratio import calculate as calculate_dtf
         from services import data_service
 
         try:
@@ -69,7 +69,7 @@ class DebtToFcfRatioComponent:
 
             with st.spinner(f"正在获取 {market} 股票 {symbol} 的有息债务与自由现金流比率数据..."):
                 try:
-                    result = Calculator.calculate_debt_to_fcf_ratio(symbol, market, years)
+                    result = calculate_dtf(symbol, market, years)
                     ratio_data, display_cols, metrics = result
                 except data_service.DataServiceError as e:
                     data_service.handle_data_service_error(e)

@@ -27,7 +27,7 @@ class ROICComponent:
         import plotly.graph_objects as go
         from plotly.subplots import make_subplots
 
-        from services.calculator import Calculator
+        from services.calculators.roic import calculate as calculate_roic
         from services import data_service
 
         try:
@@ -74,7 +74,7 @@ class ROICComponent:
 
             with st.spinner(f"正在获取 {market} 股票 {symbol} 的ROIC数据..."):
                 try:
-                    result = Calculator.calculate_roic(symbol, market, years)
+                    result = calculate_roic(symbol, market, years)
                     (
                         roic_data,
                         operating_roic_data,

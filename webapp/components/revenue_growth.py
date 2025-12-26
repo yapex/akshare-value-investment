@@ -28,7 +28,7 @@ class RevenueGrowthComponent:
         import plotly.graph_objects as go
         from plotly.subplots import make_subplots
 
-        from services.calculator import Calculator
+        from services.calculators.revenue_growth import calculate as calculate_revenue_growth
         from services import data_service
 
         try:
@@ -65,8 +65,7 @@ class RevenueGrowthComponent:
 
             with st.spinner(f"正在获取 {market} 股票 {symbol} 的营业收入数据..."):
                 try:
-                    result = Calculator.calculate_revenue_growth(symbol, market, years)
-                    revenue_data, metrics = result
+                    revenue_data, metrics = calculate_revenue_growth(symbol, market, years)
                 except data_service.DataServiceError as e:
                     data_service.handle_data_service_error(e)
                     return False

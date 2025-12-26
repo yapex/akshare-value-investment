@@ -26,7 +26,7 @@ class CashFlowPatternComponent:
         import streamlit as st
         import plotly.graph_objects as go
 
-        from services.calculator import Calculator
+        from services.calculators.cash_flow_pattern import calculate as calculate_cfp
         from services import data_service
 
         try:
@@ -73,7 +73,7 @@ class CashFlowPatternComponent:
 
             with st.spinner(f"正在获取 {market} 股票 {symbol} 的现金流类型数据..."):
                 try:
-                    result = Calculator.calculate_cash_flow_pattern(symbol, market, years)
+                    result = calculate_cfp(symbol, market, years)
                     pattern_data, display_cols, stats = result
                 except data_service.DataServiceError as e:
                     data_service.handle_data_service_error(e)

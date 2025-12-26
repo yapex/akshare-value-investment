@@ -27,7 +27,7 @@ class NetProfitCashRatioComponent:
         import plotly.graph_objects as go
         from plotly.subplots import make_subplots
 
-        from services.calculator import Calculator
+        from services.calculators.net_profit_cash_ratio import calculate as calculate_npr
         from services import data_service
 
         try:
@@ -58,7 +58,7 @@ class NetProfitCashRatioComponent:
 
             with st.spinner(f"正在获取 {market} 股票 {symbol} 的净利润现金比数据..."):
                 try:
-                    result = Calculator.calculate_net_profit_cash_ratio(symbol, market, years)
+                    result = calculate_npr(symbol, market, years)
                     ratio_data, display_cols = result
                 except data_service.DataServiceError as e:
                     data_service.handle_data_service_error(e)

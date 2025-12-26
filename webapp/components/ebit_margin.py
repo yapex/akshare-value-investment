@@ -27,7 +27,7 @@ class EBITMarginComponent:
         import plotly.graph_objects as go
         from plotly.subplots import make_subplots
 
-        from services.calculator import Calculator
+        from services.calculators.ebit_margin import calculate as calculate_ebit_margin
         from services import data_service
 
         try:
@@ -72,8 +72,7 @@ class EBITMarginComponent:
 
             with st.spinner(f"正在获取 {market} 股票 {symbol} 的EBIT利润率数据..."):
                 try:
-                    result = Calculator.calculate_ebit_margin(symbol, market, years)
-                    ebit_data, display_cols, metrics = result
+                    ebit_data, display_cols, metrics = calculate_ebit_margin(symbol, market, years)
                 except data_service.DataServiceError as e:
                     data_service.handle_data_service_error(e)
                     return False

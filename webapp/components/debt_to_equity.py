@@ -26,7 +26,7 @@ class DebtToEquityComponent:
         import streamlit as st
         import plotly.graph_objects as go
 
-        from services.calculator import Calculator
+        from services.calculators.debt_to_equity import calculate as calculate_de
         from services import data_service
 
         try:
@@ -64,7 +64,7 @@ class DebtToEquityComponent:
 
             with st.spinner(f"正在获取 {market} 股票 {symbol} 的有息债务权益比数据..."):
                 try:
-                    result = Calculator.calculate_debt_to_equity(symbol, market, years)
+                    result = calculate_de(symbol, market, years)
                     debt_data, display_cols, metrics = result
                 except data_service.DataServiceError as e:
                     data_service.handle_data_service_error(e)

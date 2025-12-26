@@ -28,7 +28,7 @@ class ROEComponent:
         from plotly.subplots import make_subplots
         import pandas as pd
 
-        from services.calculator import Calculator
+        from services.calculators.roe import calculate as calculate_roe
         from services import data_service
 
         try:
@@ -78,7 +78,7 @@ class ROEComponent:
             with st.spinner(f"正在获取 {market} 股票 {symbol} 的ROE和杜邦分析数据..."):
                 try:
                     # 获取ROE和杜邦分析数据
-                    roe_data, dupont_data = Calculator.calculate_roe_with_dupont(symbol, market, years)
+                    roe_data, dupont_data = calculate_roe(symbol, market, years)
                 except data_service.DataServiceError as e:
                     data_service.handle_data_service_error(e)
                     return False

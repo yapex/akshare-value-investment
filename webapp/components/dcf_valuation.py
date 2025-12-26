@@ -25,7 +25,7 @@ class DCFValuationComponent:
         # 延迟导入，优化启动性能
         import streamlit as st
 
-        from services.calculator import Calculator
+        from services.calculators.dcf_valuation import calculate as calculate_dcf
         from services import data_service
 
         try:
@@ -74,7 +74,7 @@ class DCFValuationComponent:
                     "现金流增长率 (%)",
                     min_value=0.0,
                     max_value=50.0,
-                    value=5.0,
+                    value=9.0,
                     step=0.5,
                     format="%.1f",
                     help="预测期内自由现金流的预期年增长率"
@@ -112,7 +112,7 @@ class DCFValuationComponent:
 
             with st.spinner(f"正在计算 {market} 股票 {symbol} 的DCF估值..."):
                 try:
-                    result = Calculator.calculate_dcf_valuation(
+                    result = calculate_dcf(
                         symbol, market,
                         years=projection_years,
                         growth_rate=growth_rate,
