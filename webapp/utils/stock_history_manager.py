@@ -63,10 +63,13 @@ class StockHistoryManager:
 
     def _save_history(self):
         """保存历史记录到文件"""
-        data = {
-            symbol: asdict(item)
-            for symbol, item in self._history.items()
-        }
+        data = {}
+        for symbol, item in self._history.items():
+            # 转换为字典，并过滤掉None值
+            item_dict = asdict(item)
+            # 移除None值的字段
+            data[symbol] = {k: v for k, v in item_dict.items() if v is not None}
+
         with open(self.history_file, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
 
