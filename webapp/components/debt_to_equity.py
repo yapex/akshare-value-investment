@@ -30,7 +30,6 @@ class DebtToEquityComponent:
         from services import data_service
 
         try:
-            st.markdown("---")
             st.subheader(
                 DebtToEquityComponent.title,
                 help="""

@@ -31,7 +31,6 @@ class ROICComponent:
         from services import data_service
 
         try:
-            st.markdown("---")
             st.subheader(
                 ROICComponent.title,
                 help="""
