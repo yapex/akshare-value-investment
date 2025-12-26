@@ -1309,7 +1309,7 @@ class Calculator:
         query_type = query_type_map.get(market)
 
         response = requests.get(
-            f"{data_service.API_BASE_URL}/api/v1/financial/statements/",
+            f"{data_service.API_BASE_URL}{data_service.FINANCIAL_STATEMENTS_ENDPOINT}",
             params={
                 "symbol": symbol,
                 "query_type": query_type,
@@ -1331,21 +1331,9 @@ class Calculator:
         if not cash_flow:
             raise data_service.DataServiceError(f"{market}股票 {symbol} 没有现金流量表数据")
 
-        # 转换资产负债表为DataFrame
+        # 转换资产负债表为DataFrame并提取年份
         balance_df = pd.DataFrame(balance_sheet["data"])
-
-        # 提取年份（资产负债表）
-        if "报告期" in balance_df.columns:
-            date_col = "报告期"
-        elif "REPORT_DATE" in balance_df.columns:
-            date_col = "REPORT_DATE"
-        elif "date" in balance_df.columns:
-            date_col = "date"
-        else:
-            raise data_service.DataServiceError(f"{market}股票 {symbol} 资产负债表数据中缺少日期字段")
-
-        balance_df = balance_df.copy()
-        balance_df["年份"] = pd.to_datetime(balance_df[date_col]).dt.year
+        balance_df = data_service.extract_year_column(balance_df, market, symbol, "资产负债表")
 
         # 计算有息债务
         interest_bearing_debt = Calculator.calculate_interest_bearing_debt(balance_df, market)
@@ -1356,21 +1344,9 @@ class Calculator:
             "有息债务": interest_bearing_debt.values
         })
 
-        # 转换现金流量表为DataFrame
+        # 转换现金流量表为DataFrame并提取年份
         cashflow_df = pd.DataFrame(cash_flow["data"])
-
-        # 提取年份（现金流量表）
-        if "报告期" in cashflow_df.columns:
-            date_col_cf = "报告期"
-        elif "REPORT_DATE" in cashflow_df.columns:
-            date_col_cf = "REPORT_DATE"
-        elif "date" in cashflow_df.columns:
-            date_col_cf = "date"
-        else:
-            raise data_service.DataServiceError(f"{market}股票 {symbol} 现金流量表数据中缺少日期字段")
-
-        cashflow_df = cashflow_df.copy()
-        cashflow_df["年份"] = pd.to_datetime(cashflow_df[date_col_cf]).dt.year
+        cashflow_df = data_service.extract_year_column(cashflow_df, market, symbol, "现金流量表")
 
         # 计算自由现金流
         cashflow_data, _ = Calculator.free_cash_flow({"cash_flow": cashflow_df}, market)
@@ -1572,7 +1548,7 @@ class Calculator:
 
         # 获取港股资产负债表
         response = requests.get(
-            f"{data_service.API_BASE_URL}/api/v1/financial/statements",
+            f"{data_service.API_BASE_URL}{data_service.FINANCIAL_STATEMENTS_ENDPOINT}",
             params={
                 "symbol": symbol,
                 "query_type": "hk_financial_statements",
@@ -1591,13 +1567,9 @@ class Calculator:
         if not balance_sheet:
             raise data_service.DataServiceError(f"港股股票 {symbol} 没有资产负债表数据")
 
-        # 转换为DataFrame
+        # 转换为DataFrame并提取年份
         balance_df = pd.DataFrame(balance_sheet["data"])
-
-        # 提取年份
-        date_col = "date" if "date" in balance_df.columns else "REPORT_DATE"
-        balance_df = balance_df.copy()
-        balance_df["年份"] = pd.to_datetime(balance_df[date_col]).dt.year
+        balance_df = data_service.extract_year_column(balance_df, "港股", symbol, "资产负债表")
 
         # 计算速动比率
         balance_df["速动比率"] = (

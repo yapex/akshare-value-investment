@@ -11,6 +11,9 @@ import pandas as pd
 # API配置
 API_BASE_URL = "http://localhost:8000"
 
+# API端点常量
+FINANCIAL_STATEMENTS_ENDPOINT = "/api/v1/financial/statements"
+
 
 class DataServiceError(Exception):
     """数据服务错误基类"""
@@ -246,3 +249,39 @@ def handle_data_service_error(e: DataServiceError):
         st.info("💡 **建议：**")
         for suggestion in e.suggestions:
             st.markdown(f"- {suggestion}")
+
+
+def extract_year_column(
+    df: pd.DataFrame,
+    market: str,
+    symbol: str,
+    table_type: str = "数据"
+) -> pd.DataFrame:
+    """统一提取年份列的辅助方法
+
+    支持三地市场的不同日期字段格式：
+    - A股: 报告期
+    - 港股: REPORT_DATE
+    - 美股: date
+
+    Args:
+        df: 原始DataFrame
+        market: 市场类型（A股/港股/美股）
+        symbol: 股票代码（用于错误提示）
+        table_type: 表格类型（用于错误提示，如"资产负债表"）
+
+    Returns:
+        添加了"年份"列的DataFrame
+
+    Raises:
+        DataServiceError: 未找到日期字段
+    """
+    date_col_candidates = ["报告期", "REPORT_DATE", "date"]
+
+    for col in date_col_candidates:
+        if col in df.columns:
+            df = df.copy()
+            df["年份"] = pd.to_datetime(df[col]).dt.year
+            return df
+
+    raise DataServiceError(f"{market}股票 {symbol} {table_type}中缺少日期字段")
