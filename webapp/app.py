@@ -29,6 +29,7 @@ from components.debt_to_equity import DebtToEquityComponent
 from components.debt_to_fcf_ratio import DebtToFcfRatioComponent
 from components.liquidity_ratio import LiquidityRatioComponent
 from components.cash_flow_pattern import CashFlowPatternComponent
+from components.dcf_valuation import DCFValuationComponent
 # from components.roe import ROEComponent  # 暂时不用
 
 # 配置：分析组件列表（按分组组织）
@@ -48,6 +49,9 @@ ANALYSIS_GROUPS = {
     ],
     "💵 现金流分析": [
         CashFlowPatternComponent,
+    ],
+    "📈 估值": [
+        DCFValuationComponent,
     ]
 }
 
