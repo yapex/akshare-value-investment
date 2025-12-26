@@ -51,8 +51,8 @@ class EBITMarginComponent:
                 - EBIT利润率 = EIT ÷ 营业收入 × 100%
 
                 **指标解读：**
-                - **> 20%**：优秀！拥有强大的定价权和成本优势
-                - **15%-20%**：良好，竞争力较强
+                - **> 25%**：优秀！拥有极强的定价权和垄断优势（如茅台）
+                - **15%-25%**：良好，竞争力较强
                 - **10%-15%**：一般，竞争激烈或成本压力大
                 - **< 10%**：较低，可能处于红海竞争
 
@@ -107,6 +107,13 @@ class EBITMarginComponent:
                     marker=dict(size=8)
                 ),
                 secondary_y=True
+            )
+
+            # 添加25%优秀线
+            fig.add_hline(
+                y=25, line_dash="dash", line_color="green",
+                annotation_text="优秀 (25%)", annotation_position="right",
+                secondary_y=False
             )
 
             # 设置Y轴标题

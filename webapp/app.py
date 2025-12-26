@@ -21,19 +21,23 @@ from components.ebit_margin import EBITMarginComponent
 from components.free_cash_flow_ratio import FreeCashFlowRatioComponent
 from components.roic import ROICComponent
 from components.debt_to_equity import DebtToEquityComponent
+from components.debt_to_fcf_ratio import DebtToFcfRatioComponent
+from components.liquidity_ratio import LiquidityRatioComponent
 # from components.roe import ROEComponent  # 暂时不用
 
 # 配置：分析组件列表（按分组组织）
 ANALYSIS_GROUPS = {
     "💰 盈利分析": [
-        NetProfitCashRatioComponent,
-        RevenueGrowthComponent,
-        EBITMarginComponent,
-        FreeCashFlowRatioComponent,
         ROICComponent,
+        EBITMarginComponent,
+        RevenueGrowthComponent,
+        NetProfitCashRatioComponent,
+        FreeCashFlowRatioComponent,
     ],
     "💳 债务分析": [
         DebtToEquityComponent,
+        DebtToFcfRatioComponent,
+        LiquidityRatioComponent,
         # ROEComponent,  # 暂时不用
     ]
 }
@@ -51,7 +55,7 @@ stock_identifier = container.stock_identifier()
 st.set_page_config(
     page_title="股票质量分析",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="auto"
 )
 
 # ==================== 侧边栏：股票选择 ====================
