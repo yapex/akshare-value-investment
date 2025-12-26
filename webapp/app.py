@@ -14,6 +14,11 @@ import streamlit as st
 from akshare_value_investment.container import create_container
 from akshare_value_investment.core.models import MarketType
 
+# 导入搜索相关组件
+from streamlit_searchbox import st_searchbox
+from services.stock_search_service import StockSearchService
+from utils.stock_history_manager import StockHistoryManager
+
 # 导入分析组件
 from components.net_profit_cash_ratio import NetProfitCashRatioComponent
 from components.revenue_growth import RevenueGrowthComponent
@@ -51,6 +56,17 @@ for components in ANALYSIS_GROUPS.values():
 container = create_container()
 stock_identifier = container.stock_identifier()
 
+# 市场类型映射（统一定义在这里，避免重复）
+MARKET_TYPE_MAP = {
+    MarketType.A_STOCK: "A股",
+    MarketType.HK_STOCK: "港股",
+    MarketType.US_STOCK: "美股"
+}
+
+# 初始化搜索服务
+history_manager = StockHistoryManager()
+search_service = StockSearchService(stock_identifier, history_manager)
+
 # 页面配置
 st.set_page_config(
     page_title="股票质量分析",
@@ -58,13 +74,35 @@ st.set_page_config(
     initial_sidebar_state="auto"
 )
 
-# ==================== 侧边栏：股票选择 ====================
-st.sidebar.header("📈 股票选择")
+# ==================== 侧边栏：设置 ====================
+st.sidebar.header("⚙️ 设置")
 
-# 股票代码输入（支持自动识别市场）
-user_input_symbol = st.sidebar.text_input(
-    "股票代码",
-    value="600519",
+# 初始化 session state
+if 'confirmed_symbol' not in st.session_state:
+    st.session_state.confirmed_symbol = "600519"
+
+if 'pending_symbol' not in st.session_state:
+    st.session_state.pending_symbol = None
+
+# 股票搜索函数
+def search_stocks(searchterm: str, **kwargs) -> list:
+    """搜索股票（用于 searchbox）
+
+    Args:
+        searchterm: 搜索词
+        **kwargs: searchbox 传递的额外参数（如 rerun_delay），忽略即可
+    """
+    if not searchterm:
+        # 返回最近查询的股票
+        return history_manager.search("", limit=8)
+    return search_service.search(searchterm)
+
+# 股票代码搜索框
+selected_result = st_searchbox(
+    search_stocks,
+    key="stock_searchbox",
+    placeholder="输入股票代码...",
+    label="股票代码",
     help="""
     **智能识别**：自动识别股票代码所属市场
 
@@ -79,24 +117,40 @@ user_input_symbol = st.sidebar.text_input(
     **美股格式**：
     - 字母代码：AAPL, MSFT, GOOGL
     - 带前缀：US.AAPL
-    """
+    """,
+    rerun_delay=200,  # 延迟 200ms，减少请求
+    default_options=history_manager.search("", limit=8)  # 默认显示历史记录
 )
+
+# 如果用户选择了新的股票
+if selected_result and selected_result != st.session_state.pending_symbol:
+    st.session_state.pending_symbol = selected_result
+
+    # 识别股票信息
+    identified_market, identified_symbol = stock_identifier.identify(selected_result)
+
+    # 使用 format_symbol 获得真正标准化的代码（用于去重）
+    standardized_symbol = stock_identifier.format_symbol(identified_market, identified_symbol)
+
+    # 更新确认的股票代码
+    st.session_state.confirmed_symbol = standardized_symbol
+
+    # 注意：历史记录将在数据查询成功后记录
+    # 这里暂存待记录的信息（使用标准化代码作为键）
+    st.session_state.pending_record = {
+        'symbol': standardized_symbol,
+        'market': MARKET_TYPE_MAP.get(identified_market, str(identified_market)),
+        'original_input': selected_result
+    }
+
+# 使用确认的股票代码
+user_input_symbol = st.session_state.confirmed_symbol
 
 # 自动识别市场
 identified_market, identified_symbol = stock_identifier.identify(user_input_symbol)
 
-# 市场类型映射
-MARKET_TYPE_MAP = {
-    MarketType.A_STOCK: "A股",
-    MarketType.HK_STOCK: "港股",
-    MarketType.US_STOCK: "美股"
-}
-
 market = MARKET_TYPE_MAP[identified_market]
 symbol = identified_symbol
-
-# 显示识别结果
-st.sidebar.info(f"🎯 识别结果：**{market}** - `{symbol}`")
 
 # 标题（动态显示股票代码）
 st.title(f"📊 股票质量分析 - {symbol}")
@@ -144,6 +198,9 @@ if selected_component == "全部显示":
     group_names = list(ANALYSIS_GROUPS.keys())
     tabs = st.tabs(group_names)
 
+    # 记录是否有组件成功渲染
+    any_component_success = False
+
     for tab, group_name in zip(tabs, group_names):
         with tab:
             components = ANALYSIS_GROUPS[group_name]
@@ -151,7 +208,20 @@ if selected_component == "全部显示":
                 st.info("📭 该分类下暂无分析模块")
             else:
                 for component in components:
-                    component.render(symbol, market, years)
+                    success = component.render(symbol, market, years)
+                    if success:
+                        any_component_success = True
+
+    # 如果有组件成功渲染，记录历史
+    if any_component_success and 'pending_record' in st.session_state:
+        record = st.session_state.pending_record
+        search_service.record_query(
+            symbol=record['symbol'],
+            market=record['market'],
+            original_input=record['original_input']
+        )
+        # 清除待记录信息
+        del st.session_state.pending_record
 else:
     # 只显示选中的组件
     for component in ANALYSIS_COMPONENTS:
@@ -162,6 +232,18 @@ else:
             st.markdown("---")
 
             # 渲染该组件
-            component.render(symbol, market, years)
+            success = component.render(symbol, market, years)
+
+            # 如果渲染成功，记录历史
+            if success and 'pending_record' in st.session_state:
+                record = st.session_state.pending_record
+                search_service.record_query(
+                    symbol=record['symbol'],
+                    market=record['market'],
+                    original_input=record['original_input']
+                )
+                # 清除待记录信息
+                del st.session_state.pending_record
+
             break
 

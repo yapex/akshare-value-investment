@@ -130,7 +130,7 @@ wheels = [
 
 [[package]]
 name = "akshare-value-investment"
-version = "0.9.8"
+version = "0.9.9"
 source = { editable = "." }
 dependencies = [
     { name = "akshare" },
@@ -147,6 +147,7 @@ dependencies = [
     { name = "pyyaml" },
     { name = "requests" },
     { name = "streamlit" },
+    { name = "streamlit-searchbox" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
@@ -175,6 +176,7 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "requests", specifier = ">=2.32.5" },
     { name = "streamlit", specifier = ">=1.51.0" },
+    { name = "streamlit-searchbox", specifier = ">=0.1.24" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.24.0" },
 ]
 
@@ -1757,6 +1759,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/59/6d/327ddd5fc35fcf2aeecb4040668337f5565a1c6c95b1e892b8bfd4bb9031/streamlit-1.51.0.tar.gz", hash = "sha256:1e742a9c0b698f466c6f5bf58d333beda5a1fbe8de660743976791b5c1446ef6", size = 9742904, upload-time = "2025-10-29T17:07:39.082Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/39/60/868371b6482ccd9ef423c6f62650066cf8271fdb2ee84f192695ad6b7a96/streamlit-1.51.0-py3-none-any.whl", hash = "sha256:4008b029f71401ce54946bb09a6a3e36f4f7652cbb48db701224557738cfda38", size = 10171702, upload-time = "2025-10-29T17:07:35.97Z" },
+]
+
+[[package]]
+name = "streamlit-searchbox"
+version = "0.1.24"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "streamlit" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/46/c1/b037f76f7d6da73af6311720df3c56ed534616572da4261c0dea1e37110e/streamlit_searchbox-0.1.24.tar.gz", hash = "sha256:b6009c368812feea0dd211f03c9cc5cc85b540b0d0a57165bb2885f67d6a8a3d", size = 844522, upload-time = "2025-12-23T07:44:55.367Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4e/4d/cd7f4ca601f700b88a2ddf9b4dff9595ca15c77ab1c786b894d0668fe319/streamlit_searchbox-0.1.24-py3-none-any.whl", hash = "sha256:52ebae43acf8a5c7b6a0e681efc58170c880da308c846dd2db907da84633e468", size = 847934, upload-time = "2025-12-23T07:44:53.885Z" },
 ]
 
 [[package]]
