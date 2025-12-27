@@ -57,7 +57,8 @@ graph TD
 
     D --> D1["test_*queryers*.py<br/>查询器测试"]
     D2 --> D2a["test_stock_identifier.py<br/>股票识别测试"]
-    D4 --> D4a["test_api/<br/>API测试"]
+    D3 --> D3a["test_api/<br/>API测试"]
+    D4 --> D4b["test_webapp/<br/>Webapp测试"]
 
     E --> E1["a_stock_fields.md<br/>A股字段说明"]
     E2 --> E2a["财报检查清单.md<br/>跨市场字段映射"]

@@ -193,9 +193,9 @@ def calculate(
         "valuation_summary": f"""
 **估值模型**: DCF（折现现金流）模型
 **预测期**: {years}年
-**现金流增长率**: {growth_rate*100:.1f}%
-**折现率**: {discount_rate*100:.1f}%
-**永续增长率**: {terminal_growth*100:.1f}%
+**现金流增长率**: {growth_rate * 100:.1f}%
+**折现率**: {discount_rate * 100:.1f}%
+**永续增长率**: {terminal_growth * 100:.1f}%
 
 **关键财务数据**（单位：亿元）:
 - 当前自由现金流: {latest_fcf:.2f}

@@ -6,10 +6,12 @@
 
 import requests
 import pandas as pd
+import sys
+from pathlib import Path
 
-
-# API配置
-API_BASE_URL = "http://localhost:8000"
+# 添加项目根目录到路径以导入配置
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from config import API_BASE_URL, API_TIMEOUT, get_api_endpoint
 
 # API端点常量
 FINANCIAL_STATEMENTS_ENDPOINT = "/api/v1/financial/statements"
@@ -68,13 +70,13 @@ def get_financial_statements(symbol: str, market: str, years: int = 10):
     # 调用FastAPI的财务三表查询端点
     try:
         response = requests.get(
-            f"{API_BASE_URL}/api/v1/financial/statements",
+            get_api_endpoint(FINANCIAL_STATEMENTS_ENDPOINT),
             params={
                 "symbol": symbol,
                 "query_type": query_type,
                 "frequency": "annual"
             },
-            timeout=30
+            timeout=API_TIMEOUT
         )
 
         # 检查HTTP状态码

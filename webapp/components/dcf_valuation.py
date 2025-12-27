@@ -202,25 +202,22 @@ class DCFValuationComponent:
                     growth_diff = implied_growth - assumed_growth
                     if abs(growth_diff) < 0.01:  # 差异小于1%
                         growth_comparison = "🟢 基本一致"
-                        growth_color = "green"
                     elif growth_diff > 0:
                         growth_comparison = "🔴 市场更乐观"
-                        growth_color = "red"
                     else:
                         growth_comparison = "🟢 市场更保守"
-                        growth_color = "green"
 
                     st.metric(
                         label="市场隐含增长率",
-                        value=f"{implied_growth*100:.1f}%",
+                        value=f"{implied_growth * 100:.1f}%",
                         delta=growth_comparison,
-                        help=f"从当前市值反推的市场预期增长率\n我们的假设：{assumed_growth*100:.1f}%\n差异：{growth_diff*100:+.1f}个百分点"
+                        help=f"从当前市值反推的市场预期增长率\n我们的假设：{assumed_growth * 100:.1f}%\n差异：{growth_diff * 100:+.1f}个百分点"
                     )
 
                 with col_g2:
                     st.metric(
                         label="我们的增长率假设",
-                        value=f"{assumed_growth*100:.1f}%",
+                        value=f"{assumed_growth * 100:.1f}%",
                         help="我们设置的现金流增长率假设（可调整上方参数）"
                     )
 
@@ -231,9 +228,9 @@ class DCFValuationComponent:
                 **市值 / DCF价值** = {premium_ratio:.2f}倍
 
                 **增长率分析：**
-                - 📊 **市场隐含增长率**：{implied_growth*100:.1f}%（市场预期的增长率）
-                - 🎯 **我们的假设**：{assumed_growth*100:.1f}%（可调整参数测试）
-                - 📉 **差异**：{growth_diff*100:+.1f}个百分点 ({'市场更乐观' if growth_diff > 0 else '市场更保守' if growth_diff < 0 else '基本一致'})
+                - 📊 **市场隐含增长率**：{implied_growth * 100:.1f}%（市场预期的增长率）
+                - 🎯 **我们的假设**：{assumed_growth * 100:.1f}%（可调整参数测试）
+                - 📉 **差异**：{growth_diff * 100:+.1f}个百分点 ({'市场更乐观' if growth_diff > 0 else '市场更保守' if growth_diff < 0 else '基本一致'})
 
                 **其他要点：**
                 - 当前自由现金流：{stats['current_fcf']:.2f} 亿元

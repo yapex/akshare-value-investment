@@ -12,7 +12,23 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 import streamlit as st
 from akshare_value_investment.container import create_container
-from akshare_value_investment.core.models import MarketType
+
+# 导入配置
+from config import (
+    MARKET_TYPE_MAP,
+    YEARS_OPTIONS,
+    DEFAULT_YEARS_INDEX,
+    DEFAULT_SYMBOL,
+    SEARCHBOX_RERUN_DELAY,
+    SEARCHBOX_DEFAULT_LIMIT,
+    PAGE_TITLE,
+    PAGE_LAYOUT,
+    INITIAL_SIDEBAR_STATE,
+    MARKET_CAP_MIN,
+    MARKET_CAP_MAX,
+    MARKET_CAP_STEP,
+    MARKET_CAP_DEFAULT,
+)
 
 # 导入搜索相关组件
 from streamlit_searchbox import st_searchbox
@@ -68,22 +84,15 @@ for components in ANALYSIS_GROUPS.values():
 container = create_container()
 stock_identifier = container.stock_identifier()
 
-# 市场类型映射（统一定义在这里，避免重复）
-MARKET_TYPE_MAP = {
-    MarketType.A_STOCK: "A股",
-    MarketType.HK_STOCK: "港股",
-    MarketType.US_STOCK: "美股"
-}
-
 # 初始化搜索服务
 history_manager = StockHistoryManager()
 search_service = StockSearchService(stock_identifier, history_manager)
 
 # 页面配置
 st.set_page_config(
-    page_title="股票质量分析",
-    layout="wide",
-    initial_sidebar_state="auto"
+    page_title=PAGE_TITLE,
+    layout=PAGE_LAYOUT,
+    initial_sidebar_state=INITIAL_SIDEBAR_STATE
 )
 
 # ==================== 侧边栏：设置 ====================
@@ -91,10 +100,11 @@ st.sidebar.header("⚙️ 设置")
 
 # 初始化 session state
 if 'confirmed_symbol' not in st.session_state:
-    st.session_state.confirmed_symbol = "600519"
+    st.session_state.confirmed_symbol = DEFAULT_SYMBOL
 
 if 'pending_symbol' not in st.session_state:
     st.session_state.pending_symbol = None
+
 
 # 股票搜索函数
 def search_stocks(searchterm: str, **kwargs) -> list:
@@ -106,8 +116,9 @@ def search_stocks(searchterm: str, **kwargs) -> list:
     """
     if not searchterm:
         # 返回最近查询的股票
-        return history_manager.search("", limit=8)
+        return history_manager.search("", limit=SEARCHBOX_DEFAULT_LIMIT)
     return search_service.search(searchterm)
+
 
 # 股票代码搜索框
 selected_result = st_searchbox(
@@ -130,8 +141,8 @@ selected_result = st_searchbox(
     - 字母代码：AAPL, MSFT, GOOGL
     - 带前缀：US.AAPL
     """,
-    rerun_delay=200,  # 延迟 200ms，减少请求
-    default_options=history_manager.search("", limit=8)  # 默认显示历史记录
+    rerun_delay=SEARCHBOX_RERUN_DELAY,
+    default_options=history_manager.search("", limit=SEARCHBOX_DEFAULT_LIMIT)
 )
 
 # 如果用户选择了新的股票
@@ -169,28 +180,22 @@ st.title(f"📊 股票质量分析 - {symbol}")
 st.markdown("---")
 
 # 查询年数选项：5、10、20、全部（None表示不限制）
-years_options = {
-    "5年": 5,
-    "10年": 10,
-    "20年": 20,
-    "全部": None
-}
 years = st.sidebar.selectbox(
     "查询年数",
-    options=list(years_options.keys()),
-    index=1  # 默认选择"10年"
+    options=list(YEARS_OPTIONS.keys()),
+    index=DEFAULT_YEARS_INDEX
 )
-years = years_options[years]
+years = YEARS_OPTIONS[years]
 
 # ==================== 统一市值输入（供估值分析使用） ====================
 st.sidebar.markdown("---")
 st.sidebar.subheader("💰 估值分析")
 market_cap_input = st.sidebar.number_input(
     "当前市值（亿元）",
-    min_value=0.0,
-    max_value=100000.0,
-    value=0.0,
-    step=100.0,
+    min_value=MARKET_CAP_MIN,
+    max_value=MARKET_CAP_MAX,
+    value=MARKET_CAP_DEFAULT,
+    step=MARKET_CAP_STEP,
     format="%.2f",
     help="请输入当前市值，单位：亿元。例如：茅台1.77万亿 = 17700亿元。输入后将在DCF和净利润估值页自动显示对比分析。",
     key="unified_market_cap"
@@ -280,4 +285,3 @@ else:
                 del st.session_state.pending_record
 
             break
-
