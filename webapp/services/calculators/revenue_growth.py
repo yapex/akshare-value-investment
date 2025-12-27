@@ -34,7 +34,13 @@ def calculate(symbol: str, market: str, years: int) -> Tuple[pd.DataFrame, Dict[
     if market == "A股":
         revenue_col = "其中：营业收入"
     elif market == "港股":
-        revenue_col = "营业额"
+        # 港股收入字段可能为"营业额"或"经营收入总额"（如00388港交所）
+        if "营业额" in income_df.columns:
+            revenue_col = "营业额"
+        elif "经营收入总额" in income_df.columns:
+            revenue_col = "经营收入总额"
+        else:
+            raise ValueError("港股利润表缺少收入字段（需要'营业额'或'经营收入总额'）")
     else:  # 美股
         # 美股收入字段可能为"营业收入"或"收入总额"（如保险公司BRK.B）
         if "营业收入" in income_df.columns:

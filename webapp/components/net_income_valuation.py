@@ -112,19 +112,8 @@ class NetIncomeValuationComponent:
             # 市值对比与综合判断（在估值结果之前）
             st.markdown("##### 💰 市值对比与综合判断")
 
-            col_market, col_empty = st.columns([2, 1])
-
-            with col_market:
-                market_cap_input = st.number_input(
-                    "当前市值（亿元）",
-                    min_value=0.0,
-                    max_value=100000.0,
-                    value=0.0,
-                    step=100.0,
-                    format="%.2f",
-                    help="请输入当前市值，单位：亿元。例如：茅台1.77万亿 = 17700亿元",
-                    key="net_income_market_cap"
-                )
+            # 从session_state获取统一的市值输入（侧边栏输入）
+            market_cap_input = st.session_state.get('market_cap_input', 0.0)
 
             # 如果输入了市值，显示对比分析
             if market_cap_input > 0:

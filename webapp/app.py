@@ -182,6 +182,22 @@ years = st.sidebar.selectbox(
 )
 years = years_options[years]
 
+# ==================== 统一市值输入（供估值分析使用） ====================
+st.sidebar.markdown("---")
+st.sidebar.subheader("💰 估值分析")
+market_cap_input = st.sidebar.number_input(
+    "当前市值（亿元）",
+    min_value=0.0,
+    max_value=100000.0,
+    value=0.0,
+    step=100.0,
+    format="%.2f",
+    help="请输入当前市值，单位：亿元。例如：茅台1.77万亿 = 17700亿元。输入后将在DCF和净利润估值页自动显示对比分析。",
+    key="unified_market_cap"
+)
+# 将市值存入session_state，供估值组件使用
+st.session_state.market_cap_input = market_cap_input
+
 # ==================== 侧边栏：快速导航 ====================
 st.sidebar.markdown("---")
 st.sidebar.header("📊 快速导航")

@@ -191,7 +191,15 @@ def _calculate_invested_capital_base(
         result_df["实际税率"] = (result_df[tax_col] / result_df["EBIT"]).replace([float('inf'), -float('inf')], 0).fillna(0.25)
 
     elif market == "港股":
-        equity_col = "股东权益"
+        # 港股权益字段可能为"股东权益"、"总权益"或"股东权益合计"
+        if "股东权益" in balance_df.columns:
+            equity_col = "股东权益"
+        elif "总权益" in balance_df.columns:
+            equity_col = "总权益"
+        elif "股东权益合计" in balance_df.columns:
+            equity_col = "股东权益合计"
+        else:
+            raise ValueError("港股资产负债表缺少权益字段（需要'股东权益'、'总权益'或'股东权益合计'）")
 
         # 港股：合并利润表和资产负债表
         result_df = pd.merge(

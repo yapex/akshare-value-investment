@@ -119,7 +119,13 @@ def calculate_ebit(data: Dict[str, pd.DataFrame], market: str) -> Tuple[pd.DataF
 
     elif market == "港股":
         income_df["EBIT"] = income_df["除税前溢利"]
-        income_df["收入"] = income_df["营业额"]
+        # 港股收入字段可能为"营业额"或"经营收入总额"（如00388港交所）
+        if "营业额" in income_df.columns:
+            income_df["收入"] = income_df["营业额"]
+        elif "经营收入总额" in income_df.columns:
+            income_df["收入"] = income_df["经营收入总额"]
+        else:
+            raise ValueError("港股利润表缺少收入字段（需要'营业额'或'经营收入总额'）")
         display_columns = ["年份", "除税前溢利", "收入", "EBIT"]
 
     else:  # 美股
