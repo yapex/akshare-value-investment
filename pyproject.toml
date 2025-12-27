@@ -1,6 +1,6 @@
 [project]
 name = "akshare-value-investment"
-version = "0.9.10"
+version = "0.9.11"
 description = "基于 akshare 的价值投资分析系统，提供跨市场（A股、港股、美股）财务指标查询和财务三表分析功能"
 readme = "README.md"
 authors = [

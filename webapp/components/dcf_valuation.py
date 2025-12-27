@@ -77,7 +77,8 @@ class DCFValuationComponent:
                     value=9.0,
                     step=0.5,
                     format="%.1f",
-                    help="预测期内自由现金流的预期年增长率"
+                    help="预测期内自由现金流的预期年增长率",
+                    key="dcf_growth_rate"
                 ) / 100
 
             with col2:
@@ -88,7 +89,8 @@ class DCFValuationComponent:
                     value=10.0,
                     step=0.5,
                     format="%.1f",
-                    help="加权平均资本成本，反映投资风险"
+                    help="加权平均资本成本，反映投资风险",
+                    key="dcf_discount_rate"
                 ) / 100
 
             with col3:
@@ -99,7 +101,8 @@ class DCFValuationComponent:
                     value=2.0,
                     step=0.1,
                     format="%.1f",
-                    help="预测期后的长期稳定增长率（通常2-3%）"
+                    help="预测期后的长期稳定增长率（通常2-3%）",
+                    key="dcf_terminal_growth"
                 ) / 100
 
             projection_years = st.slider(
@@ -137,7 +140,8 @@ class DCFValuationComponent:
                     value=0.0,
                     step=100.0,
                     format="%.2f",
-                    help="请输入当前市值，单位：亿元。例如：茅台1.77万亿 = 17700亿元"
+                    help="请输入当前市值，单位：亿元。例如：茅台1.77万亿 = 17700亿元",
+                    key="dcf_market_cap"
                 )
 
             # 如果输入了市值，显示对比分析
