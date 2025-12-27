@@ -110,23 +110,27 @@ def calculate_ebit(data: Dict[str, pd.DataFrame], market: str) -> Tuple[pd.DataF
             income_df["减：所得税费用"] +
             income_df["其中：利息费用"]
         )
-        # 重命名为通用名称
-        income_df.rename(columns={
-            "五、净利润": "净利润",
-            "减：所得税费用": "所得税费用",
-            "其中：利息费用": "利息费用",
-            "其中：营业收入": "收入"
-        }, inplace=True)
+        # 创建通用名称字段（不使用inplace修改）
+        income_df["净利润"] = income_df["五、净利润"]
+        income_df["所得税费用"] = income_df["减：所得税费用"]
+        income_df["利息费用"] = income_df["其中：利息费用"]
+        income_df["收入"] = income_df["其中：营业收入"]
         display_columns = ["年份", "净利润", "所得税费用", "利息费用", "收入", "EBIT"]
 
     elif market == "港股":
         income_df["EBIT"] = income_df["除税前溢利"]
-        income_df.rename(columns={"营业额": "收入"}, inplace=True)
+        income_df["收入"] = income_df["营业额"]
         display_columns = ["年份", "除税前溢利", "收入", "EBIT"]
 
     else:  # 美股
         income_df["EBIT"] = income_df["持续经营税前利润"]
-        income_df.rename(columns={"营业收入": "收入"}, inplace=True)
+        # 美股收入字段可能为"营业收入"或"收入总额"（如保险公司BRK.B）
+        if "营业收入" in income_df.columns:
+            income_df["收入"] = income_df["营业收入"]
+        elif "收入总额" in income_df.columns:
+            income_df["收入"] = income_df["收入总额"]
+        else:
+            raise ValueError("美股利润表缺少收入字段（需要'营业收入'或'收入总额'）")
         display_columns = ["年份", "持续经营税前利润", "收入", "EBIT"]
 
     # 计算EBIT利润率

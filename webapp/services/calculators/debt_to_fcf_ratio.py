@@ -98,8 +98,11 @@ def calculate(symbol: str, market: str, years: int) -> Tuple[pd.DataFrame, List[
         ratio_data["有息债务"] / ratio_data["自由现金流"].replace(0, float('inf'))
     ).replace([float('inf'), -float('inf'), float('nan')], None).round(2)
 
-    # 限制年数并排序
-    ratio_data = ratio_data.sort_values("年份").tail(years).reset_index(drop=True)
+    # 限制年数并排序（None表示不限制）
+    ratio_data = ratio_data.sort_values("年份")
+    if years is not None:
+        ratio_data = ratio_data.tail(years)
+    ratio_data = ratio_data.reset_index(drop=True)
 
     # 计算关键指标
     valid_ratios = ratio_data["有息债务与自由现金流比率"].dropna()

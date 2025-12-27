@@ -168,13 +168,19 @@ symbol = identified_symbol
 st.title(f"📊 股票质量分析 - {symbol}")
 st.markdown("---")
 
-years = st.sidebar.slider(
+# 查询年数选项：5、10、20、全部（None表示不限制）
+years_options = {
+    "5年": 5,
+    "10年": 10,
+    "20年": 20,
+    "全部": None
+}
+years = st.sidebar.selectbox(
     "查询年数",
-    min_value=1,
-    max_value=20,
-    value=10,
-    step=1
+    options=list(years_options.keys()),
+    index=1  # 默认选择"10年"
 )
+years = years_options[years]
 
 # ==================== 侧边栏：快速导航 ====================
 st.sidebar.markdown("---")

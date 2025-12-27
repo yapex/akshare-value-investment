@@ -36,21 +36,32 @@ def calculate(symbol: str, market: str, years: int) -> Tuple[pd.DataFrame, Dict[
     elif market == "港股":
         revenue_col = "营业额"
     else:  # 美股
-        revenue_col = "营业收入"
+        # 美股收入字段可能为"营业收入"或"收入总额"（如保险公司BRK.B）
+        if "营业收入" in income_df.columns:
+            revenue_col = "营业收入"
+        elif "收入总额" in income_df.columns:
+            revenue_col = "收入总额"
+        else:
+            raise ValueError("美股利润表缺少收入字段（需要'营业收入'或'收入总额'）")
 
     # 提取收入数据
     revenue_data = income_df[["年份", revenue_col]].copy()
     revenue_data = revenue_data.sort_values("年份").reset_index(drop=True)
-    revenue_data['增长率'] = revenue_data[revenue_col].pct_change() * 100
+
+    # 统一重命名为"收入"字段（便于后续处理）
+    revenue_data["收入"] = revenue_data[revenue_col]
+
+    # 计算增长率
+    revenue_data['增长率'] = revenue_data["收入"].pct_change() * 100
     revenue_data['增长率'] = revenue_data['增长率'].round(2)
 
     # 计算指标
     years_count = len(revenue_data)
     metrics = {
-        "cagr": calculate_cagr(revenue_data[revenue_col]),
+        "cagr": calculate_cagr(revenue_data["收入"]),
         "avg_growth_rate": revenue_data['增长率'].mean(),
-        "latest_revenue": revenue_data[revenue_col].iloc[-1],
-        "avg_revenue": revenue_data[revenue_col].mean(),
+        "latest_revenue": revenue_data["收入"].iloc[-1],
+        "avg_revenue": revenue_data["收入"].mean(),
         "years_count": years_count
     }
 

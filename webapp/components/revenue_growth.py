@@ -70,25 +70,17 @@ class RevenueGrowthComponent:
                     data_service.handle_data_service_error(e)
                     return False
 
-            # 获取收入字段名称（用于显示）
-            if market == "A股":
-                revenue_col = "其中：营业收入"
-            elif market == "港股":
-                revenue_col = "营业额"
-            else:  # 美股
-                revenue_col = "营业收入"
-
             # 创建双Y轴图表
             fig = make_subplots(
                 specs=[[{"secondary_y": True}]],
                 subplot_titles=[f"{symbol} - 营业收入趋势及增长率"]
             )
 
-            # 添加柱状图（营业收入）
+            # 添加柱状图（营业收入）- 计算器已统一返回"收入"字段
             fig.add_trace(
                 go.Bar(
                     x=revenue_data['年份'],
-                    y=revenue_data[revenue_col],
+                    y=revenue_data['收入'],
                     name="营业收入",
                     marker_color='green',
                     opacity=0.7

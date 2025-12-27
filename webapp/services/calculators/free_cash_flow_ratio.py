@@ -142,7 +142,10 @@ def calculate_investment_intensity_ratio(
     """
     financial_data = data_service.get_financial_statements(symbol, market, years)
     ratio_data, display_cols = _investment_intensity_ratio(financial_data, market)
-    ratio_data = ratio_data.sort_values("年份").tail(years).reset_index(drop=True)
+    ratio_data = ratio_data.sort_values("年份")
+    if years is not None:
+        ratio_data = ratio_data.tail(years)
+    ratio_data = ratio_data.reset_index(drop=True)
 
     # 计算指标
     metrics = {

@@ -132,9 +132,14 @@ def get_financial_statements(symbol: str, market: str, years: int = 10):
         income_df["年份"] = pd.to_datetime(income_df[date_col]).dt.year
         cashflow_df["年份"] = pd.to_datetime(cashflow_df[date_col]).dt.year
 
-        # 排序并限制年数
-        income_df = income_df.sort_values("年份").tail(years).reset_index(drop=True)
-        cashflow_df = cashflow_df.sort_values("年份").tail(years).reset_index(drop=True)
+        # 排序并限制年数（None表示不限制）
+        income_df = income_df.sort_values("年份")
+        cashflow_df = cashflow_df.sort_values("年份")
+        if years is not None:
+            income_df = income_df.tail(years)
+            cashflow_df = cashflow_df.tail(years)
+        income_df = income_df.reset_index(drop=True)
+        cashflow_df = cashflow_df.reset_index(drop=True)
 
         # 返回分离的字典结构（避免合并带来的列名重复问题）
         return {

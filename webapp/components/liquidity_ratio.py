@@ -136,8 +136,14 @@ class LiquidityRatioComponent:
                         current_ratio_col = "CURRENT_RATIO"
                         quick_ratio_col = None  # 港股API没有速动比率，需要单独计算
                     else:  # 美股
-                        current_ratio_col = "CURRENT_RATIO"
-                        quick_ratio_col = "SPEED_RATIO"
+                        current_ratio_col = "CURRENT_RATIO" if "CURRENT_RATIO" in indicators_df.columns else None
+                        quick_ratio_col = "SPEED_RATIO" if "SPEED_RATIO" in indicators_df.columns else None
+
+                    # 检查是否有流动比率数据
+                    if not current_ratio_col:
+                        raise data_service.DataServiceError(
+                            f"{market}股票 {symbol} 没有流动比率数据（可能为特殊行业如保险公司）"
+                        )
 
                     # 提取流动比率数据并转换为数值类型
                     liquidity_data = indicators_df[["年份", current_ratio_col]].copy()
@@ -162,8 +168,11 @@ class LiquidityRatioComponent:
                             st.warning(f"港股速动比率计算失败：{str(e)}")
                             liquidity_data["速动比率"] = None
 
-                    # 限制年数并排序
-                    liquidity_data = liquidity_data.sort_values("年份").tail(years).reset_index(drop=True)
+                    # 限制年数并排序（None表示不限制）
+                    liquidity_data = liquidity_data.sort_values("年份")
+                    if years is not None:
+                        liquidity_data = liquidity_data.tail(years)
+                    liquidity_data = liquidity_data.reset_index(drop=True)
 
                 except data_service.DataServiceError as e:
                     data_service.handle_data_service_error(e)

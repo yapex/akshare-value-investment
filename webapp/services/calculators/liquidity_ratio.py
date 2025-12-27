@@ -62,9 +62,12 @@ def calculate(
         balance_df["流动负债合计"].replace(0, pd.NA)
     ).replace([float('inf'), -float('inf')], pd.NA).round(2)
 
-    # 限制年数
+    # 限制年数（None表示不限制）
     result_df = balance_df[["年份", "流动资产合计", "存货", "流动负债合计", "速动比率"]]
-    result_df = result_df.sort_values("年份").tail(years).reset_index(drop=True)
+    result_df = result_df.sort_values("年份")
+    if years is not None:
+        result_df = result_df.tail(years)
+    result_df = result_df.reset_index(drop=True)
 
     # 计算关键指标
     valid_ratios = result_df["速动比率"].dropna()
@@ -202,8 +205,11 @@ def calculate_interest_coverage_ratio(
 
         display_cols = ["年份", "EBIT", "利息收入", "利息支出", "利息覆盖比率"]
 
-    # 限制年数并排序
-    result_df = result_df.sort_values("年份").tail(years).reset_index(drop=True)
+    # 限制年数并排序（None表示不限制）
+    result_df = result_df.sort_values("年份")
+    if years is not None:
+        result_df = result_df.tail(years)
+    result_df = result_df.reset_index(drop=True)
 
     # 计算关键指标
     valid_ratios = result_df["利息覆盖比率"].dropna()

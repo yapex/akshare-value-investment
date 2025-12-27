@@ -96,7 +96,10 @@ def calculate(symbol: str, market: str, years: int) -> Tuple[pd.DataFrame, pd.Da
     roe_df = pd.DataFrame({
         "年份": indicators_df["年份"],
         "ROE": indicators_df[roe_field].apply(parse_roe_value)
-    }).dropna().sort_values("年份").tail(years).reset_index(drop=True)
+    }).dropna().sort_values("年份")
+    if years is not None:
+        roe_df = roe_df.tail(years)
+    roe_df = roe_df.reset_index(drop=True)
 
     # 获取财务三表数据用于杜邦分析
     financial_statements = data_service.get_financial_statements(symbol, market, years)
@@ -159,7 +162,13 @@ def calculate(symbol: str, market: str, years: int) -> Tuple[pd.DataFrame, pd.Da
         equity_col = "总权益"
     else:  # 美股
         net_income_col = "净利润"
-        revenue_col = "营业收入"
+        # 美股收入字段可能为"营业收入"或"收入总额"（如保险公司BRK.B）
+        if "营业收入" in income_df.columns:
+            revenue_col = "营业收入"
+        elif "收入总额" in income_df.columns:
+            revenue_col = "收入总额"
+        else:
+            raise ValueError("美股利润表缺少收入字段（需要'营业收入'或'收入总额'）")
         total_assets_col = "总资产"
         equity_col = "股东权益合计"
 

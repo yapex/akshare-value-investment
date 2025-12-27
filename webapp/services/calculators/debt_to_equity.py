@@ -99,8 +99,11 @@ def calculate(symbol: str, market: str, years: int) -> Tuple[pd.DataFrame, List[
         debt_data["有息债务"] / debt_data["股东权益"] * 100
     ).replace([float('inf'), -float('inf')], 0).round(2)
 
-    # 限制年数并排序
-    debt_data = debt_data.sort_values("年份").tail(years).reset_index(drop=True)
+    # 限制年数并排序（None表示不限制）
+    debt_data = debt_data.sort_values("年份")
+    if years is not None:
+        debt_data = debt_data.tail(years)
+    debt_data = debt_data.reset_index(drop=True)
 
     # 计算关键指标
     metrics = {
