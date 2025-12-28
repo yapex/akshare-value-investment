@@ -75,6 +75,10 @@ def _net_profit_cash_ratio(data: Dict[str, pd.DataFrame], market: str) -> Tuple[
         on="年份"
     )
 
+    # 转换为数值类型（处理非数值类型，如None、空字符串等）
+    result_df[net_profit_col] = pd.to_numeric(result_df[net_profit_col], errors="coerce")
+    result_df[operating_cashflow_col] = pd.to_numeric(result_df[operating_cashflow_col], errors="coerce")
+
     # 计算累计值
     result_df = result_df.sort_values('年份').reset_index(drop=True)
     result_df['累计净利润'] = result_df[net_profit_col].cumsum()
@@ -84,7 +88,11 @@ def _net_profit_cash_ratio(data: Dict[str, pd.DataFrame], market: str) -> Tuple[
     result_df['净现比'] = (
         result_df['累计经营性现金流量净额'] /
         result_df['累计净利润'].replace(0, pd.NA)
-    ).round(2)
+    )
+    # 处理无穷值
+    result_df['净现比'] = result_df['净现比'].replace([float('inf'), -float('inf')], pd.NA)
+    # 确保是数值类型后再round
+    result_df['净现比'] = pd.to_numeric(result_df['净现比'], errors="coerce").round(2)
 
     # 重命名字段为通用名称
     result_df.rename(columns={

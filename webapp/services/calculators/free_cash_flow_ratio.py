@@ -92,11 +92,19 @@ def _free_cash_flow_to_net_income_ratio(data: Dict[str, pd.DataFrame], market: s
         on="年份"
     )
 
+    # 转换为数值类型（处理非数值类型，如None、空字符串等）
+    result_df['自由现金流'] = pd.to_numeric(result_df['自由现金流'], errors="coerce")
+    result_df[net_income_col] = pd.to_numeric(result_df[net_income_col], errors="coerce")
+
     # 计算自由现金流净利润比
     result_df['自由现金流净利润比'] = (
         result_df['自由现金流'] /
         result_df[net_income_col].replace(0, pd.NA)
-    ).round(2)
+    )
+    # 处理无穷值
+    result_df['自由现金流净利润比'] = result_df['自由现金流净利润比'].replace([float('inf'), -float('inf')], pd.NA)
+    # 确保是数值类型后再round
+    result_df['自由现金流净利润比'] = pd.to_numeric(result_df['自由现金流净利润比'], errors="coerce").round(2)
 
     # 重命名字段为通用名称
     result_df.rename(columns={
@@ -214,11 +222,19 @@ def _investment_intensity_ratio(
         cashflow_df['资本支出'] = (capex_1 + capex_2).fillna(0)
         cashflow_df['折旧'] = cashflow_df[depreciation_col].abs()
 
+    # 转换为数值类型（处理非数值类型，如None、空字符串等）
+    cashflow_df['资本支出'] = pd.to_numeric(cashflow_df['资本支出'], errors="coerce")
+    cashflow_df['折旧'] = pd.to_numeric(cashflow_df['折旧'], errors="coerce")
+
     # 计算投资强度比率（资本支出 / 折旧 * 100）
     cashflow_df['投资强度比率'] = (
         cashflow_df['资本支出'] /
         cashflow_df['折旧'].replace(0, pd.NA) * 100
-    ).round(2)
+    )
+    # 处理无穷值
+    cashflow_df['投资强度比率'] = cashflow_df['投资强度比率'].replace([float('inf'), -float('inf')], pd.NA)
+    # 确保是数值类型后再round
+    cashflow_df['投资强度比率'] = pd.to_numeric(cashflow_df['投资强度比率'], errors="coerce").round(2)
 
     display_columns = [
         "年份",

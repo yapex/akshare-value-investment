@@ -185,10 +185,36 @@ def calculate(symbol: str, market: str, years: int) -> Tuple[pd.DataFrame, pd.Da
         on="年份"
     ).sort_values("年份").reset_index(drop=True)
 
+    # 转换为数值类型（处理非数值类型，如None、空字符串等）
+    dupont_df[net_income_col] = pd.to_numeric(dupont_df[net_income_col], errors="coerce")
+    dupont_df[revenue_col] = pd.to_numeric(dupont_df[revenue_col], errors="coerce")
+    dupont_df[total_assets_col] = pd.to_numeric(dupont_df[total_assets_col], errors="coerce")
+    dupont_df[equity_col] = pd.to_numeric(dupont_df[equity_col], errors="coerce")
+
     # 计算杜邦三要素
-    dupont_df["净利润率"] = (dupont_df[net_income_col] / dupont_df[revenue_col] * 100).round(2)
-    dupont_df["总资产周转率"] = (dupont_df[revenue_col] / dupont_df[total_assets_col]).round(2)
-    dupont_df["权益乘数"] = (dupont_df[total_assets_col] / dupont_df[equity_col]).round(2)
+    dupont_df["净利润率"] = (
+        dupont_df[net_income_col] / dupont_df[revenue_col].replace(0, pd.NA) * 100
+    )
+    # 处理无穷值
+    dupont_df["净利润率"] = dupont_df["净利润率"].replace([float('inf'), -float('inf')], pd.NA)
+    # 确保是数值类型后再round
+    dupont_df["净利润率"] = pd.to_numeric(dupont_df["净利润率"], errors="coerce").round(2)
+
+    dupont_df["总资产周转率"] = (
+        dupont_df[revenue_col] / dupont_df[total_assets_col].replace(0, pd.NA)
+    )
+    # 处理无穷值
+    dupont_df["总资产周转率"] = dupont_df["总资产周转率"].replace([float('inf'), -float('inf')], pd.NA)
+    # 确保是数值类型后再round
+    dupont_df["总资产周转率"] = pd.to_numeric(dupont_df["总资产周转率"], errors="coerce").round(2)
+
+    dupont_df["权益乘数"] = (
+        dupont_df[total_assets_col] / dupont_df[equity_col].replace(0, pd.NA)
+    )
+    # 处理无穷值
+    dupont_df["权益乘数"] = dupont_df["权益乘数"].replace([float('inf'), -float('inf')], pd.NA)
+    # 确保是数值类型后再round
+    dupont_df["权益乘数"] = pd.to_numeric(dupont_df["权益乘数"], errors="coerce").round(2)
 
     # 选择需要的列
     dupont_result = dupont_df[["年份", "净利润率", "总资产周转率", "权益乘数"]].copy()

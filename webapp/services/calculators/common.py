@@ -139,8 +139,18 @@ def calculate_ebit(data: Dict[str, pd.DataFrame], market: str) -> Tuple[pd.DataF
             raise ValueError("美股利润表缺少收入字段（需要'营业收入'或'收入总额'）")
         display_columns = ["年份", "持续经营税前利润", "收入", "EBIT"]
 
+    # 转换为数值类型（处理非数值类型，如None、空字符串等）
+    income_df["EBIT"] = pd.to_numeric(income_df["EBIT"], errors="coerce")
+    income_df["收入"] = pd.to_numeric(income_df["收入"], errors="coerce")
+
     # 计算EBIT利润率
-    income_df["EBIT利润率"] = (income_df["EBIT"] / income_df["收入"] * 100).round(2)
+    income_df["EBIT利润率"] = (
+        income_df["EBIT"] / income_df["收入"].replace(0, pd.NA) * 100
+    )
+    # 处理无穷值
+    income_df["EBIT利润率"] = income_df["EBIT利润率"].replace([float('inf'), -float('inf')], pd.NA)
+    # 确保是数值类型后再round
+    income_df["EBIT利润率"] = pd.to_numeric(income_df["EBIT利润率"], errors="coerce").round(2)
     display_columns.append("EBIT利润率")
 
     return income_df, display_columns
@@ -171,7 +181,8 @@ def calculate_free_cash_flow(data: Dict[str, pd.DataFrame], market: str) -> Tupl
             raise ValueError(f"经营性现金流量净额字段 '{operating_cashflow_col}' 不存在")
         if capex_col not in cashflow_df.columns:
             raise ValueError(f"资本支出字段 '{capex_col}' 不存在")
-        # 计算资本支出(取绝对值,因为不同市场符号可能不同)
+        # 转换为数值类型并计算资本支出(取绝对值,因为不同市场符号可能不同)
+        cashflow_df[capex_col] = pd.to_numeric(cashflow_df[capex_col], errors="coerce")
         cashflow_df['资本支出'] = cashflow_df[capex_col].abs()
 
     elif market == "港股":
@@ -181,6 +192,12 @@ def calculate_free_cash_flow(data: Dict[str, pd.DataFrame], market: str) -> Tupl
         # 检查字段是否存在
         if operating_cashflow_col not in cashflow_df.columns:
             raise ValueError(f"经营性现金流量净额字段 '{operating_cashflow_col}' 不存在")
+        # 转换为数值类型
+        cashflow_df[operating_cashflow_col] = pd.to_numeric(cashflow_df[operating_cashflow_col], errors="coerce")
+        if capex_col_1 in cashflow_df.columns:
+            cashflow_df[capex_col_1] = pd.to_numeric(cashflow_df[capex_col_1], errors="coerce")
+        if capex_col_2 in cashflow_df.columns:
+            cashflow_df[capex_col_2] = pd.to_numeric(cashflow_df[capex_col_2], errors="coerce")
         # 港股的资本支出 = 购建固定资产 + 购建无形资产及其他资产(取绝对值)
         capex_1 = cashflow_df.get(capex_col_1, 0).abs()
         capex_2 = cashflow_df.get(capex_col_2, 0).abs()
@@ -194,14 +211,24 @@ def calculate_free_cash_flow(data: Dict[str, pd.DataFrame], market: str) -> Tupl
         # 检查字段是否存在
         if operating_cashflow_col not in cashflow_df.columns:
             raise ValueError(f"经营性现金流量净额字段 '{operating_cashflow_col}' 不存在")
+        # 转换为数值类型
+        cashflow_df[operating_cashflow_col] = pd.to_numeric(cashflow_df[operating_cashflow_col], errors="coerce")
+        if capex_col_1 in cashflow_df.columns:
+            cashflow_df[capex_col_1] = pd.to_numeric(cashflow_df[capex_col_1], errors="coerce")
+        if capex_col_2 in cashflow_df.columns:
+            cashflow_df[capex_col_2] = pd.to_numeric(cashflow_df[capex_col_2], errors="coerce")
         # 计算资本支出
         capex_1 = cashflow_df.get(capex_col_1, 0).abs()
         capex_2 = cashflow_df.get(capex_col_2, 0).abs()
         cashflow_df['资本支出'] = (capex_1 + capex_2).fillna(0)
 
+    # 确保资本支出是数值类型
+    cashflow_df['资本支出'] = pd.to_numeric(cashflow_df['资本支出'], errors="coerce")
+
     # 计算自由现金流 = 经营现金流 - 资本支出
     cashflow_df['自由现金流'] = cashflow_df[operating_cashflow_col] - cashflow_df['资本支出']
-    cashflow_df['自由现金流'] = cashflow_df['自由现金流'].round(2)
+    # 确保是数值类型后再round
+    cashflow_df['自由现金流'] = pd.to_numeric(cashflow_df['自由现金流'], errors="coerce").round(2)
 
     # 重命名字段为通用名称
     cashflow_df.rename(columns={

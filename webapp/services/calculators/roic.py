@@ -97,8 +97,26 @@ def calculate(
         income_df[["年份", "收入"]],
         on="年份"
     )
-    dupont_data["NOPAT利润率"] = (dupont_data["NOPAT"] / dupont_data["收入"] * 100).replace([float('inf'), -float('inf')], 0)
-    dupont_data["资本周转率"] = (dupont_data["收入"] / dupont_data["投入资本"]).replace([float('inf'), -float('inf')], 0)
+
+    # 转换为数值类型（处理非数值类型，如None、空字符串等）
+    dupont_data["NOPAT"] = pd.to_numeric(dupont_data["NOPAT"], errors="coerce")
+    dupont_data["投入资本"] = pd.to_numeric(dupont_data["投入资本"], errors="coerce")
+    dupont_data["收入"] = pd.to_numeric(dupont_data["收入"], errors="coerce")
+
+    dupont_data["NOPAT利润率"] = (
+        dupont_data["NOPAT"] / dupont_data["收入"].replace(0, pd.NA) * 100
+    )
+    # 处理无穷值并填充0
+    dupont_data["NOPAT利润率"] = dupont_data["NOPAT利润率"].replace([float('inf'), -float('inf')], 0)
+    dupont_data["NOPAT利润率"] = pd.to_numeric(dupont_data["NOPAT利润率"], errors="coerce").fillna(0)
+
+    dupont_data["资本周转率"] = (
+        dupont_data["收入"] / dupont_data["投入资本"].replace(0, pd.NA)
+    )
+    # 处理无穷值并填充0
+    dupont_data["资本周转率"] = dupont_data["资本周转率"].replace([float('inf'), -float('inf')], 0)
+    dupont_data["资本周转率"] = pd.to_numeric(dupont_data["资本周转率"], errors="coerce").fillna(0)
+
     dupont_data["ROIC验证"] = dupont_data["NOPAT利润率"] * dupont_data["资本周转率"]
     dupont_display_cols = ["年份", "NOPAT利润率", "资本周转率", "ROIC验证"]
 
@@ -187,8 +205,19 @@ def _calculate_invested_capital_base(
             balance_df.loc[:, ["年份", equity_col]],
             on="年份"
         )
+
+        # 转换为数值类型（处理非数值类型，如None、空字符串等）
+        result_df[tax_col] = pd.to_numeric(result_df[tax_col], errors="coerce")
+        result_df["EBIT"] = pd.to_numeric(result_df["EBIT"], errors="coerce")
+
         # 计算实际税率
-        result_df["实际税率"] = (result_df[tax_col] / result_df["EBIT"]).replace([float('inf'), -float('inf')], 0).fillna(0.25)
+        result_df["实际税率"] = (
+            result_df[tax_col] / result_df["EBIT"].replace(0, pd.NA)
+        )
+        # 处理无穷值
+        result_df["实际税率"] = result_df["实际税率"].replace([float('inf'), -float('inf')], 0)
+        # 确保是数值类型
+        result_df["实际税率"] = pd.to_numeric(result_df["实际税率"], errors="coerce").fillna(0.25)
 
     elif market == "港股":
         # 港股权益字段可能为"股东权益"、"总权益"或"股东权益合计"
@@ -246,6 +275,12 @@ def _calculate_invested_capital_base(
     })
     result_df = pd.merge(result_df, debt_df, on="年份", how="left")
 
+    # 转换为数值类型（处理非数值类型，如None、空字符串等）
+    result_df[equity_col] = pd.to_numeric(result_df[equity_col], errors="coerce")
+    result_df["有息债务"] = pd.to_numeric(result_df["有息债务"], errors="coerce")
+    result_df["EBIT"] = pd.to_numeric(result_df["EBIT"], errors="coerce")
+    result_df["实际税率"] = pd.to_numeric(result_df["实际税率"], errors="coerce")
+
     # 计算投入资本 = 股东权益 + 有息债务
     result_df["投入资本"] = (
         result_df[equity_col].fillna(0) +
@@ -254,6 +289,10 @@ def _calculate_invested_capital_base(
 
     # 计算 NOPAT（税后净营业利润）
     result_df["NOPAT"] = result_df["EBIT"] * (1 - result_df["实际税率"])
+
+    # 确保是数值类型
+    result_df["投入资本"] = pd.to_numeric(result_df["投入资本"], errors="coerce")
+    result_df["NOPAT"] = pd.to_numeric(result_df["NOPAT"], errors="coerce")
 
     # 返回字段映射
     field_mapping = {
@@ -290,11 +329,19 @@ def _roic(data: Dict[str, pd.DataFrame], market: str) -> Tuple[pd.DataFrame, Lis
     # 使用统一的基础方法计算投入资本和NOPAT
     result_df, _ = _calculate_invested_capital_base(data, market)
 
+    # 转换为数值类型（处理非数值类型，如None、空字符串等）
+    result_df["NOPAT"] = pd.to_numeric(result_df["NOPAT"], errors="coerce")
+    result_df["投入资本"] = pd.to_numeric(result_df["投入资本"], errors="coerce")
+
     # 计算 ROIC
     result_df["ROIC"] = (
         result_df["NOPAT"] /
         result_df["投入资本"].replace(0, pd.NA) * 100
-    ).round(2)
+    )
+    # 处理无穷值
+    result_df["ROIC"] = result_df["ROIC"].replace([float('inf'), -float('inf')], pd.NA)
+    # 确保是数值类型后再round
+    result_df["ROIC"] = pd.to_numeric(result_df["ROIC"], errors="coerce").round(2)
 
     display_columns = [
         "年份",
@@ -367,27 +414,45 @@ def _operating_roic(data: Dict[str, pd.DataFrame], market: str) -> Tuple[pd.Data
         on="年份"
     )
 
+    # 转换为数值类型（处理非数值类型，如None、空字符串等）
+    result_df[cash_col] = pd.to_numeric(result_df[cash_col], errors="coerce")
+    if goodwill_col:
+        result_df[goodwill_col] = pd.to_numeric(result_df[goodwill_col], errors="coerce")
+
     # 计算非经营性资产总额
     non_operating_assets = result_df[cash_col].fillna(0)
     if goodwill_col:
         non_operating_assets += result_df[goodwill_col].fillna(0)
 
-    result_df["非经营性资产"] = non_operating_assets
+    result_df["非经营性资产"] = pd.to_numeric(non_operating_assets, errors="coerce")
 
     # 计算运营投入资本 = 投入资本 - 非经营性资产
     result_df["运营投入资本"] = result_df["投入资本"] - result_df["非经营性资产"]
+
+    # 转换为数值类型（处理非数值类型，如None、空字符串等）
+    result_df["NOPAT"] = pd.to_numeric(result_df["NOPAT"], errors="coerce")
+    result_df["运营投入资本"] = pd.to_numeric(result_df["运营投入资本"], errors="coerce")
+    result_df["投入资本"] = pd.to_numeric(result_df["投入资本"], errors="coerce")
 
     # 计算运营ROIC
     result_df["运营ROIC"] = (
         result_df["NOPAT"] /
         result_df["运营投入资本"].replace(0, pd.NA) * 100
-    ).round(2)
+    )
+    # 处理无穷值
+    result_df["运营ROIC"] = result_df["运营ROIC"].replace([float('inf'), -float('inf')], pd.NA)
+    # 确保是数值类型后再round
+    result_df["运营ROIC"] = pd.to_numeric(result_df["运营ROIC"], errors="coerce").round(2)
 
     # 计算普通ROIC（用于对比）
     result_df["ROIC"] = (
         result_df["NOPAT"] /
         result_df["投入资本"].replace(0, pd.NA) * 100
-    ).round(2)
+    )
+    # 处理无穷值
+    result_df["ROIC"] = result_df["ROIC"].replace([float('inf'), -float('inf')], pd.NA)
+    # 确保是数值类型后再round
+    result_df["ROIC"] = pd.to_numeric(result_df["ROIC"], errors="coerce").round(2)
 
     # 构建剔除说明
     if market == "A股":
