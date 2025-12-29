@@ -50,3 +50,6 @@ logs/
 test_incremental_single.db
 
 output/
+
+.playwright-mcp
+node_modules
