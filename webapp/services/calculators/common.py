@@ -199,8 +199,8 @@ def calculate_free_cash_flow(data: Dict[str, pd.DataFrame], market: str) -> Tupl
         if capex_col_2 in cashflow_df.columns:
             cashflow_df[capex_col_2] = pd.to_numeric(cashflow_df[capex_col_2], errors="coerce")
         # 港股的资本支出 = 购建固定资产 + 购建无形资产及其他资产(取绝对值)
-        capex_1 = cashflow_df.get(capex_col_1, 0).abs()
-        capex_2 = cashflow_df.get(capex_col_2, 0).abs()
+        capex_1 = cashflow_df.get(capex_col_1, pd.Series([0] * len(cashflow_df))).abs()
+        capex_2 = cashflow_df.get(capex_col_2, pd.Series([0] * len(cashflow_df))).abs()
         cashflow_df['资本支出'] = (capex_1 + capex_2).fillna(0)
 
     else:  # 美股
@@ -218,8 +218,8 @@ def calculate_free_cash_flow(data: Dict[str, pd.DataFrame], market: str) -> Tupl
         if capex_col_2 in cashflow_df.columns:
             cashflow_df[capex_col_2] = pd.to_numeric(cashflow_df[capex_col_2], errors="coerce")
         # 计算资本支出
-        capex_1 = cashflow_df.get(capex_col_1, 0).abs()
-        capex_2 = cashflow_df.get(capex_col_2, 0).abs()
+        capex_1 = cashflow_df.get(capex_col_1, pd.Series([0] * len(cashflow_df))).abs()
+        capex_2 = cashflow_df.get(capex_col_2, pd.Series([0] * len(cashflow_df))).abs()
         cashflow_df['资本支出'] = (capex_1 + capex_2).fillna(0)
 
     # 确保资本支出是数值类型

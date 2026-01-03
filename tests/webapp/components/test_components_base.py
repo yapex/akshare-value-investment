@@ -95,8 +95,8 @@ class TestROICComponent:
     @patch('streamlit.spinner')
     def test_render_signature(self, mock_spinner, mock_subheader):
         """测试 render 方法可以被调用"""
-        # Mock 所有依赖
-        with patch('components.roic.calculate_roic') as mock_calculate:
+        # Mock 所有依赖 - 正确的路径是 services.calculators.roic.calculate
+        with patch('services.calculators.roic.calculate') as mock_calculate:
             mock_calculate.return_value = (Mock(), Mock(), Mock(), [], [], {}, {}, {}, {})
 
             with patch('streamlit.success'):
@@ -117,8 +117,8 @@ class TestNetIncomeValuationComponent:
     @patch('streamlit.subheader')
     def test_render_signature(self, mock_subheader):
         """测试 render 方法可以被调用"""
-        # Mock 所有依赖
-        with patch('components.net_income_valuation.calculate_net_income_valuation') as mock_calculate:
+        # Mock 所有依赖 - 正确的路径是 services.calculators.net_income_valuation.calculate
+        with patch('services.calculators.net_income_valuation.calculate') as mock_calculate:
             mock_calculate.return_value = (Mock(), [], {})
 
             with patch('streamlit.markdown'):
@@ -138,13 +138,13 @@ class TestDCFValuationComponent:
 
     def test_title(self):
         """测试标题"""
-        assert DCFValuationComponent.title == "📈 估值（DCF）"
+        assert DCFValuationComponent.title == "📈 DCF估值分析"
 
     @patch('streamlit.subheader')
     def test_render_signature(self, mock_subheader):
         """测试 render 方法可以被调用"""
-        # Mock 所有依赖
-        with patch('components.dcf_valuation.calculate_dcf_valuation') as mock_calculate:
+        # Mock 所有依赖 - 正确的路径是 services.calculators.dcf_valuation.calculate
+        with patch('services.calculators.dcf_valuation.calculate') as mock_calculate:
             mock_calculate.return_value = (Mock(), [], {})
 
             with patch('streamlit.markdown'):
@@ -164,7 +164,7 @@ class TestDebtToEquityComponent:
 
     def test_title(self):
         """测试标题"""
-        assert DebtToEquityComponent.title == "💳 债务权益比"
+        assert DebtToEquityComponent.title == "💳 有息债务权益比"
 
 
 class TestRevenueGrowthComponent:
@@ -172,7 +172,7 @@ class TestRevenueGrowthComponent:
 
     def test_title(self):
         """测试标题"""
-        assert RevenueGrowthComponent.title == "📊 收入增长"
+        assert RevenueGrowthComponent.title == "📈 营收是否增长（成长性）"
 
 
 class TestEBITMarginComponent:
@@ -180,7 +180,7 @@ class TestEBITMarginComponent:
 
     def test_title(self):
         """测试标题"""
-        assert EBITMarginComponent.title == "💰 EBIT 利润率"
+        assert EBITMarginComponent.title == "💰 盈利能力如何（EBIT利润率）"
 
 
 class TestCashFlowPatternComponent:
@@ -188,7 +188,7 @@ class TestCashFlowPatternComponent:
 
     def test_title(self):
         """测试标题"""
-        assert CashFlowPatternComponent.title == "💵 现金流模式"
+        assert CashFlowPatternComponent.title == "💵 现金流类型分析"
 
 
 class TestComponentGrouping:

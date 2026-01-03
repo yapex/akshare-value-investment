@@ -70,17 +70,23 @@ class TestNetIncomeValuationCalculator:
 
         # 验证返回值结构
         assert isinstance(result, tuple)
-        assert len(result) == 3
+        assert len(result) == 5
 
-        df, display_columns, stats = result
+        history_df, prediction_df, display_cols_history, display_cols_prediction, stats = result
 
-        # 验证 DataFrame
-        assert isinstance(df, pd.DataFrame)
-        assert not df.empty
+        # 验证历史 DataFrame
+        assert isinstance(history_df, pd.DataFrame)
+        assert not history_df.empty
+
+        # 验证预测 DataFrame
+        assert isinstance(prediction_df, pd.DataFrame)
+        assert not prediction_df.empty
 
         # 验证显示列
-        assert isinstance(display_columns, list)
-        assert len(display_columns) > 0
+        assert isinstance(display_cols_history, list)
+        assert len(display_cols_history) > 0
+        assert isinstance(display_cols_prediction, list)
+        assert len(display_cols_prediction) > 0
 
         # 验证统计字典
         assert isinstance(stats, dict)
@@ -93,7 +99,7 @@ class TestNetIncomeValuationCalculator:
         # 三年后净利润 = 1000 * (1.1)^3 = 1331亿
         # 企业价值 = 1331 * 25 = 33275亿
 
-        df, display_columns, stats = calculate(
+        history_df, prediction_df, display_cols_history, display_cols_prediction, stats = calculate(
             symbol="600519",
             market="A股",
             years=10,
@@ -115,7 +121,7 @@ class TestNetIncomeValuationCalculator:
 
     def test_prediction_dataframe_structure(self, mock_api_requests):
         """测试预测数据框结构"""
-        df, display_columns, stats = calculate(
+        history_df, prediction_df, display_cols_history, display_cols_prediction, stats = calculate(
             symbol="600519",
             market="A股",
             years=10,
@@ -124,12 +130,14 @@ class TestNetIncomeValuationCalculator:
         )
 
         # 验证包含历史数据和预测数据
-        assert "年份" in df.columns
-        assert "历史净利润" in df.columns or "预测净利润" in df.columns
+        assert "年份" in history_df.columns
+        assert "历史净利润" in history_df.columns
+        assert "年份" in prediction_df.columns
+        assert "预测净利润" in prediction_df.columns
 
     def test_historical_growth_rate_calculation(self, mock_api_requests):
         """测试历史增长率计算"""
-        df, display_columns, stats = calculate(
+        history_df, prediction_df, display_cols_history, display_cols_prediction, stats = calculate(
             symbol="600519",
             market="A股",
             years=10,
@@ -146,10 +154,10 @@ class TestNetIncomeValuationCalculator:
     def test_different_growth_rates(self, mock_api_requests):
         """测试不同增长率"""
         # 低增长率
-        _, _, stats_low = calculate("600519", "A股", 10, 0.05, 25.0)
+        _, _, _, _, stats_low = calculate("600519", "A股", 10, 0.05, 25.0)
 
         # 高增长率
-        _, _, stats_high = calculate("600519", "A股", 10, 0.20, 25.0)
+        _, _, _, _, stats_high = calculate("600519", "A股", 10, 0.20, 25.0)
 
         # 高增长率的估值应该更高
         assert stats_high["year3_net_income"] > stats_low["year3_net_income"]
@@ -158,10 +166,10 @@ class TestNetIncomeValuationCalculator:
     def test_different_pe_multiples(self, mock_api_requests):
         """测试不同 PE 倍数"""
         # 低PE倍数
-        _, _, stats_low_pe = calculate("600519", "A股", 10, 0.10, 15.0)
+        _, _, _, _, stats_low_pe = calculate("600519", "A股", 10, 0.10, 15.0)
 
         # 高PE倍数
-        _, _, stats_high_pe = calculate("600519", "A股", 10, 0.10, 30.0)
+        _, _, _, _, stats_high_pe = calculate("600519", "A股", 10, 0.10, 30.0)
 
         # 第三年净利润应该相同
         assert stats_low_pe["year3_net_income"] == stats_high_pe["year3_net_income"]
@@ -196,8 +204,8 @@ class TestNetIncomeValuationCalculator:
 
             # 验证成功返回
             assert result is not None
-            df, display_columns, stats = result
-            assert not df.empty
+            history_df, prediction_df, display_cols_history, display_cols_prediction, stats = result
+            assert not history_df.empty
             assert stats["current_net_income"] > 0
 
     def test_us_stock_valuation(self):
@@ -227,8 +235,8 @@ class TestNetIncomeValuationCalculator:
 
             # 验证成功返回
             assert result is not None
-            df, display_columns, stats = result
-            assert not df.empty
+            history_df, prediction_df, display_cols_history, display_cols_prediction, stats = result
+            assert not history_df.empty
             assert stats["current_net_income"] > 0
 
     def test_api_error_handling(self):
@@ -288,7 +296,7 @@ class TestNetIncomeValuationCalculator:
     def test_growth_rate_edge_cases(self, mock_api_requests):
         """测试增长率边界情况"""
         # 零增长率
-        df, _, stats = calculate("600519", "A股", 10, 0.0, 25.0)
+        _, _, _, _, stats = calculate("600519", "A股", 10, 0.0, 25.0)
 
         # 零增长率时，第三年净利润应该等于当前净利润
         assert stats["year3_net_income"] == pytest.approx(stats["current_net_income"], rel=0.01)
@@ -316,7 +324,7 @@ class TestNetIncomeValuationCalculator:
             mock_response.json.return_value = api_response
             mock_get.return_value = mock_response
 
-            df, display_columns, stats = calculate("600519", "A股", 10, 0.10, 25.0)
+            history_df, prediction_df, display_cols_history, display_cols_prediction, stats = calculate("600519", "A股", 10, 0.10, 25.0)
 
             # 历史增长率应该为 0（因为只有一年数据）
             assert stats["historical_growth_rate"] == 0.0

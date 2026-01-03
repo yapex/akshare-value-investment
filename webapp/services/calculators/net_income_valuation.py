@@ -95,9 +95,9 @@ def calculate(
     history_df = history_df.sort_values("年份").reset_index(drop=True)
     history_df.rename(columns={net_income_col: "历史净利润"}, inplace=True)
 
-    # 计算历史增长率
+    # 计算历史增长率（从最早年份到最新年份）
     if len(history_df) >= 2:
-        first_income = history_df["历史净利润"].iloc[-1]
+        first_income = history_df["历史净利润"].iloc[0]  # 最早年份
         historical_growth_rate = (latest_net_income / first_income) ** (1 / (len(history_df) - 1)) - 1
     else:
         historical_growth_rate = 0.0
