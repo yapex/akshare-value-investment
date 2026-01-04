@@ -217,8 +217,8 @@ def _investment_intensity_ratio(
         if depreciation_col not in cashflow_df.columns:
             raise ValueError(f"折旧字段 '{depreciation_col}' 不存在")
         # 计算资本支出和折旧
-        capex_1 = cashflow_df.get(capex_col_1, 0).abs()
-        capex_2 = cashflow_df.get(capex_col_2, 0).abs()
+        capex_1 = cashflow_df.get(capex_col_1, pd.Series([0] * len(cashflow_df))).abs()
+        capex_2 = cashflow_df.get(capex_col_2, pd.Series([0] * len(cashflow_df))).abs()
         cashflow_df['资本支出'] = (capex_1 + capex_2).fillna(0)
         cashflow_df['折旧'] = cashflow_df[depreciation_col].abs()
 

@@ -245,7 +245,7 @@ class NetIncomeValuationComponent:
                     height=400
                 )
 
-                st.plotly_chart(fig_history, use_container_width=True, key=f"net_income_history_{symbol}_{market}_{years}")
+                st.plotly_chart(fig_history, width='stretch', key=f"net_income_history_{symbol}_{market}_{years}")
 
             # 显示预测数据表
             st.markdown("##### 🔮 净利润预测")

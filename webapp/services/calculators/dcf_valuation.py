@@ -155,7 +155,7 @@ def calculate(
     summary_row = {
         "年份": "预测期合计",
         "预测现金流": result_df["预测现金流"].sum(),
-        "折现因子": None,
+        "折现因子": pd.NA,
         "折现现金流": present_value_fcf
     }
     result_df = pd.concat([result_df, pd.DataFrame([summary_row])], ignore_index=True)

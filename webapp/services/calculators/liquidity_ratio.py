@@ -85,6 +85,10 @@ def calculate(
     return result_df, display_cols, metrics
 
 
+# 定义无穷大的替代值（用于表示无负债/无压力的情况）
+INF_VALUE = 9999.99
+
+
 def calculate_interest_coverage_ratio(
     symbol: str,
     market: str,
@@ -130,6 +134,9 @@ def calculate_interest_coverage_ratio(
         # 转换为数值类型
         result_df["利息收入"] = pd.to_numeric(result_df["利息收入"], errors="coerce")
         result_df["其中：利息费用"] = pd.to_numeric(result_df["其中：利息费用"], errors="coerce")
+        
+        # 记录利息费用为0的行（无偿债压力）
+        zero_interest_mask = (result_df["其中：利息费用"].fillna(0) == 0)
 
         # 计算利息覆盖比率
         ratio = (
@@ -138,6 +145,10 @@ def calculate_interest_coverage_ratio(
         )
         # 处理无穷值
         ratio = ratio.replace([float('inf'), -float('inf')], pd.NA)
+        
+        # 对于利息费用为0的情况，设置为 INF_VALUE
+        ratio[zero_interest_mask] = INF_VALUE
+        
         # 确保是数值类型后再round
         result_df["利息覆盖比率"] = pd.to_numeric(ratio, errors="coerce").round(2)
 
@@ -157,6 +168,9 @@ def calculate_interest_coverage_ratio(
         result_df["融资成本"] = pd.to_numeric(result_df["融资成本"], errors="coerce")
         result_df["利息收入"] = pd.to_numeric(result_df["利息收入"], errors="coerce")
 
+        # 记录融资成本为0的行
+        zero_cost_mask = (result_df["融资成本"].fillna(0) == 0)
+
         # 港股的EBIT已经减去了融资成本，所以计算时要加回
         # 利息覆盖比率 = (除税前溢利 + 融资成本 + 利息收入) ÷ 融资成本
         ratio = (
@@ -165,6 +179,10 @@ def calculate_interest_coverage_ratio(
         )
         # 处理无穷值
         ratio = ratio.replace([float('inf'), -float('inf')], pd.NA)
+        
+        # 对于融资成本为0的情况，设置为 INF_VALUE
+        ratio[zero_cost_mask] = INF_VALUE
+
         # 确保是数值类型后再round
         result_df["利息覆盖比率"] = pd.to_numeric(ratio, errors="coerce").round(2)
 
@@ -187,11 +205,14 @@ def calculate_interest_coverage_ratio(
         result_df["利息收入"] = pd.to_numeric(result_df["利息收入"], errors="coerce")
         result_df["利息支出"] = pd.to_numeric(result_df["利息支出"], errors="coerce")
 
-        # 过滤掉利息支出为N/A的行
-        result_df = result_df[result_df["利息支出"].notna()].copy()
+        # 利息支出为NaN时，视为0（即没有利息支出）
+        result_df["利息支出"] = result_df["利息支出"].fillna(0)
 
         # 利息支出是负数，取绝对值
         result_df["利息支出"] = result_df["利息支出"].abs()
+        
+        # 记录利息支出为0的行
+        zero_expense_mask = (result_df["利息支出"] == 0)
 
         # 计算利息覆盖比率
         ratio = (
@@ -200,6 +221,10 @@ def calculate_interest_coverage_ratio(
         )
         # 处理无穷值
         ratio = ratio.replace([float('inf'), -float('inf')], pd.NA)
+        
+        # 对于利息支出为0的情况，设置为 INF_VALUE
+        ratio[zero_expense_mask] = INF_VALUE
+        
         # 确保是数值类型后再round
         result_df["利息覆盖比率"] = pd.to_numeric(ratio, errors="coerce").round(2)
 

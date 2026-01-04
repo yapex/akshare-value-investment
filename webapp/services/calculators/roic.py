@@ -392,7 +392,11 @@ def _operating_roic(data: Dict[str, pd.DataFrame], market: str) -> Tuple[pd.Data
         goodwill_col = None
     else:  # 美股
         cash_col = "现金及现金等价物"
-        goodwill_col = "商誉"
+        # 商誉字段可能不存在（例如拼多多）
+        if "商誉" in balance_df.columns:
+            goodwill_col = "商誉"
+        else:
+            goodwill_col = None
 
     # 验证非经营性资产字段是否存在
     if cash_col not in balance_df.columns:
@@ -460,7 +464,10 @@ def _operating_roic(data: Dict[str, pd.DataFrame], market: str) -> Tuple[pd.Data
     elif market == "港股":
         exclusion_note = "剔除：现金及等价物（注：商誉字段缺失，未剔除）"
     else:  # 美股
-        exclusion_note = "剔除：商誉 + 现金及现金等价物"
+        if goodwill_col:
+            exclusion_note = "剔除：商誉 + 现金及现金等价物"
+        else:
+            exclusion_note = "剔除：现金及现金等价物（注：商誉字段缺失，未剔除）"
 
     exclusion_info = {
         "exclusion_note": exclusion_note,
