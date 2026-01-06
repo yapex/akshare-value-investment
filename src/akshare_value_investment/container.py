@@ -12,6 +12,9 @@ from pathlib import Path
 from dependency_injector import containers, providers
 
 from .core.stock_identifier import StockIdentifier
+from .normalization.registry import FieldMappingRegistry
+from .normalization.schema_normalizer import SchemaNormalizer
+from .normalization.config import load_market_mappings
 
 # 导入查询器架构
 from .datasource.queryers.a_stock_queryers import (
@@ -84,6 +87,15 @@ class ProductionContainer(containers.DeclarativeContainer):
             root_logger.addHandler(file_handler)
             root_logger.propagate = False
 
+    @staticmethod
+    def _init_registry() -> FieldMappingRegistry:
+        """
+        初始化字段映射注册表
+
+        使用外部配置模块加载映射配置，保持 Container 的轻量和职责单一。
+        """
+        return FieldMappingRegistry.from_config(load_market_mappings())
+
     def __init__(self):
         """初始化容器并设置日志"""
         super().__init__()
@@ -100,25 +112,77 @@ class ProductionContainer(containers.DeclarativeContainer):
     # 核心组件
     stock_identifier = providers.Singleton(StockIdentifier)
 
-    # 查询器架构 - 遵循SOLID原则，注入缓存依赖
+    # Normalization组件
+    field_mapping_registry = providers.Singleton(_init_registry)
+    schema_normalizer = providers.Singleton(SchemaNormalizer, registry=field_mapping_registry)
+
+    # 查询器架构 - 遵循SOLID原则，注入缓存依赖和SchemaNormalizer
     # A股Queryers
-    a_stock_indicators = providers.Singleton(AStockIndicatorQueryer, cache=diskcache)
-    a_stock_balance_sheet = providers.Singleton(AStockBalanceSheetQueryer, cache=diskcache)
-    a_stock_income_statement = providers.Singleton(AStockIncomeStatementQueryer, cache=diskcache)
-    a_stock_cash_flow = providers.Singleton(AStockCashFlowQueryer, cache=diskcache)
+    a_stock_indicators = providers.Singleton(
+        AStockIndicatorQueryer, 
+        cache=diskcache,
+        schema_normalizer=schema_normalizer
+    )
+    a_stock_balance_sheet = providers.Singleton(
+        AStockBalanceSheetQueryer, 
+        cache=diskcache,
+        schema_normalizer=schema_normalizer
+    )
+    a_stock_income_statement = providers.Singleton(
+        AStockIncomeStatementQueryer, 
+        cache=diskcache,
+        schema_normalizer=schema_normalizer
+    )
+    a_stock_cash_flow = providers.Singleton(
+        AStockCashFlowQueryer, 
+        cache=diskcache,
+        schema_normalizer=schema_normalizer
+    )
 
     # 港股Queryers
-    hk_stock_indicators = providers.Singleton(HKStockIndicatorQueryer, cache=diskcache)
-    hk_stock_balance_sheet = providers.Singleton(HKStockBalanceSheetQueryer, cache=diskcache)
-    hk_stock_income_statement = providers.Singleton(HKStockIncomeStatementQueryer, cache=diskcache)
-    hk_stock_cash_flow = providers.Singleton(HKStockCashFlowQueryer, cache=diskcache)
+    hk_stock_indicators = providers.Singleton(
+        HKStockIndicatorQueryer,
+        cache=diskcache,
+        schema_normalizer=schema_normalizer
+    )
+    hk_stock_balance_sheet = providers.Singleton(
+        HKStockBalanceSheetQueryer,
+        cache=diskcache,
+        schema_normalizer=schema_normalizer
+    )
+    hk_stock_income_statement = providers.Singleton(
+        HKStockIncomeStatementQueryer,
+        cache=diskcache,
+        schema_normalizer=schema_normalizer
+    )
+    hk_stock_cash_flow = providers.Singleton(
+        HKStockCashFlowQueryer,
+        cache=diskcache,
+        schema_normalizer=schema_normalizer
+    )
     hk_stock_statement = providers.Singleton(HKStockStatementQueryer, cache=diskcache)  # 备用
 
     # 美股Queryers
-    us_stock_indicators = providers.Singleton(USStockIndicatorQueryer, cache=diskcache)
-    us_stock_balance_sheet = providers.Singleton(USStockBalanceSheetQueryer, cache=diskcache)
-    us_stock_income_statement = providers.Singleton(USStockIncomeStatementQueryer, cache=diskcache)
-    us_stock_cash_flow = providers.Singleton(USStockCashFlowQueryer, cache=diskcache)
+    us_stock_indicators = providers.Singleton(
+        USStockIndicatorQueryer,
+        cache=diskcache,
+        schema_normalizer=schema_normalizer
+    )
+    us_stock_balance_sheet = providers.Singleton(
+        USStockBalanceSheetQueryer,
+        cache=diskcache,
+        schema_normalizer=schema_normalizer
+    )
+    us_stock_income_statement = providers.Singleton(
+        USStockIncomeStatementQueryer,
+        cache=diskcache,
+        schema_normalizer=schema_normalizer
+    )
+    us_stock_cash_flow = providers.Singleton(
+        USStockCashFlowQueryer,
+        cache=diskcache,
+        schema_normalizer=schema_normalizer
+    )
 
     
 
