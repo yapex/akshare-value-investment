@@ -5,6 +5,7 @@ import os
 from .interfaces import IDataQueryer
 from ...core.models import MarketType
 from ...core.stock_identifier import StockIdentifier
+from ...normalization.schema_normalizer import SchemaNormalizer
 
 
 def create_cached_query_method(cache_date_field: str, cache_query_type: str, cache=None):
@@ -97,11 +98,14 @@ class BaseDataQueryer(IDataQueryer):
 
     cache_date_field: ClassVar[str] = 'date'
     cache_query_type: ClassVar[str] = 'indicators'
+    market_type: ClassVar[str] = 'unknown' # 子类应覆盖此属性
 
-    def __init__(self, stock_identifier: Optional[StockIdentifier] = None, cache=None):
+    def __init__(self, stock_identifier: Optional[StockIdentifier] = None, cache=None, 
+                 schema_normalizer: Optional[SchemaNormalizer] = None):
         try:
             self._stock_identifier = stock_identifier or StockIdentifier()
             self._cache = cache  # 注入缓存实例
+            self.schema_normalizer = schema_normalizer # 注入 Normalizer
 
             cached_method = create_cached_query_method(
                 cache_date_field=self.cache_date_field,
@@ -149,7 +153,13 @@ class BaseDataQueryer(IDataQueryer):
     def query(self, symbol: str, start_date: Optional[str] = None,
               end_date: Optional[str] = None) -> pd.DataFrame:
         formatted_symbol = self._format_symbol_for_api(symbol)
-        return self._query_with_dates(formatted_symbol, start_date, end_date)
+        df = self._query_with_dates(formatted_symbol, start_date, end_date)
+        
+        # 执行标准化 (如果有注入 Normalizer)
+        if self.schema_normalizer:
+            df = self.schema_normalizer.standardize(df, self.market_type)
+            
+        return df
 
     def _query_raw(self, symbol: str) -> pd.DataFrame:
         raise NotImplementedError("子类必须实现 _query_raw 方法以提供具体的数据获取逻辑")

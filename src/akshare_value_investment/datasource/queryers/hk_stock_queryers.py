@@ -10,6 +10,7 @@ from .base_queryer import BaseDataQueryer
 class HKStockIndicatorQueryer(BaseDataQueryer):
     """港股财务指标查询器"""
 
+    market_type = 'hk_stock'
     cache_date_field = 'date'
     cache_query_type = 'hk_indicators'
 
@@ -31,6 +32,7 @@ class HKStockIndicatorQueryer(BaseDataQueryer):
 class HKStockStatementQueryerBase(BaseDataQueryer):
     """港股财务报表查询器基类"""
 
+    market_type = 'hk_stock'
     cache_date_field = 'date'  # 报表查询器的日期字段是转换后生成的date
 
     # 港股财务数据单位转换比例：从元转换为亿元（除以1亿）

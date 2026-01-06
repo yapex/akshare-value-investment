@@ -9,6 +9,7 @@ from .base_queryer import BaseDataQueryer
 
 class USStockIndicatorQueryer(BaseDataQueryer):
     """美股财务指标查询器"""
+    market_type = 'us_stock'
     cache_query_type = 'us_indicators'
     cache_date_field = 'date'
 
@@ -25,6 +26,7 @@ class USStockIndicatorQueryer(BaseDataQueryer):
 class USStockStatementQueryerBase(BaseDataQueryer):
     """美股财务报表查询器基类"""
 
+    market_type = 'us_stock'
     cache_date_field = 'date'  # 报表查询器的日期字段是转换后生成的date
 
     # 美股财务数据单位转换比例：从美元转换为亿美元（除以1亿）
