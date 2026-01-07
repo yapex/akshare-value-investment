@@ -76,29 +76,29 @@ class TestMarketFieldsInheritance:
             if attr.isupper() and not attr.startswith('_')
         ])
 
-        # AStockMarketFields: 65个(暂时没有特有字段)
+        # AStockMarketFields: 153个 (65个标准 + 88个A股特有)
         a_stock_count = len([
             attr for attr in dir(AStockMarketFields)
             if attr.isupper() and not attr.startswith('_')
         ])
 
-        # HKStockMarketFields: 65个(暂时没有特有字段)
+        # HKStockMarketFields: 193个 (65个标准 + 128个港股特有)
         hk_stock_count = len([
             attr for attr in dir(HKStockMarketFields)
             if attr.isupper() and not attr.startswith('_')
         ])
 
-        # USStockMarketFields: 65个(暂时没有特有字段)
+        # USStockMarketFields: 148个 (65个标准 + 83个美股特有)
         us_stock_count = len([
             attr for attr in dir(USStockMarketFields)
             if attr.isupper() and not attr.startswith('_')
         ])
 
-        # 所有市场应该有相同数量的字段(暂时)
+        # 验证字段数量
         assert standard_count == 65
-        assert a_stock_count == 65
-        assert hk_stock_count == 65
-        assert us_stock_count == 65
+        assert a_stock_count == 153  # 65个标准 + 88个A股特有
+        assert hk_stock_count == 193  # 65个标准 + 128个港股特有
+        assert us_stock_count == 148  # 65个标准 + 83个美股特有
 
     def test_all_65_standard_fields_accessible(self):
         """测试: 所有65个标准字段都可访问"""

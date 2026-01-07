@@ -8,8 +8,15 @@ from akshare_value_investment.normalization.config import (
     get_hk_stock_mappings,
     get_us_stock_mappings,
     load_market_mappings,
+    get_a_stock_specific_mappings,
+    get_hk_stock_specific_mappings,
+    get_us_stock_specific_mappings,
+    load_market_specific_mappings,
 )
 from akshare_value_investment.domain.models.financial_standard import StandardFields
+from akshare_value_investment.domain.models.market_fields.a_stock_fields import AStockMarketFields
+from akshare_value_investment.domain.models.market_fields.hk_stock_fields import HKStockMarketFields
+from akshare_value_investment.domain.models.market_fields.us_stock_fields import USStockMarketFields
 
 
 class TestConfigModule:
@@ -214,3 +221,91 @@ class TestConfigModule:
         # A股和美股包含利息(简化版)
         assert "分配股利、利润或偿付利息支付的现金" in config['a_stock'][StandardFields.DIVIDENDS_PAID]
         assert "分配股利、利润或偿付利息支付的现金" in config['us_stock'][StandardFields.DIVIDENDS_PAID]
+
+    def test_a_stock_specific_mappings_not_empty(self):
+        """验证A股特有字段映射配置不为空"""
+        mappings = get_a_stock_specific_mappings()
+        assert len(mappings) > 0
+        assert AStockMarketFields.SPLIT_OUT_CAPITAL in mappings
+        assert AStockMarketFields.TOTAL_CASH in mappings
+        assert AStockMarketFields.OPERATING_PROFIT in mappings
+        assert AStockMarketFields.NET_PROFIT_AFTER_NON_RECURRING in mappings
+        assert AStockMarketFields.RETURN_ON_EQUITY in mappings
+
+    def test_hk_stock_specific_mappings_not_empty(self):
+        """验证港股特有字段映射配置不为空"""
+        mappings = get_hk_stock_specific_mappings()
+        assert len(mappings) > 0
+        assert HKStockMarketFields.MEDIUM_LONG_TERM_DEPOSITS in mappings
+        assert HKStockMarketFields.JOINT_VENTURE_EQUITY in mappings
+        assert HKStockMarketFields.OPERATING_REVENUE in mappings
+        assert HKStockMarketFields.DIVIDENDS in mappings
+        assert HKStockMarketFields.ROIC_YEARLY in mappings
+
+    def test_us_stock_specific_mappings_not_empty(self):
+        """验证美股特有字段映射配置不为空"""
+        mappings = get_us_stock_specific_mappings()
+        assert len(mappings) > 0
+        assert USStockMarketFields.SHORT_TERM_INVESTMENTS in mappings
+        assert USStockMarketFields.PREFERRED_STOCK in mappings
+        assert USStockMarketFields.MAIN_OPERATING_REVENUE in mappings
+        assert USStockMarketFields.DIVIDEND_PAYMENT in mappings
+        assert USStockMarketFields.EQUITY_RATIO in mappings
+
+    def test_load_market_specific_mappings_structure(self):
+        """验证加载的市场特有字段映射配置结构正确"""
+        config = load_market_specific_mappings()
+        assert isinstance(config, dict)
+        assert 'a_stock' in config
+        assert 'hk_stock' in config
+        assert 'us_stock' in config
+
+        # 验证每个市场的配置都是字典
+        for market in ['a_stock', 'hk_stock', 'us_stock']:
+            assert isinstance(config[market], dict)
+            # 至少应该有一些特有字段
+            assert len(config[market]) > 0
+
+    def test_a_stock_specific_mappings_complete(self):
+        """验证A股特有字段映射完整性"""
+        mappings = get_a_stock_specific_mappings()
+
+        # 验证财务指标字段
+        assert AStockMarketFields.SALES_NET_PROFIT_MARGIN in mappings
+        assert AStockMarketFields.RETURN_ON_EQUITY in mappings
+        assert AStockMarketFields.CURRENT_RATIO in mappings
+        assert AStockMarketFields.DEBT_TO_ASSET_RATIO in mappings
+
+        # 验证映射值是列表
+        for field, raw_fields in mappings.items():
+            assert isinstance(raw_fields, list)
+            assert len(raw_fields) > 0
+
+    def test_hk_stock_specific_mappings_complete(self):
+        """验证港股特有字段映射完整性"""
+        mappings = get_hk_stock_specific_mappings()
+
+        # 验证财务指标字段
+        assert HKStockMarketFields.GROSS_PROFIT_RATIO in mappings
+        assert HKStockMarketFields.ROE_YEARLY in mappings
+        assert HKStockMarketFields.DEBT_ASSET_RATIO in mappings
+
+        # 验证映射值是列表
+        for field, raw_fields in mappings.items():
+            assert isinstance(raw_fields, list)
+            assert len(raw_fields) > 0
+
+    def test_us_stock_specific_mappings_complete(self):
+        """验证美股特有字段映射完整性"""
+        mappings = get_us_stock_specific_mappings()
+
+        # 验证财务指标字段
+        assert USStockMarketFields.GROSS_PROFIT_RATIO_US in mappings
+        assert USStockMarketFields.ROE_AVG_US in mappings
+        assert USStockMarketFields.EQUITY_RATIO in mappings
+
+        # 验证映射值是列表
+        for field, raw_fields in mappings.items():
+            assert isinstance(raw_fields, list)
+            assert len(raw_fields) > 0
+
