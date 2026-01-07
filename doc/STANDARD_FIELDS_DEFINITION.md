@@ -144,14 +144,14 @@ capital_expenditure = abs(
 
 | 市场 | 文档字段总数 | 已映射标准字段 | 映射覆盖率 | 原始字段映射数 | 平均别名数 |
 |------|------------|--------------|-----------|-------------|-----------|
-| **A股** | 234 | 23 | 9.8% | 33 | 1.4 |
-| **港股** | 219 | 23 | 10.5% | 32 | 1.4 |
-| **美股** | 186 | 23 | 12.4% | 31 | 1.3 |
-| **合计** | **639** | **23** | **3.6%** | **96** | **1.4** |
+| **A股** | 234 | 29 | 12.4% | 39 | 1.3 |
+| **港股** | 219 | 29 | 13.2% | 38 | 1.3 |
+| **美股** | 186 | 29 | 15.6% | 37 | 1.3 |
+| **合计** | **639** | **29** | **4.5%** | **114** | **1.3** |
 
 **数据来源**: 基于 `doc/a_stock_fields.md`, `doc/hk_stock_fields.md`, `doc/us_stock_fields.md`
 
-### ✅ **已定义的标准字段** (23个)
+### ✅ **已定义的标准字段** (29个)
 
 ```python
 class StandardFields:
@@ -180,15 +180,27 @@ class StandardFields:
     INVESTING_CASH_FLOW = "investing_cash_flow" # ✅ 投资现金流
     FINANCING_CASH_FLOW = "financing_cash_flow" # ✅ 筹资现金流
 
-    # ========== 每股指标 (2个) ✨ 新增 ==========
+    # ========== 每股指标 (2个) ==========
     BASIC_EPS = "basic_eps"              # ✅ 基本每股收益
     DILUTED_EPS = "diluted_eps"          # ✅ 稀释每股收益
 
-    # ========== 营运资本字段 (4个) ✨ 新增 ==========
+    # ========== 营运资本字段 (4个) ==========
     CASH_AND_EQUIVALENTS = "cash_and_equivalents" # ✅ 现金及现金等价物
     ACCOUNTS_RECEIVABLE = "accounts_receivable"   # ✅ 应收账款
     INVENTORY = "inventory"                        # ✅ 存货
     ACCOUNTS_PAYABLE = "accounts_payable"          # ✅ 应付账款
+
+    # ========== 现金流量分析字段 (3个) ✨ 新增 ==========
+    CAPITAL_EXPENDITURE = "capital_expenditure"           # ✅ 资本支出
+    DIVIDENDS_PAID = "dividends_paid"                     # ✅ 支付股利
+    DEPRECIATION_AMORTIZATION = "depreciation_amortization" # ✅ 折旧摊销
+
+    # ========== 利润表扩展字段 (2个) ✨ 新增 ==========
+    COST_OF_SALES = "cost_of_sales"                       # ✅ 营业成本
+    RD_EXPENSES = "rd_expenses"                           # ✅ 研发费用
+
+    # ========== 资产负债表扩展字段 (1个) ✨ 新增 ==========
+    PPE_NET = "ppe_net"                                   # ✅ 固定资产净值
 ```
 
 ### 📊 **覆盖策略说明**
@@ -236,30 +248,52 @@ class StandardFields:
 
 #### 高优先级（如需增强分析能力）
 
-1. **`capital_expenditure`** (资本支出)
+以下字段已在v1.3中实现 ✅:
+
+1. **`capital_expenditure`** (资本支出) ✅
    - 用途: 自由现金流计算 (FCF = OCF - CapEx)
-   - 可行性: 可从现金流量表组合计算
-   - 建议: 添加为计算字段，非直接映射
+   - 可行性: A股为单一字段,港股/美股需组合
+   - 实现: 已添加为标准字段,使用主字段映射
 
-2. **`depreciation_amortization`** (折旧摊销)
+2. **`depreciation_amortization`** (折旧摊销) ✅
    - 用途: EBITDA计算
-   - 可行性: 现金流量表补充信息
-   - 建议: 可选，用于EBITDA分析
+   - 可行性: 现金流量表补充信息,需组合
+   - 实现: 已添加为标准字段,使用主字段映射
 
-3. **每股指标**
-   - `basic_eps` (基本每股收益)
-   - `diluted_eps` (稀释每股收益)
-   - 用途: 每股分析
-   - 可行性: 部分市场缺失
+3. **`dividends_paid`** (支付股利) ✅
+   - 用途: 股息收益率计算
+   - 可行性: 港股为纯股息,A股/美股包含利息
+   - 实现: 已添加为标准字段,使用简化映射
+
+4. **`cost_of_sales`** (营业成本) ✅
+   - 用途: 毛利率分析
+   - 可行性: 三地市场均直接提供
+   - 实现: 已添加为标准字段,直接映射
+
+5. **`ppe_net`** (固定资产净值) ✅
+   - 用途: 资产周转率分析
+   - 可行性: 三地市场均提供
+   - 实现: 已添加为标准字段,直接映射
+
+6. **`rd_expenses`** (研发费用) ✅
+   - 用途: 研发强度分析
+   - 可行性: 三地市场均提供
+   - 实现: 已添加为标准字段,直接映射
 
 #### 中优先级（特定分析场景）
 
-4. **营运资本相关**
+1. **营运资本相关** - 已在v1.2实现 ✅
    - `inventory` (存货)
    - `accounts_receivable` (应收账款)
    - `accounts_payable` (应付账款)
    - 用途: 营运资本周转率分析
-   - 注意: 行业差异大，不适合作为通用标准
+   - 注意: 行业差异大,但作为通用标准已添加
+
+2. **递延税项** - 未添加
+   - `deferred_tax_assets` (递延所得税资产)
+   - `deferred_tax_liabilities` (递延所得税负债)
+   - 用途: 税务分析
+   - 注意: 稀缺字段,非所有公司都有
 
 ---
 
@@ -392,10 +426,11 @@ class StandardFields:
 
 ### 版本历史
 
-- **v1.0** (2026-01-06): 初始版本，定义11个核心字段
-- **v1.1** (2026-01-06): 新增6个字段（operating_income, gross_profit, current_assets, current_liabilities等），达到17个标准字段
-- **v1.2** (2026-01-06): **当前版本** - 新增6个扩展字段（basic_eps, diluted_eps, cash_and_equivalents, accounts_receivable, inventory, accounts_payable），达到23个标准字段
-- **v1.3** (待定): 计划添加资本支出计算字段
+- **v1.0** (2026-01-06): 初始版本,定义11个核心字段
+- **v1.1** (2026-01-06): 新增6个字段(operating_income, gross_profit, current_assets, current_liabilities等),达到17个标准字段
+- **v1.2** (2026-01-06): 新增6个扩展字段(basic_eps, diluted_eps, cash_and_equivalents, accounts_receivable, inventory, accounts_payable),达到23个标准字段
+- **v1.3** (2026-01-06): **当前版本** - 新增6个Priority 1字段(capital_expenditure, dividends_paid, depreciation_amortization, cost_of_sales, rd_expenses, ppe_net),达到29个标准字段
+- **v1.4** (待定): 计划实现组合字段的自动计算逻辑
 
 ---
 

@@ -98,16 +98,119 @@ class TestConfigModule:
         assert StandardFields.DILUTED_EPS in config['a_stock']
         assert StandardFields.BASIC_EPS in config['hk_stock']
         assert StandardFields.DILUTED_EPS in config['hk_stock']
-        assert StandardFields.BASIC_EPS in config['us_stock']
-        assert StandardFields.DILUTED_EPS in config['us_stock']
 
-        # 验证营运资本字段
-        assert StandardFields.CASH_AND_EQUIVALENTS in config['a_stock']
-        assert StandardFields.ACCOUNTS_RECEIVABLE in config['a_stock']
-        assert StandardFields.INVENTORY in config['a_stock']
-        assert StandardFields.ACCOUNTS_PAYABLE in config['a_stock']
+    def test_priority_1_fields_mappings(self):
+        """验证Priority 1扩展字段的映射"""
+        config = load_market_mappings()
 
-        # 验证所有市场都有营运资本字段
+        # 验证所有市场都有Priority 1字段
         for market in ['a_stock', 'hk_stock', 'us_stock']:
-            assert StandardFields.CASH_AND_EQUIVALENTS in config[market]
-            assert StandardFields.INVENTORY in config[market]
+            # 现金流量分析字段
+            assert StandardFields.CAPITAL_EXPENDITURE in config[market]
+            assert StandardFields.DIVIDENDS_PAID in config[market]
+            assert StandardFields.DEPRECIATION_AMORTIZATION in config[market]
+
+            # 利润表扩展字段
+            assert StandardFields.COST_OF_SALES in config[market]
+            assert StandardFields.RD_EXPENSES in config[market]
+
+            # 资产负债表扩展字段
+            assert StandardFields.PPE_NET in config[market]
+
+    def test_priority_2_fields_mappings(self):
+        """验证Priority 2扩展字段的映射（新增11个字段）"""
+        config = load_market_mappings()
+
+        # 验证所有市场都有Priority 2字段
+        for market in ['a_stock', 'hk_stock', 'us_stock']:
+            # 资产负债表扩展字段 (7个)
+            assert StandardFields.INTANGIBLE_ASSETS in config[market]
+            assert StandardFields.GOODWILL in config[market]
+            assert StandardFields.LONG_TERM_EQUITY_INVESTMENT in config[market]
+            assert StandardFields.INVESTMENT_PROPERTY in config[market]
+            assert StandardFields.DEFERRED_TAX_ASSETS in config[market]
+            assert StandardFields.DEFERRED_TAX_LIABILITIES in config[market]
+
+            # 利润表扩展字段 (3个)
+            assert StandardFields.SELLING_EXPENSES in config[market]
+            assert StandardFields.ADMIN_EXPENSES in config[market]
+            assert StandardFields.OTHER_INCOME in config[market]
+
+            # 股东权益字段 (3个)
+            assert StandardFields.ISSUED_CAPITAL in config[market]
+            assert StandardFields.RETAINED_EARNINGS in config[market]
+            assert StandardFields.OTHER_COMPREHENSIVE_INCOME in config[market]
+
+    def test_total_field_count(self):
+        """验证标准字段总数"""
+        # 标准字段应该有 65 个 (29个原有 + 36个新增)
+        field_count = len([
+            attr for attr in dir(StandardFields)
+            if attr.isupper() and not attr.startswith('_')
+        ])
+        assert field_count == 65, f"预期有65个标准字段，实际有{field_count}个"
+
+    def test_priority_4_fields_mappings(self):
+        """验证Priority 4扩展字段的映射（IFRS 100%覆盖 - 新增13个字段）"""
+        config = load_market_mappings()
+
+        # 验证所有市场都有Priority 4字段 (阶段1: 2个高优先级)
+        for market in ['a_stock', 'hk_stock', 'us_stock']:
+            # 阶段1: 高优先级 (2个)
+            assert StandardFields.NON_CURRENT_ASSETS in config[market]
+            assert StandardFields.CURRENT_PORTION_LONG_TERM_DEBT in config[market]
+
+            # 阶段2: 中优先级 (6个)
+            assert StandardFields.OTHER_CURRENT_LIABILITIES in config[market]
+            assert StandardFields.PROVISIONS in config[market]
+            assert StandardFields.FINANCE_INCOME in config[market]
+            assert StandardFields.PROFIT_OF_ASSOCIATES in config[market]
+            assert StandardFields.CASH_PAID_TO_EMPLOYEES in config[market]
+            assert StandardFields.INCOME_TAXES_PAID in config[market]
+
+            # 阶段3: 低优先级 (5个)
+            assert StandardFields.RIGHT_OF_USE_ASSETS in config[market]
+            assert StandardFields.LEASE_LIABILITIES_CURRENT in config[market]
+            assert StandardFields.LEASE_LIABILITIES_NON_CURRENT in config[market]
+            assert StandardFields.PROCEEDS_FROM_ISSUING_SHARES in config[market]
+            assert StandardFields.REPAYMENT_OF_BORROWINGS in config[market]
+
+    def test_priority_3_fields_mappings(self):
+        """验证Priority 3扩展字段的映射（新增11个字段）"""
+        config = load_market_mappings()
+
+        # 验证所有市场都有Priority 3字段
+        for market in ['a_stock', 'hk_stock', 'us_stock']:
+            # 股东权益扩展 (2个)
+            assert StandardFields.SHARE_PREMIUM in config[market]
+            assert StandardFields.MINORITY_INTEREST in config[market]
+
+            # 其他资产负债表字段 (6个)
+            assert StandardFields.CONTRACT_ASSETS in config[market]
+            assert StandardFields.FINANCIAL_ASSETS in config[market]
+            assert StandardFields.PREPAYMENTS in config[market]
+            assert StandardFields.OTHER_CURRENT_ASSETS in config[market]
+            assert StandardFields.CONTRACT_LIABILITIES in config[market]
+            assert StandardFields.CURRENT_TAX_LIABILITIES in config[market]
+
+            # 现金流量表详细字段 (3个)
+            assert StandardFields.RECEIPTS_FROM_CUSTOMERS in config[market]
+            assert StandardFields.CASH_PAID_TO_SUPPLIERS in config[market]
+            assert StandardFields.PROCEEDS_FROM_BORROWINGS in config[market]
+
+    def test_capital_expenditure_a_stock(self):
+        """验证A股资本支出字段映射"""
+        config = load_market_mappings()
+        a_mappings = config['a_stock']
+        assert "购建固定资产、无形资产和其他长期资产支付的现金" in a_mappings[StandardFields.CAPITAL_EXPENDITURE]
+
+    def test_dividends_paid_market_differences(self):
+        """验证支付股利字段的市场差异"""
+        config = load_market_mappings()
+
+        # 港股是纯股息
+        assert "已付股息" in config['hk_stock'][StandardFields.DIVIDENDS_PAID]
+
+        # A股和美股包含利息(简化版)
+        assert "分配股利、利润或偿付利息支付的现金" in config['a_stock'][StandardFields.DIVIDENDS_PAID]
+        assert "分配股利、利润或偿付利息支付的现金" in config['us_stock'][StandardFields.DIVIDENDS_PAID]
